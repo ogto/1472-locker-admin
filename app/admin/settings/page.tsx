@@ -28,7 +28,7 @@ export default function AdminSettingsPage() {
     <AdminShell>
       <AdminHeader
         title="설정"
-        description="관리자 비밀번호 변경, 지점 옵션, 운영 설정, 출퇴근 관리 연결"
+        description="출퇴근 설정, 지점 옵션, 운영 설정"
         onLogout={auth.handleLogout}
       />
       <div className="rounded-[32px] border border-white/70 bg-white/80 p-10">
