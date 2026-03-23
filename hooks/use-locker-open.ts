@@ -11,14 +11,14 @@ import {
   calcDeviceNo,
   calcLockerNo,
 } from "@/lib/lockers/mapping";
-import { parseValidStorageId, validateLockerOpen } from "@/lib/lockers/validators";
+import { parseValidStorageId } from "@/lib/lockers/validators";
 
 export function useLockerOpen(
   pushRecentStorage: (no: number) => void,
   onUnauthorized?: () => void
 ) {
   const [point, setPoint] = useState(DEFAULT_POINT);
-  const [storageInput, setStorageInput] = useState("");
+  const [storageInput, setStorageInputState] = useState("");
   const [pulseMs, setPulseMs] = useState(DEFAULT_PULSE_MS);
   const [selectedStorageId, setSelectedStorageId] = useState<number | null>(null);
 
@@ -38,9 +38,15 @@ export function useLockerOpen(
     setStatusText("");
   }
 
+  function setStorageInput(value: string) {
+    clearStatus();
+    setStorageInputState(value);
+    setSelectedStorageId(null);
+  }
+
   function resetAll() {
     setPoint(DEFAULT_POINT);
-    setStorageInput("");
+    setStorageInputState("");
     setPulseMs(DEFAULT_PULSE_MS);
     setSelectedStorageId(null);
     clearStatus();
@@ -50,26 +56,31 @@ export function useLockerOpen(
 
   function handleRecentClick(no: number) {
     clearStatus();
-    setStorageInput(String(no));
+    setStorageInputState(String(no));
     setSelectedStorageId(no);
   }
 
   function handleOpenClick() {
     clearStatus();
 
-    const checked = validateLockerOpen({
-      point,
-      storageInput,
-      selectedStorageId,
-      pulseMs,
-    });
+    const parsedStorageId = parseValidStorageId(storageInput);
 
-    if (!checked.ok) {
-      setStatus("error", checked.message);
+    if (parsedStorageId == null) {
+      setStatus("error", `보관함 번호는 1부터 ${MAX_LOCKERS}까지 입력해야 합니다.`);
       return;
     }
 
-    setSelectedStorageId(checked.storageId);
+    if (!point?.trim()) {
+      setStatus("error", "지점 정보가 올바르지 않습니다.");
+      return;
+    }
+
+    if (!Number.isFinite(pulseMs) || pulseMs < 100 || pulseMs > 10000) {
+      setStatus("error", "열림 시간은 100~10000ms 범위여야 합니다.");
+      return;
+    }
+
+    setSelectedStorageId(parsedStorageId);
     setConfirmOpen(true);
   }
 
@@ -192,9 +203,10 @@ export function useLockerOpen(
   }
 
   const selectedMeta = useMemo(() => {
-    const target = selectedStorageId ?? Number(storageInput);
+    const parsedStorageId = parseValidStorageId(storageInput);
+    const target = parsedStorageId ?? selectedStorageId;
 
-    if (!Number.isInteger(target) || target < 1 || target > MAX_LOCKERS) {
+    if (!target) {
       return {
         value: "선택 안됨",
         helper: "1~320 사이 보관함 번호를 입력하세요.",
@@ -211,7 +223,7 @@ export function useLockerOpen(
           ? `deviceNo ${deviceNo} · lockerNo ${lockerNo}`
           : "매핑 정보 없음",
     };
-  }, [selectedStorageId, storageInput]);
+  }, [storageInput, selectedStorageId]);
 
   return {
     point,
