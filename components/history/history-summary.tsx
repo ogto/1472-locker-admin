@@ -41,7 +41,7 @@ export function HistorySummaryCards({
         className="bg-amber-100 text-amber-900"
       />
       <SummaryCard
-        title="픽업"
+        title="픽업보관"
         value={pickup}
         className="bg-pink-100 text-pink-900"
       />
