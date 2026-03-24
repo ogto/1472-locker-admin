@@ -50,7 +50,7 @@ export function formatStatus(status?: string | null) {
     case "PICKUP":
       return "픽업완료";
     case "CANCEL":
-    case "CANCELLED":
+    case "CANCELED":
       return "취소";
     default:
       return status || "-";

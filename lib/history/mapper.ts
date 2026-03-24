@@ -50,7 +50,7 @@ export function formatHistoryStatus(status: string) {
   if (status === "COMPLETED") return "보관중";
   if (status === "READY") return "찾기대기";
   if (status === "PICKUP") return "픽업완료";
-  if (status === "CANCEL") return "취소";
+  if (status === "CANCEL" || status === "CANCELED") return "취소";
   return status;
 }
 
