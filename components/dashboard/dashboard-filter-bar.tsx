@@ -24,10 +24,9 @@ function FilterButton({
       onClick={onClick}
       className={[
         "group min-h-[52px] rounded-2xl px-4 py-3 text-[15px] font-extrabold tracking-[-0.02em] transition-all duration-200",
-        "border",
         active
-          ? "border-transparent bg-gradient-to-r from-rose-400 via-pink-400 to-orange-300 text-white shadow-[0_10px_30px_rgba(251,113,133,0.28)]"
-          : "border-rose-100 bg-white text-slate-700 shadow-sm hover:border-rose-200 hover:bg-rose-50/60 hover:text-slate-900",
+          ? "bg-gradient-to-r from-rose-400 via-pink-400 to-orange-300 text-white"
+          : "border border-rose-100 bg-white text-slate-700 shadow-sm hover:border-rose-200 hover:bg-rose-50/60 hover:text-slate-900",
       ].join(" ")}
     >
       <span className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-import type { DashboardSummary } from "@/lib/dashboard/types";
+import type { HistorySummary } from "@/lib/history/types";
 
 type CardProps = {
   title: string;
@@ -17,15 +17,16 @@ function SummaryCard({ title, value, className }: CardProps) {
   );
 }
 
-export function DashboardSummaryCards({
+export function HistorySummaryCards({
   total,
   app,
   kiosk,
-}: DashboardSummary) {
+  pickup,
+}: HistorySummary) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
       <SummaryCard
-        title="전체 예약"
+        title="전체 건수"
         value={total}
         className="bg-slate-900 text-white"
       />
@@ -38,6 +39,11 @@ export function DashboardSummaryCards({
         title="키오스크"
         value={kiosk}
         className="bg-amber-100 text-amber-900"
+      />
+      <SummaryCard
+        title="픽업"
+        value={pickup}
+        className="bg-pink-100 text-pink-900"
       />
     </div>
   );

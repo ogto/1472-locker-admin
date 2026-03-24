@@ -85,5 +85,4 @@ export type DashboardSummary = {
   total: number;
   app: number;
   kiosk: number;
-  completed: number;
 };

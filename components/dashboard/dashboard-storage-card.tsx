@@ -3,7 +3,7 @@ import {
   formatPrice,
   formatReservationDate,
   formatStatus,
-} from "@/lib/dashboard/mapper";
+} from "@/lib/common";
 import type { DashboardItem } from "@/lib/dashboard/types";
 
 type Props = {
@@ -44,10 +44,6 @@ function getStatusTone(status: string) {
 
   if (status.includes("대기") || status.includes("예약")) {
     return "bg-amber-50 text-amber-700 border border-amber-100";
-  }
-
-  if (status.includes("완료") || status.includes("종료")) {
-    return "bg-slate-100 text-slate-700 border border-slate-200";
   }
 
   return "bg-rose-50 text-rose-700 border border-rose-100";

@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  groupDetailByType,
+} from "@/lib/dashboard/mapper";
+import {
   formatReservationDate,
   formatStatus,
   formatStorageType,
-  groupDetailByType,
-} from "@/lib/dashboard/mapper";
+} from "@/lib/common";
 import type { ReserveUserDetailItem } from "@/lib/dashboard/types";
 
 type Props = {
@@ -275,10 +277,6 @@ function getStatusTone(status: string) {
 
   if (status.includes("대기") || status.includes("예약")) {
     return "border border-amber-100 bg-amber-50 text-amber-700";
-  }
-
-  if (status.includes("완료") || status.includes("종료")) {
-    return "border border-slate-200 bg-slate-100 text-slate-700";
   }
 
   return "border border-rose-100 bg-rose-50 text-rose-700";

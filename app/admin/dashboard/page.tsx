@@ -17,9 +17,11 @@ import {
 } from "@/lib/dashboard/api";
 import {
   buildDashboardSummary,
-  formatChannel,
   mapReserveUserItem,
 } from "@/lib/dashboard/mapper";
+import {
+  formatChannel,
+} from "@/lib/common";
 import type {
   DashboardItem,
   ReserveUserDetailItem,
@@ -57,7 +59,7 @@ export default function AdminDashboardPage() {
       setRows(raw);
     } catch (error) {
       setErrorText(
-        error instanceof Error ? error.message : "현황판 조회에 실패했습니다."
+        error instanceof Error ? error.message : "대시보드 조회에 실패했습니다."
       );
     } finally {
       setLoading(false);
@@ -150,7 +152,6 @@ export default function AdminDashboardPage() {
     <AdminShell>
       <AdminHeader
         title="보관함 현황"
-        // description="예약 목록은 reserve-user, 상세는 reserve-user-detail 기준으로 표시합니다."
         onLogout={auth.handleLogout}
       />
 

@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import type { NavItem } from "@/lib/admin/types";
 
 const menus: NavItem[] = [
-  { href: "/admin/dashboard", label: "현황판", emoji: "📊" },
+  { href: "/admin/dashboard", label: "대시보드", emoji: "📊" },
+  { href: "/admin/history", label: "이용내역", emoji: "📁" },
   { href: "/admin/lockers", label: "보관함 제어", emoji: "🧰" },
   { href: "/admin/logs", label: "명령 이력", emoji: "🧾" },
   { href: "/admin/devices", label: "장치 상태", emoji: "📡" },
