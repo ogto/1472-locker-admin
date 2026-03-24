@@ -163,7 +163,7 @@ export default function AdminHistoryPage() {
   }
 
   return (
-    <AdminShell>
+    <AdminShell role={auth.role}>
       <AdminHeader title="이용내역" onLogout={auth.handleLogout} />
 
       <div className="space-y-4 lg:space-y-6">

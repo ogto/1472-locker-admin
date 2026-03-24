@@ -1,6 +1,7 @@
 export type SessionResponse = {
   ok: boolean;
   authenticated: boolean;
+  role: AdminRole | null;
 };
 
 export type ApiResponse = {
@@ -20,4 +21,11 @@ export type NavItem = {
   href: string;
   label: string;
   emoji?: string;
+};
+
+export type AdminRole = "admin" | "super-admin";
+
+export type AdminSessionResponse = {
+  authenticated: boolean;
+  role: AdminRole | null;
 };

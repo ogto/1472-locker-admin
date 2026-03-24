@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <AdminShell>
+    <AdminShell role={auth.role}>
       <AdminHeader
         title="보관함 현황"
         onLogout={auth.handleLogout}

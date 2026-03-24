@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SessionResponse } from "@/lib/admin/types";
+import type { SessionResponse, AdminRole } from "@/lib/admin/types";
 
 export function useAdminAuth() {
   const [booting, setBooting] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [role, setRole] = useState<AdminRole | null>(null);
+
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
@@ -22,9 +24,12 @@ export function useAdminAuth() {
       });
 
       const data: SessionResponse = await res.json();
+
       setAuthenticated(Boolean(res.ok && data.authenticated));
+      setRole(data.role ?? null);
     } catch {
       setAuthenticated(false);
+      setRole(null);
     } finally {
       setBooting(false);
     }
@@ -46,6 +51,7 @@ export function useAdminAuth() {
 
       if (res.ok && data.ok) {
         setAuthenticated(true);
+        setRole(data.role ?? null);
         setPassword("");
         return;
       }
@@ -66,6 +72,7 @@ export function useAdminAuth() {
       });
     } finally {
       setAuthenticated(false);
+      setRole(null);
       setPassword("");
       setLoginError("");
     }
@@ -74,6 +81,7 @@ export function useAdminAuth() {
   return {
     booting,
     authenticated,
+    role,
     password,
     setPassword,
     loginError,
@@ -81,5 +89,6 @@ export function useAdminAuth() {
     handleLogin,
     handleLogout,
     setAuthenticated,
+    setRole,
   };
 }

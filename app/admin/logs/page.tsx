@@ -25,7 +25,7 @@ export default function AdminLogsPage() {
   }
 
   return (
-    <AdminShell>
+    <AdminShell role={auth.role}>
       <AdminHeader
         title="명령 이력"
         description="명령 로그 API와 연결"

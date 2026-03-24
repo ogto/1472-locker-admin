@@ -25,7 +25,7 @@ export default function AdminDevicesPage() {
   }
 
   return (
-    <AdminShell>
+    <AdminShell role={auth.role}>
       <AdminHeader
         title="장치 상태"
         description="ESP32 / 장치 헬스체크와 연결"

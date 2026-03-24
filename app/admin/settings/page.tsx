@@ -25,7 +25,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <AdminShell>
+    <AdminShell role={auth.role}>
       <AdminHeader
         title="설정"
         description="출퇴근 설정, 지점 옵션, 운영 설정"
