@@ -4,9 +4,10 @@ import { ADMIN_COOKIE_NAME } from "@/lib/admin/constants";
 export async function GET(req: NextRequest) {
   try {
     const sessionToken = process.env.ADMIN_SESSION_TOKEN;
+    const superToken = process.env.SUPER_ADMIN_SESSION_TOKEN;
     const cookieValue = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
 
-    if (!sessionToken || cookieValue !== sessionToken) {
+    if (!sessionToken || cookieValue !== sessionToken || !superToken) {
       return NextResponse.json(
         { ok: false, message: "로그인이 필요합니다." },
         { status: 401 }
