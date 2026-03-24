@@ -33,7 +33,7 @@ export function formatHistoryType(type?: number | null) {
 }
 
 export function formatHistoryPoint(point: string) {
-  if (point === "bank") return "성심당점";
+  if (point === "bank") return "은행점";
   if (point === "sungsim") return "으능정이점";
   if (point === "baseball") return "한화생명볼파크점";
   return point || "-";

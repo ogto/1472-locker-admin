@@ -9,7 +9,7 @@ type Props = {
 };
 
 const pointOptions = [
-  { value: "bank", label: "성심당점" },
+  { value: "bank", label: "은행점" },
   { value: "sungsim", label: "으능정이점" },
   { value: "baseball", label: "한화생명볼파크점" },
 ];
