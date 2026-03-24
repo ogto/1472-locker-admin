@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     const superToken = process.env.SUPER_ADMIN_SESSION_TOKEN;
     const cookieValue = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
 
-    if (!sessionToken || cookieValue !== sessionToken || !superToken) {
+    if (!sessionToken || cookieValue !== sessionToken || !superToken || cookieValue !== superToken) {
       return NextResponse.json(
         { ok: false, message: "로그인이 필요합니다." },
         { status: 401 }
