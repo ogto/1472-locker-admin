@@ -16,6 +16,7 @@ const menus: SidebarMenu[] = [
   { href: "/admin/logs", label: "명령 이력", emoji: "🧾" },
   { href: "/admin/devices", label: "장치 상태", emoji: "📡" },
   { href: "/admin/settings", label: "설정", emoji: "⚙️" },
+  { href: "/admin/cctv", label: "CCTV", emoji: "📷" },
 ];
 
 function SidebarInner({
