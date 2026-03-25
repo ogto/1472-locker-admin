@@ -8,7 +8,7 @@ export const CCTV_CAMERAS: CctvCamera[] = [
     description: "냉장 구역 전경",
     enabled: true,
     streamType: "iframe",
-    streamUrl: "http://14.82.64.55:31984/stream.html?src=cam1",
+    streamUrl: "https://closes-zip-butler-revenue.trycloudflare.com/stream.html?src=cam1",
   },
   {
     id: "cam-2",
@@ -17,7 +17,7 @@ export const CCTV_CAMERAS: CctvCamera[] = [
     description: "상온 구역 전경",
     enabled: true,
     streamType: "iframe",
-    streamUrl: "http://14.82.64.55:31984/stream.html?src=cam2",
+    streamUrl: "https://closes-zip-butler-revenue.trycloudflare.com/stream.html?src=cam2",
   },
   {
     id: "cam-3",
@@ -26,7 +26,7 @@ export const CCTV_CAMERAS: CctvCamera[] = [
     description: "미정 확인용",
     enabled: true,
     streamType: "iframe",
-    streamUrl: "http://14.82.64.55:31984/stream.html?src=cam3",
+    streamUrl: "https://closes-zip-butler-revenue.trycloudflare.com/stream.html?src=cam3",
   },
     {
     id: "cam-4",
@@ -35,7 +35,7 @@ export const CCTV_CAMERAS: CctvCamera[] = [
     description: "미정 확인용",
     enabled: true,
     streamType: "iframe",
-    streamUrl: "http://14.82.64.55:31984/stream.html?src=cam4",
+    streamUrl: "https://closes-zip-butler-revenue.trycloudflare.com/stream.html?src=cam4",
   },
     {
     id: "cam-5",
@@ -44,7 +44,7 @@ export const CCTV_CAMERAS: CctvCamera[] = [
     description: "미정 확인용",
     enabled: true,
     streamType: "iframe",
-    streamUrl: "http://14.82.64.55:31984/stream.html?src=cam5",
+    streamUrl: "https://closes-zip-butler-revenue.trycloudflare.com/stream.html?src=cam5",
   },
     {
     id: "cam-6",
@@ -53,7 +53,7 @@ export const CCTV_CAMERAS: CctvCamera[] = [
     description: "미정 확인용",
     enabled: true,
     streamType: "iframe",
-    streamUrl: "http://14.82.64.55:31984/stream.html?src=cam6",
+    streamUrl: "https://closes-zip-butler-revenue.trycloudflare.com/stream.html?src=cam6",
   },
     {
     id: "cam-7",
@@ -62,6 +62,6 @@ export const CCTV_CAMERAS: CctvCamera[] = [
     description: "미정 확인용",
     enabled: true,
     streamType: "iframe",
-    streamUrl: "http://14.82.64.55:31984/stream.html?src=cam7",
+    streamUrl: "https://closes-zip-butler-revenue.trycloudflare.com/stream.html?src=cam7",
   },
 ];
