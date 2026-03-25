@@ -58,7 +58,7 @@ export function LockerOpenForm({
               setStorageInput(sanitizeNumericInput(e.target.value));
             }}
             className="w-full rounded-2xl border border-pink-100 bg-white px-4 py-3 outline-none transition focus:border-pink-300 focus:shadow-[0_0_0_6px_rgba(251,207,232,0.35)]"
-            placeholder="1~320"
+            placeholder="1~3000"
           />
         </div>
 

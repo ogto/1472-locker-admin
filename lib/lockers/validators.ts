@@ -1,7 +1,7 @@
 import { DEFAULT_POINT, MAX_LOCKERS } from "@/lib/lockers/constants";
 
 export function sanitizeNumericInput(value: string) {
-  return value.replace(/[^0-9]/g, "").slice(0, 3);
+  return value.replace(/[^0-9]/g, "").slice(0, 4);
 }
 
 export function parseValidStorageId(value: string) {
