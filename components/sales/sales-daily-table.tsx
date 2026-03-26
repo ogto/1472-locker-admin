@@ -10,8 +10,9 @@ function getRowTypeText(row: DailySalesViewRow) {
   const label = row.rowTypeLabel?.trim();
   if (label) return label;
 
-  if (row.rowTypeCode === "0") return "결제";
-  if (row.rowTypeCode === "1") return "환불";
+  if (row.rowTypeCode === "0") return "기본결제";
+  if (row.rowTypeCode === "1") return "추가결제";
+  if (row.rowTypeCode === "2") return "취소";
 
   return "-";
 }
@@ -41,7 +42,7 @@ export function SalesDailyTable({ rows, periodType }: Props) {
         <h2 className="text-lg font-black text-slate-900">
           {periodType === "month" ? "월 기준 원장 미리보기" : "일별 상세 리스트"}
         </h2>
-        <p className="mt-1 text-sm text-slate-500">결제 / 환불 내역 원장</p>
+        <p className="mt-1 text-sm text-slate-500">결제 / 취소 내역 원장</p>
       </div>
 
       <div className="overflow-x-auto">
@@ -86,9 +87,11 @@ export function SalesDailyTable({ rows, periodType }: Props) {
                       <span
                         className={[
                           "inline-flex min-w-[58px] items-center justify-center rounded-full px-3 py-1 text-xs font-black",
-                          row.rowTypeCode === "1"
+                          row.rowTypeCode === "2"
                             ? "bg-rose-100 text-rose-600"
-                            : "bg-emerald-100 text-emerald-600",
+                            : row.rowTypeCode === "1"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-emerald-100 text-emerald-600",
                         ].join(" ")}
                       >
                         {rowTypeText}

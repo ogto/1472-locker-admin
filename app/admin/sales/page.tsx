@@ -33,6 +33,7 @@ export default function AdminSalesPage() {
   const [date, setDate] = useState(getTodayDateString());
 
   const { data, loading, error, refetch } = useSales({
+    periodType,
     year,
     month,
     date,

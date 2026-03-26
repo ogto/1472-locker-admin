@@ -27,8 +27,9 @@ const PAYMENT_TYPE_LABEL: Record<string, string> = {
 };
 
 const ROW_TYPE_LABEL: Record<string, string> = {
-  "0": "결제",
-  "1": "환불",
+  "0": "기본결제",
+  "1": "추가결제",
+  "2": "취소",
 };
 
 function extractCode(raw?: string | number | null) {
@@ -58,7 +59,10 @@ function parseFlexibleDate(value?: string | null) {
     .filter(Boolean)
     .map((part) => Number(part));
 
-  if (commaNumbers.length >= 6 && commaNumbers.slice(0, 6).every((v) => Number.isFinite(v))) {
+  if (
+    commaNumbers.length >= 6 &&
+    commaNumbers.slice(0, 6).every((v) => Number.isFinite(v))
+  ) {
     const [year, month, day, hour, minute, second] = commaNumbers;
     return new Date(year, month - 1, day, hour, minute, second);
   }
@@ -99,19 +103,21 @@ function formatDateTimeLabel(value?: string | null) {
   return `${yyyy}.${mm}.${dd} ${hh}:${mi}`;
 }
 
+function sumRecordValues(record?: Record<string, number>) {
+  return Object.values(record ?? {}).reduce(
+    (acc, cur) => acc + Number(cur || 0),
+    0,
+  );
+}
+
 export function getPaymentTypeLabel(raw?: string | number | null) {
   const code = extractCode(raw);
-  if (code === "0") return "앱";
-  if (code === "1") return "카드";
-  if (code === "2") return "현금";
-  return "";
+  return PAYMENT_TYPE_LABEL[code] ?? "-";
 }
 
 export function getRowTypeLabel(raw?: string | number | null) {
   const code = extractCode(raw);
-  if (code === "0") return "결제";
-  if (code === "1") return "환불";
-  return "";
+  return ROW_TYPE_LABEL[code] ?? "-";
 }
 
 export function getPointLabel(point?: string | null) {
@@ -124,11 +130,16 @@ export function getPointLabel(point?: string | null) {
 
 export function mapMonthRows(rows: MonthSalesApiItem[]): MonthlyChartRow[] {
   return [...rows]
-    .map((row) => ({
-      date: row.createdAt,
-      label: formatDateLabel(row.createdAt),
-      totalAmount: Number(row.totalAmount || 0),
-    }))
+    .map((row) => {
+      const paymentAmount = sumRecordValues(row.paymentTypeAmount);
+      const cancelAmount = sumRecordValues(row.paymentTypeCancelAmount);
+
+      return {
+        date: row.createdAt,
+        label: formatDateLabel(row.createdAt),
+        totalAmount: paymentAmount - cancelAmount,
+      };
+    })
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -211,11 +222,6 @@ export function buildMonthSummary(
   monthRows: MonthSalesApiItem[],
   paymentRows: PaymentChartRow[],
 ): MonthSummary {
-  const totalAmount = monthRows.reduce(
-    (acc, cur) => acc + Number(cur.totalAmount || 0),
-    0,
-  );
-
   const totalPaymentAmount = paymentRows.reduce(
     (acc, cur) => acc + Number(cur.amount || 0),
     0,
@@ -243,7 +249,7 @@ export function buildMonthSummary(
     paymentRows.find((row) => row.key === "1" || row.label === "카드") ?? null;
 
   return {
-    totalAmount,
+    totalAmount: totalPaymentAmount - totalCancelAmount,
 
     totalPaymentAmount,
     totalCancelAmount,
@@ -260,14 +266,25 @@ export function buildMonthSummary(
 }
 
 export function buildDailySummary(dailyRows: DailySalesApiItem[]): DailySummary {
-  const paymentRows = dailyRows.filter((row) => extractCode(row.type) === "0");
-  const refundRows = dailyRows.filter((row) => extractCode(row.type) === "1");
+  const paymentRows = dailyRows.filter((row) => {
+    const type = extractCode(row.type);
+    return type === "0" || type === "1";
+  });
 
-  const paymentAmount = paymentRows.reduce((acc, cur) => acc + Number(cur.price || 0), 0);
-  const refundAmount = refundRows.reduce((acc, cur) => acc + Number(cur.price || 0), 0);
+  const refundRows = dailyRows.filter((row) => extractCode(row.type) === "2");
+
+  const paymentAmount = paymentRows.reduce(
+    (acc, cur) => acc + Number(cur.price || 0),
+    0,
+  );
+  const refundAmount = refundRows.reduce(
+    (acc, cur) => acc + Number(cur.price || 0),
+    0,
+  );
   const paymentCount = paymentRows.length;
   const refundCount = refundRows.length;
-  const avgPaymentAmount = paymentCount > 0 ? Math.round(paymentAmount / paymentCount) : 0;
+  const avgPaymentAmount =
+    paymentCount > 0 ? Math.round(paymentAmount / paymentCount) : 0;
 
   return {
     paymentAmount,
