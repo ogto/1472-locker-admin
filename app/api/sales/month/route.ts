@@ -26,13 +26,10 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
     });
 
-    const text = await response.text();
+    const data = await response.json();
 
-    return new NextResponse(text, {
+    return NextResponse.json(data, {
       status: response.status,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-      },
     });
   } catch {
     return NextResponse.json(

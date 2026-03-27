@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDailySales, getMonthSales } from "@/lib/sales/api";
 import { mapSalesDashboardData } from "@/lib/sales/mapper";
-import type { PointKey, SalesDashboardData, SalesPeriodType } from "@/lib/sales/types";
+import type {
+  DailySalesApiResponse,
+  PointKey,
+  SalesDashboardData,
+  SalesPeriodType,
+} from "@/lib/sales/types";
 
 type Params = {
   periodType: SalesPeriodType;
@@ -11,6 +16,19 @@ type Params = {
   month: number;
   date: string;
   point: PointKey;
+};
+
+const EMPTY_DAILY_DATA: DailySalesApiResponse = {
+  date: "",
+  coldCount: 0,
+  roomCount: 0,
+  carrierCount: 0,
+  baseAmount: 0,
+  addAmount: 0,
+  cancelAmount: 0,
+  paymentAmount: 0,
+  netAmount: 0,
+  items: [],
 };
 
 export function useSales(params: Params) {
@@ -30,14 +48,14 @@ export function useSales(params: Params) {
           point: params.point,
         });
 
-        setData(mapSalesDashboardData(monthItems, []));
+        setData(mapSalesDashboardData(monthItems, EMPTY_DAILY_DATA));
       } else {
-        const dailyItems = await getDailySales({
+        const dailyData = await getDailySales({
           date: params.date,
           point: params.point,
         });
 
-        setData(mapSalesDashboardData([], dailyItems));
+        setData(mapSalesDashboardData([], dailyData));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "매출 데이터를 불러오지 못했습니다.");

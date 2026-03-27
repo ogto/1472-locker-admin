@@ -9,6 +9,15 @@ export type MonthSalesApiItem = {
   paymentTypeCount?: Record<string, number>;
   totalAmount: number;
   typeAmount?: Record<string, number>;
+  coldCount?: number;
+  roomCount?: number;
+  carrierCount?: number;
+  baseAmount?: number;
+  addAmount?: number;
+  addCount?: number;
+  paymentAmount?: number;
+  cancelAmount?: number;
+  netAmount?: number;
 };
 
 export type DailySalesApiItem = {
@@ -16,14 +25,28 @@ export type DailySalesApiItem = {
   price: number;
   storageId: number;
   mberNo: number;
-  payType: string;
-  type: string;
+  payType: string | number;
+  type: string | number;
   createdAt: string;
   ordId?: string;
   tossPaymentKey?: string;
   couponCodeId?: number;
   couponPrice?: number;
   point?: string;
+};
+
+export type DailySalesApiResponse = {
+  date: string;
+  coldCount: number;
+  roomCount: number;
+  carrierCount: number;
+  baseAmount: number;
+  addAmount: number;
+  addCount: number;
+  cancelAmount: number;
+  paymentAmount: number;
+  netAmount: number;
+  items: DailySalesApiItem[];
 };
 
 export type MonthlyChartRow = {
@@ -61,18 +84,20 @@ export type DailySalesViewRow = {
 
 export type MonthSummary = {
   totalAmount: number;
-
   totalPaymentAmount: number;
   totalCancelAmount: number;
-
   totalPaymentCount: number;
   totalCancelCount: number;
-
   appPaymentAmount: number;
   cardPaymentAmount: number;
-
   appCancelAmount: number;
   cardCancelAmount: number;
+  coldCount?: number;
+  roomCount?: number;
+  carrierCount?: number;
+  baseAmount?: number;
+  addAmount?: number;
+  addCount?: number;
 };
 
 export type DailySummary = {
@@ -81,6 +106,13 @@ export type DailySummary = {
   paymentCount: number;
   refundCount: number;
   avgPaymentAmount: number;
+  coldCount?: number;
+  roomCount?: number;
+  carrierCount?: number;
+  baseAmount?: number;
+  addAmount?: number;
+  addCount?: number;
+  netAmount?: number;
 };
 
 export type SalesDashboardData = {

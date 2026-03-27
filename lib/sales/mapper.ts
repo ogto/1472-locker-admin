@@ -1,6 +1,7 @@
 import { formatPrice } from "@/lib/common";
 import type {
   DailySalesApiItem,
+  DailySalesApiResponse,
   DailySalesViewRow,
   DailySummary,
   MonthSalesApiItem,
@@ -248,64 +249,92 @@ export function buildMonthSummary(
   const cardRow =
     paymentRows.find((row) => row.key === "1" || row.label === "카드") ?? null;
 
+  const coldCount = monthRows.reduce(
+    (acc, cur) => acc + Number(cur.coldCount || 0),
+    0,
+  );
+  const roomCount = monthRows.reduce(
+    (acc, cur) => acc + Number(cur.roomCount || 0),
+    0,
+  );
+  const carrierCount = monthRows.reduce(
+    (acc, cur) => acc + Number(cur.carrierCount || 0),
+    0,
+  );
+  const baseAmount = monthRows.reduce(
+    (acc, cur) => acc + Number(cur.baseAmount || 0),
+    0,
+  );
+  const addAmount = monthRows.reduce(
+    (acc, cur) => acc + Number(cur.addAmount || 0),
+    0,
+  );
+  const addCount = monthRows.reduce(
+    (acc, cur) => acc + Number(cur.addCount || 0),
+    0,
+  );
+
   return {
     totalAmount: totalPaymentAmount - totalCancelAmount,
-
     totalPaymentAmount,
     totalCancelAmount,
-
     totalPaymentCount,
     totalCancelCount,
-
     appPaymentAmount: Number(appRow?.amount || 0),
     cardPaymentAmount: Number(cardRow?.amount || 0),
-
     appCancelAmount: Number(appRow?.cancelAmount || 0),
     cardCancelAmount: Number(cardRow?.cancelAmount || 0),
+    coldCount,
+    roomCount,
+    carrierCount,
+    baseAmount,
+    addAmount,
+    addCount,
   };
 }
 
-export function buildDailySummary(dailyRows: DailySalesApiItem[]): DailySummary {
-  const paymentRows = dailyRows.filter((row) => {
+export function buildDailySummary(daily: DailySalesApiResponse): DailySummary {
+  const paymentCount = daily.items.filter((row) => {
     const type = extractCode(row.type);
     return type === "0" || type === "1";
-  });
+  }).length;
 
-  const refundRows = dailyRows.filter((row) => extractCode(row.type) === "2");
+  const refundCount = daily.items.filter(
+    (row) => extractCode(row.type) === "2",
+  ).length;
 
-  const paymentAmount = paymentRows.reduce(
-    (acc, cur) => acc + Number(cur.price || 0),
-    0,
-  );
-  const refundAmount = refundRows.reduce(
-    (acc, cur) => acc + Number(cur.price || 0),
-    0,
-  );
-  const paymentCount = paymentRows.length;
-  const refundCount = refundRows.length;
   const avgPaymentAmount =
-    paymentCount > 0 ? Math.round(paymentAmount / paymentCount) : 0;
+    paymentCount > 0
+      ? Math.round(Number(daily.paymentAmount || 0) / paymentCount)
+      : 0;
 
   return {
-    paymentAmount,
-    refundAmount,
+    paymentAmount: Number(daily.paymentAmount || 0),
+    refundAmount: Number(daily.cancelAmount || 0),
     paymentCount,
     refundCount,
     avgPaymentAmount,
+    coldCount: Number(daily.coldCount || 0),
+    roomCount: Number(daily.roomCount || 0),
+    carrierCount: Number(daily.carrierCount || 0),
+    baseAmount: Number(daily.baseAmount || 0),
+    addAmount: Number(daily.addAmount || 0),
+    addCount: Number(daily.addCount || 0),
+    netAmount: Number(daily.netAmount || 0),
   };
 }
 
 export function mapSalesDashboardData(
   monthItems: MonthSalesApiItem[],
-  dailyItems: DailySalesApiItem[],
+  dailyData: DailySalesApiResponse,
 ): SalesDashboardData {
   const paymentRows = mapPaymentRows(monthItems);
 
   return {
     monthRows: mapMonthRows(monthItems),
     paymentRows,
-    dailyRows: mapDailyRows(dailyItems),
+    dailyRows: mapDailyRows(dailyData.items ?? []),
     monthSummary: buildMonthSummary(monthItems, paymentRows),
-    dailySummary: buildDailySummary(dailyItems),
+    dailySummary: buildDailySummary(dailyData),
   };
 }

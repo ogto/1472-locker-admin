@@ -42,7 +42,9 @@ export function SalesDailyTable({ rows, periodType }: Props) {
         <h2 className="text-lg font-black text-slate-900">
           {periodType === "month" ? "월 기준 원장 미리보기" : "일별 상세 리스트"}
         </h2>
-        <p className="mt-1 text-sm text-slate-500">결제 / 취소 내역 원장</p>
+        <p className="mt-1 text-sm text-slate-500">
+          기본결제 / 추가결제 / 취소 내역
+        </p>
       </div>
 
       <div className="overflow-x-auto">
@@ -79,6 +81,7 @@ export function SalesDailyTable({ rows, periodType }: Props) {
                 return (
                   <tr key={row.id} className="bg-slate-50 text-sm text-slate-700">
                     <td className="px-3 py-3">{row.storageId || "-"}</td>
+
                     <td className="whitespace-nowrap rounded-l-2xl px-3 py-3 font-semibold">
                       {row.createdAtLabel || "-"}
                     </td>
@@ -98,9 +101,7 @@ export function SalesDailyTable({ rows, periodType }: Props) {
                       </span>
                     </td>
 
-                    <td className="px-3 py-3 font-semibold">
-                      {payTypeText}
-                    </td>
+                    <td className="px-3 py-3 font-semibold">{payTypeText}</td>
 
                     <td className="px-3 py-3 font-black text-slate-900">
                       {priceText}
