@@ -46,13 +46,40 @@ export function HistorySummaryCards({
 }: HistorySummary) {
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         <SummaryCard
-          title="예약건수"
+          title="예약건수(명)"
           value={reservationCount}
           className="bg-slate-900 text-white"
           accentClassName="bg-white"
         />
+                <SummaryCard
+          title="보관중(명)"
+          value={completedCount}
+          className="bg-emerald-100 text-emerald-900"
+          accentClassName="bg-emerald-500"
+        />
+        <SummaryCard
+          title="픽업완료(명)"
+          value={pickupDoneCount}
+          className="bg-fuchsia-100 text-fuchsia-900"
+          accentClassName="bg-fuchsia-500"
+        />
+        <SummaryCard
+          title="예약"
+          value={pendingCount}
+          className="bg-cyan-100 text-cyan-900"
+          accentClassName="bg-cyan-500"
+        />
+        <SummaryCard
+          title="취소"
+          value={canceledCount}
+          className="bg-rose-100 text-rose-900"
+          accentClassName="bg-rose-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         <SummaryCard
           title="보관함 건수"
           value={storageCount}
@@ -82,33 +109,6 @@ export function HistorySummaryCards({
           value={pickupCount}
           className="bg-pink-100 text-pink-900"
           accentClassName="bg-pink-500"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <SummaryCard
-          title="보관중"
-          value={completedCount}
-          className="bg-emerald-100 text-emerald-900"
-          accentClassName="bg-emerald-500"
-        />
-        <SummaryCard
-          title="픽업완료"
-          value={pickupDoneCount}
-          className="bg-fuchsia-100 text-fuchsia-900"
-          accentClassName="bg-fuchsia-500"
-        />
-        <SummaryCard
-          title="예약"
-          value={pendingCount}
-          className="bg-cyan-100 text-cyan-900"
-          accentClassName="bg-cyan-500"
-        />
-        <SummaryCard
-          title="취소"
-          value={canceledCount}
-          className="bg-rose-100 text-rose-900"
-          accentClassName="bg-rose-500"
         />
       </div>
     </div>
