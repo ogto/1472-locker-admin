@@ -23,6 +23,8 @@ const EMPTY_DAILY_DATA: DailySalesApiResponse = {
   coldCount: 0,
   roomCount: 0,
   carrierCount: 0,
+  baseCount: 0,
+  addCount: 0,
   baseAmount: 0,
   addAmount: 0,
   cancelAmount: 0,
