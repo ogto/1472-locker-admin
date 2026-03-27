@@ -2,6 +2,7 @@ import type {
   HistoryDetailItem,
   HistoryPageResponse,
   HistorySearchParams,
+  HistorySummary,
 } from "./types";
 
 export async function fetchReserveHistory(
@@ -28,6 +29,10 @@ export async function fetchReserveHistory(
     searchParams.set("searchQuery", params.searchQuery);
   }
 
+  if (params.reservationStatus) {
+    searchParams.set("reservationStatus", params.reservationStatus);
+  }
+
   const response = await fetch(`/api/history?${searchParams.toString()}`, {
     method: "GET",
     cache: "no-store",
@@ -40,6 +45,59 @@ export async function fetchReserveHistory(
   }
 
   return data;
+}
+
+export async function fetchReserveHistorySummary(
+  params: Omit<HistorySearchParams, "page" | "size">
+): Promise<HistorySummary> {
+  const searchParams = new URLSearchParams();
+
+  if (params.point) {
+    searchParams.set("point", params.point);
+  }
+
+  if (params.reservationStartDay) {
+    searchParams.set("reservationStartDay", params.reservationStartDay);
+  }
+
+  if (params.reservationEndDay) {
+    searchParams.set("reservationEndDay", params.reservationEndDay);
+  }
+
+  if (params.searchQuery) {
+    searchParams.set("searchQuery", params.searchQuery);
+  }
+
+  if (params.reservationStatus) {
+    searchParams.set("reservationStatus", params.reservationStatus);
+  }
+
+  const response = await fetch(
+    `/api/history/summary?${searchParams.toString()}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message || "이용내역 요약 조회에 실패했습니다.");
+  }
+
+  return {
+    reservationCount: Number(data?.reservationCount || 0),
+    storageCount: Number(data?.storageCount || 0),
+    coldCount: Number(data?.coldCount || 0),
+    roomCount: Number(data?.roomCount || 0),
+    carrierCount: Number(data?.carrierCount || 0),
+    pickupCount: Number(data?.pickupCount || 0),
+    completedCount: Number(data?.completedCount || 0),
+    pickupDoneCount: Number(data?.pickupDoneCount || 0),
+    pendingCount: Number(data?.pendingCount || 0),
+    canceledCount: Number(data?.canceledCount || 0),
+  };
 }
 
 export async function fetchReserveHistoryDetail(

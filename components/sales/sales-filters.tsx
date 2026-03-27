@@ -40,18 +40,6 @@ export function SalesFilters({
       <div className="mb-5 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => onChangePeriodType("month")}
-          className={[
-            "rounded-2xl px-4 py-2 text-sm font-black transition",
-            periodType === "month"
-              ? "bg-slate-900 text-white"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-          ].join(" ")}
-        >
-          월별
-        </button>
-        <button
-          type="button"
           onClick={() => onChangePeriodType("daily")}
           className={[
             "rounded-2xl px-4 py-2 text-sm font-black transition",
@@ -61,6 +49,18 @@ export function SalesFilters({
           ].join(" ")}
         >
           일별
+        </button>
+        <button
+          type="button"
+          onClick={() => onChangePeriodType("month")}
+          className={[
+            "rounded-2xl px-4 py-2 text-sm font-black transition",
+            periodType === "month"
+              ? "bg-slate-900 text-white"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+          ].join(" ")}
+        >
+          월별
         </button>
       </div>
 

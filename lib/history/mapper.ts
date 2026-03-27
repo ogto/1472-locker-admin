@@ -2,7 +2,6 @@ import type {
   HistoryDetailItem,
   HistoryDetailViewItem,
   HistoryItem,
-  HistorySummary,
   HistoryViewItem,
 } from "./types";
 
@@ -13,16 +12,54 @@ function formatNumber(value: number) {
 function safeDateText(value?: string) {
   if (!value) return "-";
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+  const raw = String(value).trim();
+  if (!raw) return "-";
 
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  const hh = String(date.getHours()).padStart(2, "0");
-  const mi = String(date.getMinutes()).padStart(2, "0");
+  const normalDate = new Date(raw);
+  if (!Number.isNaN(normalDate.getTime())) {
+    const yyyy = normalDate.getFullYear();
+    const mm = String(normalDate.getMonth() + 1).padStart(2, "0");
+    const dd = String(normalDate.getDate()).padStart(2, "0");
+    const hh = String(normalDate.getHours()).padStart(2, "0");
+    const mi = String(normalDate.getMinutes()).padStart(2, "0");
+    const ss = String(normalDate.getSeconds()).padStart(2, "0");
 
-  return `${yyyy}.${mm}.${dd} ${hh}:${mi}`;
+    return `${yyyy}.${mm}.${dd} ${hh}:${mi}:${ss}`;
+  }
+
+  if (raw.includes(",")) {
+    const parts = raw.split(",").map((v) => v.trim());
+
+    if (parts.length >= 6) {
+      const [year, month, day, hour, minute, second] = parts;
+
+      const y = Number(year);
+      const m = Number(month);
+      const d = Number(day);
+      const hh = Number(hour);
+      const mi = Number(minute);
+      const ss = Number(second);
+
+      if (
+        !Number.isNaN(y) &&
+        !Number.isNaN(m) &&
+        !Number.isNaN(d) &&
+        !Number.isNaN(hh) &&
+        !Number.isNaN(mi) &&
+        !Number.isNaN(ss)
+      ) {
+        return `${String(y).padStart(4, "0")}.${String(m).padStart(
+          2,
+          "0"
+        )}.${String(d).padStart(2, "0")} ${String(hh).padStart(
+          2,
+          "0"
+        )}:${String(mi).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+      }
+    }
+  }
+
+  return raw;
 }
 
 export function formatHistoryType(type?: number | null) {
@@ -46,7 +83,7 @@ export function formatHistoryChannel(os: string) {
 
 export function formatHistoryStatus(status: string) {
   if (!status) return "-";
-  if (status === "PENDING") return "대기";
+  if (status === "PENDING") return "예약";
   if (status === "COMPLETED") return "보관중";
   if (status === "READY") return "찾기대기";
   if (status === "PICKUP") return "픽업완료";
@@ -61,30 +98,11 @@ export function mapHistoryItem(item: HistoryItem): HistoryViewItem {
     customerName: item.mberNm?.trim() || "-",
     tel: item.tel || "-",
     statusLabel: formatHistoryStatus(item.reservationStatus),
-    osLabel: formatHistoryChannel(item.os),
     priceText: `${formatNumber(item.price || 0)}원`,
     reservationDateText: item.reservationDay
       ? `${item.reservationDay} ${item.reservationStartTime || ""}`.trim()
       : "-",
     raw: item,
-  };
-}
-
-export function buildHistorySummary(items: HistoryItem[]): HistorySummary {
-  const total = items.length;
-  const app = items.filter(
-    (item) => (item.os || "").toLowerCase() !== "kiosk"
-  ).length;
-  const kiosk = items.filter(
-    (item) => (item.os || "").toLowerCase() === "kiosk"
-  ).length;
-  const pickup = items.filter((item) => item.pickupProduct).length;
-
-  return {
-    total,
-    app,
-    kiosk,
-    pickup,
   };
 }
 
@@ -106,7 +124,7 @@ export function mapHistoryDetailItem(
     reservationDateText: item.reservationDay
       ? `${item.reservationDay} ${item.reservationStartTime || ""}`.trim()
       : "-",
-    pickupLabel: item.pickupProduct ? "픽업" : "일반",
+    pickupLabel: item.pickupProduct ? "픽업보관" : "일반보관",
     maskedPwd: item.pwd ? "●".repeat(String(item.pwd).length) : "-",
     memo: item.memo || "",
     ordId: item.ordId || "-",

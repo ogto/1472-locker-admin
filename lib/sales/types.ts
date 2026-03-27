@@ -13,6 +13,7 @@ export type MonthSalesApiItem = {
   roomCount?: number;
   carrierCount?: number;
   baseAmount?: number;
+  baseCount?: number;
   addAmount?: number;
   addCount?: number;
   paymentAmount?: number;
@@ -41,6 +42,7 @@ export type DailySalesApiResponse = {
   roomCount: number;
   carrierCount: number;
   baseAmount: number;
+  baseCount: number;
   addAmount: number;
   addCount: number;
   cancelAmount: number;
@@ -96,6 +98,7 @@ export type MonthSummary = {
   roomCount?: number;
   carrierCount?: number;
   baseAmount?: number;
+  baseCount?: number;
   addAmount?: number;
   addCount?: number;
 };
@@ -110,6 +113,7 @@ export type DailySummary = {
   roomCount?: number;
   carrierCount?: number;
   baseAmount?: number;
+  baseCount?: number;
   addAmount?: number;
   addCount?: number;
   netAmount?: number;

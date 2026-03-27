@@ -6,8 +6,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const page = searchParams.get("page") || "0";
-    const size = searchParams.get("size") || "20";
     const point = searchParams.get("point") || "bank";
     const reservationStartDay = searchParams.get("reservationStartDay") || "";
     const reservationEndDay = searchParams.get("reservationEndDay") || "";
@@ -15,8 +13,6 @@ export async function GET(request: NextRequest) {
     const reservationStatus = searchParams.get("reservationStatus") || "";
 
     const upstreamParams = new URLSearchParams();
-    upstreamParams.set("page", page);
-    upstreamParams.set("size", size);
     upstreamParams.set("point", point);
 
     if (reservationStartDay) {
@@ -36,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     const response = await fetch(
-      `${BASE_URL}/v4/bread-storage/reserve-history?${upstreamParams.toString()}`,
+      `${BASE_URL}/v4/bread-storage/reserve-history-summary?${upstreamParams.toString()}`,
       {
         method: "POST",
         cache: "no-store",
@@ -51,7 +47,7 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       return NextResponse.json(
         {
-          message: "이용내역 조회에 실패했습니다.",
+          message: "이용내역 요약 조회에 실패했습니다.",
           detail: text,
         },
         { status: response.status }
@@ -62,7 +58,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        message: "이용내역 프록시 호출 중 오류가 발생했습니다.",
+        message: "이용내역 요약 프록시 호출 중 오류가 발생했습니다.",
         detail: error instanceof Error ? error.message : "unknown error",
       },
       { status: 500 }

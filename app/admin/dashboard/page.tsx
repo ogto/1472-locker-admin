@@ -19,20 +19,37 @@ import {
   buildDashboardSummary,
   mapReserveUserItem,
 } from "@/lib/dashboard/mapper";
-import {
-  formatChannel,
-} from "@/lib/common";
+import { formatChannel } from "@/lib/common";
 import type {
   DashboardItem,
+  DashboardStorageCounts,
   ReserveUserDetailItem,
   ReserveUserItem,
   ZoneKey,
 } from "@/lib/dashboard/types";
 
+function matchesCardFilter(item: DashboardItem, filter: ZoneKey) {
+  if (filter === "all") return true;
+  if (filter === "app") return formatChannel(item.os) === "앱";
+  if (filter === "kiosk") return formatChannel(item.os) === "키오스크";
+  if (filter === "pickup") return item.raw.pickupProduct === true;
+  if (filter === "cold") return item.raw.type === 0;
+  if (filter === "room") return item.raw.type === 1;
+  if (filter === "carrier") return item.raw.type === 2;
+  return true;
+}
+
 export default function AdminDashboardPage() {
   const auth = useAdminAuth();
 
   const [rows, setRows] = useState<ReserveUserItem[]>([]);
+  const [counts, setCounts] = useState<DashboardStorageCounts>({
+    cold: 0,
+    room: 0,
+    carrier: 0,
+    pickup: 0,
+  });
+
   const [filter, setFilter] = useState<ZoneKey>("all");
   const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(true);
@@ -55,12 +72,20 @@ export default function AdminDashboardPage() {
     setErrorText("");
 
     try {
-      const raw = await fetchReserveUser();
-      setRows(raw);
+      const response = await fetchReserveUser();
+      setRows(response.items);
+      setCounts(response.counts);
     } catch (error) {
       setErrorText(
         error instanceof Error ? error.message : "대시보드 조회에 실패했습니다."
       );
+      setRows([]);
+      setCounts({
+        cold: 0,
+        room: 0,
+        carrier: 0,
+        pickup: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -97,20 +122,16 @@ export default function AdminDashboardPage() {
     return mapped;
   }, [rows]);
 
-  const summary = useMemo(() => buildDashboardSummary(items), [items]);
+  const summary = useMemo(
+    () => buildDashboardSummary(items, counts),
+    [items, counts]
+  );
 
   const filteredItems = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
 
     return items.filter((item) => {
-      const channel = formatChannel(item.os);
-
-      const matchFilter =
-        filter === "all"
-          ? true
-          : filter === "app"
-          ? channel === "앱"
-          : channel === "키오스크";
+      const matchFilter = matchesCardFilter(item, filter);
 
       const matchKeyword =
         normalizedKeyword.length === 0
@@ -150,13 +171,14 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminShell role={auth.role}>
-      <AdminHeader
-        title="보관함 현황"
-        onLogout={auth.handleLogout}
-      />
+      <AdminHeader title="보관함 현황" onLogout={auth.handleLogout} />
 
       <div className="space-y-4 lg:space-y-6">
-        <DashboardSummaryCards {...summary} />
+        <DashboardSummaryCards
+          {...summary}
+          filter={filter}
+          onChangeFilter={setFilter}
+        />
 
         <DashboardFilterBar
           filter={filter}
@@ -177,7 +199,7 @@ export default function AdminDashboardPage() {
         ) : filteredItems.length === 0 ? (
           <DashboardEmptyState
             title="표시할 데이터가 없습니다"
-            description="검색어나 필터를 바꿔 보세요."
+            description="선택한 카드 필터나 검색어를 다시 확인해 주세요."
           />
         ) : (
           <section className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">

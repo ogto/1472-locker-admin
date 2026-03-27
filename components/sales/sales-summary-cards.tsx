@@ -18,11 +18,11 @@ function SummaryCard({
 }) {
   return (
     <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-[13px] font-bold text-slate-500">{title}</p>
-      <p className="mt-3 text-[28px] font-black tracking-[-0.03em] text-slate-900">
+      <p className="text-[12px] font-bold text-slate-500">{title}</p>
+      <p className="mt-3 text-[26px] font-black tracking-[-0.03em] text-slate-900">
         {value}
       </p>
-      <p className="mt-2 whitespace-pre-line text-[13px] text-slate-500">{helper}</p>
+      <p className="mt-2 whitespace-pre-line text-[12px] text-slate-500">{helper}</p>
     </article>
   );
 }
@@ -43,20 +43,21 @@ export function SalesSummaryCards({
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <SummaryCard
+              title="총 결제액"
+              value={formatPrice(monthSummary.totalPaymentAmount)}
+              helper={`총 ${monthSummary.totalPaymentCount.toLocaleString()}건 결제`}
+            />
+
+            <SummaryCard
               title="기본요금"
               value={formatPrice(monthSummary.baseAmount ?? 0)}
-              helper="기본 보관 결제 합계"
+              helper={`기본요금 ${(monthSummary.baseCount ?? 0).toLocaleString()}건`}
             />
 
             <SummaryCard
               title="추가요금"
               value={formatPrice(monthSummary.addAmount ?? 0)}
               helper={`추가요금 ${(monthSummary.addCount ?? 0).toLocaleString()}건`}
-            />
-            <SummaryCard
-              title="총 결제액"
-              value={formatPrice(monthSummary.totalPaymentAmount)}
-              helper={`총 ${monthSummary.totalPaymentCount.toLocaleString()}건 결제`}
             />
 
             <SummaryCard
@@ -113,21 +114,21 @@ export function SalesSummaryCards({
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <SummaryCard
+            title="당일 결제금액"
+            value={formatPrice(dailySummary.paymentAmount)}
+            helper={`결제 ${dailySummary.paymentCount.toLocaleString()}건`}
+          />
+
+          <SummaryCard
             title="기본요금"
             value={formatPrice(dailySummary.baseAmount ?? 0)}
-            helper="기본 보관 결제 합계"
+            helper={`기본요금 ${(dailySummary.baseCount ?? 0).toLocaleString()}건`}
           />
 
           <SummaryCard
             title="추가요금"
             value={formatPrice(dailySummary.addAmount ?? 0)}
             helper={`추가요금 ${(dailySummary.addCount ?? 0).toLocaleString()}건`}
-          />
-
-          <SummaryCard
-            title="당일 결제금액"
-            value={formatPrice(dailySummary.paymentAmount)}
-            helper={`결제 ${dailySummary.paymentCount.toLocaleString()}건`}
           />
 
           <SummaryCard
@@ -138,7 +139,10 @@ export function SalesSummaryCards({
 
           <SummaryCard
             title="당일 순매출"
-            value={formatPrice(dailySummary.netAmount ?? (dailySummary.paymentAmount - dailySummary.refundAmount))}
+            value={formatPrice(
+              dailySummary.netAmount ??
+                dailySummary.paymentAmount - dailySummary.refundAmount,
+            )}
             helper="결제금액 - 취소금액"
           />
         </div>

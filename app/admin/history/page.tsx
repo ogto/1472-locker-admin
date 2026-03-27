@@ -14,13 +14,15 @@ import { HistoryEmptyState } from "@/components/history/history-empty-state";
 import {
   fetchReserveHistory,
   fetchReserveHistoryDetail,
+  fetchReserveHistorySummary,
 } from "@/lib/history/api";
-import { buildHistorySummary, mapHistoryItem } from "@/lib/history/mapper";
+import { mapHistoryItem } from "@/lib/history/mapper";
 import type {
   HistoryDetailItem,
   HistoryFilterValue,
   HistoryItem,
   HistoryPageResponse,
+  HistorySummary,
   HistoryViewItem,
 } from "@/lib/history/types";
 
@@ -34,27 +36,45 @@ function getTodayText() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function createEmptySummary(): HistorySummary {
+  return {
+    reservationCount: 0,
+    storageCount: 0,
+    coldCount: 0,
+    roomCount: 0,
+    carrierCount: 0,
+    pickupCount: 0,
+    completedCount: 0,
+    pickupDoneCount: 0,
+    pendingCount: 0,
+    canceledCount: 0,
+  };
+}
+
 export default function AdminHistoryPage() {
   const auth = useAdminAuth();
 
+  const [mounted, setMounted] = useState(false);
   const [filters, setFilters] = useState<HistoryFilterValue>({
     point: "bank",
-    reservationStartDay: getTodayText(),
-    reservationEndDay: getTodayText(),
+    reservationStartDay: "",
+    reservationEndDay: "",
     searchQuery: "",
+    reservationStatus: "",
   });
 
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<HistoryItem[]>([]);
   const [paging, setPaging] = useState<HistoryPageResponse | null>(null);
+  const [summary, setSummary] = useState<HistorySummary>(createEmptySummary());
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState("");
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
-  const [detailById, setDetailById] = useState<
-    Record<number, HistoryDetailItem[]>
-  >({});
+  const [detailById, setDetailById] = useState<Record<number, HistoryDetailItem[]>>(
+    {}
+  );
   const [detailErrorById, setDetailErrorById] = useState<Record<number, string>>(
     {}
   );
@@ -63,22 +83,42 @@ export default function AdminHistoryPage() {
     setLoading(true);
     setErrorText("");
     setExpandedId(null);
+    setDetailLoadingId(null);
+    setDetailById({});
+    setDetailErrorById({});
 
     try {
-      const result = await fetchReserveHistory({
-        page: nextPage,
-        size: PAGE_SIZE,
-        point: nextFilters.point,
-        reservationStartDay: nextFilters.reservationStartDay || undefined,
-        reservationEndDay: nextFilters.reservationEndDay || undefined,
-        searchQuery: nextFilters.searchQuery.trim() || undefined,
-      });
+      const [historyResult, summaryResult] = await Promise.all([
+        fetchReserveHistory({
+          page: nextPage,
+          size: PAGE_SIZE,
+          point: nextFilters.point,
+          reservationStartDay: nextFilters.reservationStartDay || undefined,
+          reservationEndDay: nextFilters.reservationEndDay || undefined,
+          searchQuery: nextFilters.searchQuery.trim() || undefined,
+          reservationStatus: nextFilters.reservationStatus || undefined,
+        }),
+        fetchReserveHistorySummary({
+          point: nextFilters.point,
+          reservationStartDay: nextFilters.reservationStartDay || undefined,
+          reservationEndDay: nextFilters.reservationEndDay || undefined,
+          searchQuery: nextFilters.searchQuery.trim() || undefined,
+          reservationStatus: nextFilters.reservationStatus || undefined,
+        }),
+      ]);
 
-      setRows(result.content || []);
-      setPaging(result);
+      const nextRows = Array.isArray(historyResult.content)
+        ? historyResult.content
+        : [];
+
+      setRows(nextRows);
+      setPaging(historyResult);
+      setSummary(summaryResult);
+      setPage(nextPage);
     } catch (error) {
       setRows([]);
       setPaging(null);
+      setSummary(createEmptySummary());
       setErrorText(
         error instanceof Error
           ? error.message
@@ -123,7 +163,7 @@ export default function AdminHistoryPage() {
         [item.id]:
           error instanceof Error
             ? error.message
-            : "상세 조회에 실패했습니다.",
+            : "이용내역 상세 조회에 실패했습니다.",
       }));
     } finally {
       setDetailLoadingId(null);
@@ -131,16 +171,26 @@ export default function AdminHistoryPage() {
   }
 
   useEffect(() => {
+    setMounted(true);
+    const today = getTodayText();
+    setFilters((prev) => ({
+      ...prev,
+      reservationStartDay: today,
+      reservationEndDay: today,
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     if (!auth.booting && auth.authenticated) {
       void loadHistory(0, filters);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.booting, auth.authenticated]);
+  }, [mounted, auth.booting, auth.authenticated]);
 
-  const summary = useMemo(() => buildHistorySummary(rows), [rows]);
   const viewItems = useMemo(() => rows.map(mapHistoryItem), [rows]);
 
-  if (auth.booting) {
+  if (!mounted || auth.booting) {
     return (
       <div className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top,#ffe4f1_0%,#fff4fa_35%,#f8fbff_100%)] px-4">
         <div className="rounded-full bg-white px-6 py-3 text-lg font-black text-slate-800 shadow">
@@ -178,11 +228,14 @@ export default function AdminHistoryPage() {
             void loadHistory(0, filters);
           }}
           onReset={() => {
-            const resetValue = {
+            const today = getTodayText();
+
+            const resetValue: HistoryFilterValue = {
               point: "bank",
-              reservationStartDay: getTodayText(),
-              reservationEndDay: getTodayText(),
+              reservationStartDay: today,
+              reservationEndDay: today,
               searchQuery: "",
+              reservationStatus: "",
             };
 
             setFilters(resetValue);
@@ -201,7 +254,7 @@ export default function AdminHistoryPage() {
         ) : viewItems.length === 0 ? (
           <HistoryEmptyState
             title="조회된 이용내역이 없습니다"
-            description="지점이나 기간, 검색어를 바꿔서 다시 확인해 주세요."
+            description="지점, 기간, 상태, 검색어를 바꿔서 다시 확인해 주세요."
           />
         ) : (
           <>

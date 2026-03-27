@@ -47,7 +47,7 @@ function Badge({
 function statusTone(statusLabel: string) {
   if (statusLabel === "보관중") return "emerald";
   if (statusLabel === "찾기대기") return "amber";
-  if (statusLabel === "픽업") return "pink";
+  if (statusLabel === "픽업완료") return "pink";
   if (statusLabel === "취소") return "rose";
   return "slate";
 }
@@ -85,7 +85,6 @@ export function HistoryTable({
                 <th className="px-5 py-4 text-sm font-black text-slate-600">예약</th>
                 <th className="px-5 py-4 text-sm font-black text-slate-600">고객</th>
                 <th className="px-5 py-4 text-sm font-black text-slate-600">상태</th>
-                <th className="px-5 py-4 text-sm font-black text-slate-600">채널</th>
                 <th className="px-5 py-4 text-sm font-black text-slate-600">보관일시</th>
                 <th className="px-5 py-4 text-sm font-black text-slate-600">금액</th>
                 <th className="px-5 py-4 text-sm font-black text-slate-600">상세</th>
@@ -101,71 +100,72 @@ export function HistoryTable({
                     key={item.id}
                     row={
                       <tr
-                        className="cursor-pointer border-t border-slate-100 align-top transition hover:bg-pink-50/30"
+                        className="cursor-pointer border-t border-slate-100 transition hover:bg-pink-50/30"
                         onClick={() => onToggleDetail(item)}
                       >
-                        <td className="px-5 py-4">
-                          <div className="text-sm font-black text-slate-900">
-                            #{item.reserveId}
-                          </div>
-                          <div className="mt-1 text-xs font-semibold text-slate-400">
-                            ID {item.id}
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <div className="text-sm font-black text-slate-900">
-                            {item.customerName}
-                          </div>
-                          <div className="mt-1 text-xs font-semibold text-slate-500">
-                            {item.tel}
+                        <td className="px-5 py-4 align-middle">
+                          <div className="flex min-h-[52px] flex-col justify-center">
+                            <div className="text-sm font-black text-slate-900">
+                              #{item.reserveId}
+                            </div>
+                            <div className="mt-1 text-xs font-semibold text-slate-400">
+                              ID {item.id}
+                            </div>
                           </div>
                         </td>
 
-                        <td className="px-5 py-4">
-                          <Badge
-                            text={item.statusLabel}
-                            tone={statusTone(item.statusLabel)}
-                          />
+                        <td className="px-5 py-4 align-middle">
+                          <div className="flex min-h-[52px] flex-col justify-center">
+                            <div className="text-sm font-black text-slate-900">
+                              {item.customerName}
+                            </div>
+                            <div className="mt-1 text-xs font-semibold text-slate-500">
+                              {item.tel}
+                            </div>
+                          </div>
                         </td>
 
-                        <td className="px-5 py-4">
-                          <Badge
-                            text={item.osLabel}
-                            tone={item.osLabel === "키오스크" ? "amber" : "slate"}
-                          />
+                        <td className="px-5 py-4 align-middle">
+                          <div className="flex min-h-[52px] items-center">
+                            <Badge
+                              text={item.statusLabel}
+                              tone={statusTone(item.statusLabel)}
+                            />
+                          </div>
                         </td>
 
-                        <td className="px-5 py-4">
-                          <div className="text-sm font-black text-slate-900">
+                        <td className="px-5 py-4 align-middle">
+                          <div className="flex min-h-[52px] items-center text-sm font-black text-slate-900">
                             {item.reservationDateText}
                           </div>
                         </td>
 
-                        <td className="px-5 py-4">
-                          <div className="text-sm font-black text-slate-900">
+                        <td className="px-5 py-4 align-middle">
+                          <div className="flex min-h-[52px] items-center text-sm font-black text-slate-900">
                             {item.priceText}
                           </div>
                         </td>
 
-                        <td className="px-5 py-4">
-                          <button
-                            type="button"
-                            className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-extrabold text-slate-700"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleDetail(item);
-                            }}
-                          >
-                            {open ? "닫기" : "상세보기"}
-                          </button>
+                        <td className="px-5 py-4 align-middle">
+                          <div className="flex min-h-[52px] items-center">
+                            <button
+                              type="button"
+                              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-extrabold text-slate-700"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleDetail(item);
+                              }}
+                            >
+                              {open ? "닫기" : "상세보기"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     }
                     detail={
                       open ? (
                         <tr className="border-t border-slate-100 bg-white">
-                          <td colSpan={7} className="px-5 pb-5">
+                          <td colSpan={6} className="px-5 pb-5">
                             <HistoryDetailPanel
                               loading={detailLoadingId === item.id}
                               errorText={detailErrorById[item.id] || ""}
@@ -210,13 +210,6 @@ export function HistoryTable({
                   <Badge
                     text={item.statusLabel}
                     tone={statusTone(item.statusLabel)}
-                  />
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge
-                    text={item.osLabel}
-                    tone={item.osLabel === "키오스크" ? "amber" : "slate"}
                   />
                 </div>
 

@@ -92,13 +92,20 @@ export type HistorySearchParams = {
   reservationStartDay?: string;
   reservationEndDay?: string;
   searchQuery?: string;
+  reservationStatus?: string;
 };
 
 export type HistorySummary = {
-  total: number;
-  app: number;
-  kiosk: number;
-  pickup: number;
+  reservationCount: number;
+  storageCount: number;
+  coldCount: number;
+  roomCount: number;
+  carrierCount: number;
+  pickupCount: number;
+  completedCount: number;
+  pickupDoneCount: number;
+  pendingCount: number;
+  canceledCount: number;
 };
 
 export type HistoryFilterValue = {
@@ -106,6 +113,7 @@ export type HistoryFilterValue = {
   reservationStartDay: string;
   reservationEndDay: string;
   searchQuery: string;
+  reservationStatus: string;
 };
 
 export type HistoryViewItem = {
@@ -114,7 +122,6 @@ export type HistoryViewItem = {
   customerName: string;
   tel: string;
   statusLabel: string;
-  osLabel: string;
   priceText: string;
   reservationDateText: string;
   raw: HistoryItem;

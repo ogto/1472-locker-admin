@@ -26,7 +26,7 @@ export default function AdminSalesPage() {
   const auth = useAdminAuth();
 
   const today = useMemo(() => new Date(), []);
-  const [periodType, setPeriodType] = useState<SalesPeriodType>("month");
+  const [periodType, setPeriodType] = useState<SalesPeriodType>("daily");
   const [point, setPoint] = useState<PointKey>("bank");
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);

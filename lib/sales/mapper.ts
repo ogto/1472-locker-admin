@@ -132,13 +132,13 @@ export function getPointLabel(point?: string | null) {
 export function mapMonthRows(rows: MonthSalesApiItem[]): MonthlyChartRow[] {
   return [...rows]
     .map((row) => {
-      const paymentAmount = sumRecordValues(row.paymentTypeAmount);
-      const cancelAmount = sumRecordValues(row.paymentTypeCancelAmount);
+      const paymentAmount = Number(row.paymentAmount ?? sumRecordValues(row.paymentTypeAmount));
+      const cancelAmount = Number(row.cancelAmount ?? sumRecordValues(row.paymentTypeCancelAmount));
 
       return {
         date: row.createdAt,
         label: formatDateLabel(row.createdAt),
-        totalAmount: paymentAmount - cancelAmount,
+        totalAmount: Number(row.netAmount ?? paymentAmount - cancelAmount),
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -223,12 +223,12 @@ export function buildMonthSummary(
   monthRows: MonthSalesApiItem[],
   paymentRows: PaymentChartRow[],
 ): MonthSummary {
-  const totalPaymentAmount = paymentRows.reduce(
-    (acc, cur) => acc + Number(cur.amount || 0),
+  const totalPaymentAmount = monthRows.reduce(
+    (acc, cur) => acc + Number(cur.paymentAmount || 0),
     0,
   );
 
-  const totalCancelAmount = paymentRows.reduce(
+  const totalCancelAmount = monthRows.reduce(
     (acc, cur) => acc + Number(cur.cancelAmount || 0),
     0,
   );
@@ -253,29 +253,44 @@ export function buildMonthSummary(
     (acc, cur) => acc + Number(cur.coldCount || 0),
     0,
   );
+
   const roomCount = monthRows.reduce(
     (acc, cur) => acc + Number(cur.roomCount || 0),
     0,
   );
+
   const carrierCount = monthRows.reduce(
     (acc, cur) => acc + Number(cur.carrierCount || 0),
     0,
   );
+
   const baseAmount = monthRows.reduce(
     (acc, cur) => acc + Number(cur.baseAmount || 0),
     0,
   );
+
+  const baseCount = monthRows.reduce(
+    (acc, cur) => acc + Number(cur.baseCount || 0),
+    0,
+  );
+
   const addAmount = monthRows.reduce(
     (acc, cur) => acc + Number(cur.addAmount || 0),
     0,
   );
+
   const addCount = monthRows.reduce(
     (acc, cur) => acc + Number(cur.addCount || 0),
     0,
   );
 
+  const totalAmount = monthRows.reduce(
+    (acc, cur) => acc + Number(cur.netAmount || 0),
+    0,
+  );
+
   return {
-    totalAmount: totalPaymentAmount - totalCancelAmount,
+    totalAmount,
     totalPaymentAmount,
     totalCancelAmount,
     totalPaymentCount,
@@ -288,6 +303,7 @@ export function buildMonthSummary(
     roomCount,
     carrierCount,
     baseAmount,
+    baseCount,
     addAmount,
     addCount,
   };
@@ -318,6 +334,7 @@ export function buildDailySummary(daily: DailySalesApiResponse): DailySummary {
     roomCount: Number(daily.roomCount || 0),
     carrierCount: Number(daily.carrierCount || 0),
     baseAmount: Number(daily.baseAmount || 0),
+    baseCount: Number(daily.baseCount || 0),
     addAmount: Number(daily.addAmount || 0),
     addCount: Number(daily.addCount || 0),
     netAmount: Number(daily.netAmount || 0),

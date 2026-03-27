@@ -14,6 +14,14 @@ const pointOptions = [
   { value: "baseball", label: "한화생명볼파크점" },
 ];
 
+const statusOptions = [
+  { value: "", label: "전체 상태" },
+  { value: "PENDING", label: "예약" },
+  { value: "COMPLETED", label: "보관중" },
+  { value: "PICKUP", label: "픽업완료" },
+  { value: "CANCEL", label: "취소" },
+];
+
 export function HistoryFilterBar({
   value,
   loading,
@@ -37,9 +45,6 @@ export function HistoryFilterBar({
         <div>
           <div className="text-lg font-black tracking-tight text-slate-900">
             이용내역 조회
-          </div>
-          <div className="mt-1 text-sm font-medium text-slate-500">
-            지점, 기간, 검색어로 이용내역을 확인할 수 있습니다.
           </div>
         </div>
 
@@ -81,7 +86,22 @@ export function HistoryFilterBar({
             />
           </label>
 
-          <label className="flex flex-col gap-2 md:col-span-2 xl:col-span-2">
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-extrabold text-slate-700">상태</span>
+            <select
+              value={value.reservationStatus}
+              onChange={(e) => updateField("reservationStatus", e.target.value)}
+              className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition focus:border-pink-300 focus:ring-4 focus:ring-pink-100"
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-2 md:col-span-2 xl:col-span-5">
             <span className="text-sm font-extrabold text-slate-700">
               검색어
             </span>
@@ -90,9 +110,7 @@ export function HistoryFilterBar({
               value={value.searchQuery}
               onChange={(e) => updateField("searchQuery", e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  onSearch();
-                }
+                if (e.key === "Enter") onSearch();
               }}
               placeholder="이름, 전화번호, 예약번호"
               className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition placeholder:font-semibold placeholder:text-slate-400 focus:border-pink-300 focus:ring-4 focus:ring-pink-100"

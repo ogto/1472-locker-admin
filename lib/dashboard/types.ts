@@ -1,4 +1,11 @@
-export type ZoneKey = "all" | "app" | "kiosk";
+export type ZoneKey =
+  | "all"
+  | "app"
+  | "kiosk"
+  | "pickup"
+  | "cold"
+  | "room"
+  | "carrier";
 
 export type ReserveUserItem = {
   addPay?: number | null;
@@ -81,8 +88,24 @@ export type ReserveUserDetailItem = {
   pwd?: string | null;
 };
 
+export type DashboardStorageCounts = {
+  cold: number;
+  room: number;
+  carrier: number;
+  pickup: number;
+};
+
+export type ReserveUserResponse = {
+  items: ReserveUserItem[];
+  counts: DashboardStorageCounts;
+};
+
 export type DashboardSummary = {
-  total: number;
+  activeReservations: number;
   app: number;
   kiosk: number;
+  pickup: number;
+  cold: number;
+  room: number;
+  carrier: number;
 };

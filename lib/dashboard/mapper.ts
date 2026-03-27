@@ -1,11 +1,11 @@
 import type {
   DashboardItem,
+  DashboardStorageCounts,
   DashboardSummary,
   ReserveUserDetailItem,
   ReserveUserItem,
 } from "./types";
-
-import {formatChannel} from '../common';
+import { formatChannel } from "../common";
 
 export function mapReserveUserItem(item: ReserveUserItem): DashboardItem {
   return {
@@ -32,11 +32,36 @@ export function mapReserveUserItem(item: ReserveUserItem): DashboardItem {
   };
 }
 
-export function buildDashboardSummary(items: DashboardItem[]): DashboardSummary {
+export function buildDashboardSummary(
+  items: DashboardItem[],
+  counts?: DashboardStorageCounts
+): DashboardSummary {
+  const reservationKeys = new Set<string>();
+
+  let app = 0;
+  let kiosk = 0;
+
+  for (const item of items) {
+    const channel = formatChannel(item.os);
+
+    if (channel === "앱") app += 1;
+    if (channel === "키오스크") kiosk += 1;
+
+    if (item.reserveId != null) {
+      reservationKeys.add(String(item.reserveId));
+    } else {
+      reservationKeys.add(`row:${item.id}`);
+    }
+  }
+
   return {
-    total: items.length,
-    app: items.filter((item) => formatChannel(item.os) === "앱").length,
-    kiosk: items.filter((item) => formatChannel(item.os) === "키오스크").length,
+    activeReservations: reservationKeys.size,
+    app,
+    kiosk,
+    pickup: counts?.pickup ?? 0,
+    cold: counts?.cold ?? 0,
+    room: counts?.room ?? 0,
+    carrier: counts?.carrier ?? 0,
   };
 }
 
