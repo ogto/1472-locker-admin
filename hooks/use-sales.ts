@@ -33,6 +33,7 @@ const EMPTY_DAILY_DATA: DailySalesApiResponse = {
   items: [],
 };
 
+
 export function useSales(params: Params) {
   const [data, setData] = useState<SalesDashboardData | null>(null);
   const [loading, setLoading] = useState(false);
