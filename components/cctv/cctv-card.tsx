@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import type { CctvCamera } from "@/lib/cctv/types";
 import { CctvPlayer } from "./cctv-player";
 
@@ -8,6 +9,24 @@ type Props = {
 };
 
 export function CctvCard({ camera }: Props) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  const handleFullscreen = async () => {
+    const el = cardRef.current;
+    if (!el) return;
+
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      await el.requestFullscreen();
+    } catch (error) {
+      console.error("전체화면 전환 실패:", error);
+    }
+  };
+
   return (
     <article className="overflow-hidden rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
       <div className="mb-3 flex items-start justify-between gap-3">
@@ -35,8 +54,23 @@ export function CctvCard({ camera }: Props) {
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-3xl">
+      <div
+        ref={cardRef}
+        onClick={handleFullscreen}
+        className="group relative cursor-pointer overflow-hidden rounded-3xl bg-black"
+      >
         <CctvPlayer camera={camera} />
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleFullscreen();
+          }}
+          className="absolute right-3 top-3 z-10 rounded-xl bg-black/55 px-3 py-2 text-xs font-bold text-white opacity-0 transition group-hover:opacity-100"
+        >
+          전체화면
+        </button>
       </div>
     </article>
   );
