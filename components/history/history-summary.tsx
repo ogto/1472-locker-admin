@@ -1,33 +1,25 @@
 import type { HistorySummary } from "@/lib/history/types";
 
-type CardProps = {
-  title: string;
-  value: number;
-  className: string;
-  accentClassName: string;
-};
-
-function SummaryCard({
-  title,
+function SummaryStatChip({
+  label,
   value,
   className,
-  accentClassName,
-}: CardProps) {
+}: {
+  label: string;
+  value: number;
+  className: string;
+}) {
   return (
     <div
-      className={`relative overflow-hidden rounded-[30px] border border-white/70 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur ${className}`}
+      className={[
+        "flex items-center justify-between rounded-2xl border border-white/70 px-4 py-3",
+        className,
+      ].join(" ")}
     >
-      <div
-        className={`absolute -right-5 -top-5 h-20 w-20 rounded-full opacity-20 blur-2xl ${accentClassName}`}
-      />
-      <div className="relative z-10">
-        <div className="text-sm font-extrabold tracking-[-0.02em] opacity-80 sm:text-[15px]">
-          {title}
-        </div>
-        <div className="mt-4 text-3xl font-black tracking-[-0.04em] sm:text-4xl xl:text-[42px]">
-          {value}
-        </div>
-      </div>
+      <span className="text-[13px] font-extrabold tracking-[-0.02em] opacity-80">
+        {label}
+      </span>
+      <span className="text-[20px] font-black tracking-[-0.03em]">{value}</span>
     </div>
   );
 }
@@ -45,72 +37,98 @@ export function HistorySummaryCards({
   canceledCount,
 }: HistorySummary) {
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-        <SummaryCard
-          title="예약건수(명)"
-          value={reservationCount}
-          className="bg-slate-900 text-white"
-          accentClassName="bg-white"
-        />
-                <SummaryCard
-          title="보관중(명)"
-          value={completedCount}
-          className="bg-emerald-100 text-emerald-900"
-          accentClassName="bg-emerald-500"
-        />
-        <SummaryCard
-          title="픽업완료(명)"
-          value={pickupDoneCount}
-          className="bg-fuchsia-100 text-fuchsia-900"
-          accentClassName="bg-fuchsia-500"
-        />
-        <SummaryCard
-          title="예약"
-          value={pendingCount}
-          className="bg-cyan-100 text-cyan-900"
-          accentClassName="bg-cyan-500"
-        />
-        <SummaryCard
-          title="취소"
-          value={canceledCount}
-          className="bg-rose-100 text-rose-900"
-          accentClassName="bg-rose-500"
-        />
-      </div>
+    <div className="space-y-4">
+      {/* 예약 상태 요약 */}
+      <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] backdrop-blur sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-[13px] font-extrabold tracking-[-0.02em] text-slate-500">
+              예약 상태 요약
+            </div>
+            <div className="mt-1 flex items-end gap-2">
+              <span className="text-[34px] font-black leading-none tracking-[-0.05em] text-slate-900 sm:text-[42px]">
+                {reservationCount}
+              </span>
+              <span className="pb-1 text-[13px] font-bold text-slate-500 sm:text-[14px]">
+                전체 예약 인원 수
+              </span>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-        <SummaryCard
-          title="보관함 건수"
-          value={storageCount}
-          className="bg-indigo-100 text-indigo-900"
-          accentClassName="bg-indigo-500"
-        />
-        <SummaryCard
-          title="냉장 건수"
-          value={coldCount}
-          className="bg-sky-100 text-sky-900"
-          accentClassName="bg-sky-500"
-        />
-        <SummaryCard
-          title="상온 건수"
-          value={roomCount}
-          className="bg-amber-100 text-amber-900"
-          accentClassName="bg-amber-500"
-        />
-        <SummaryCard
-          title="케리어 건수"
-          value={carrierCount}
-          className="bg-violet-100 text-violet-900"
-          accentClassName="bg-violet-500"
-        />
-        <SummaryCard
-          title="픽업보관 건수"
-          value={pickupCount}
-          className="bg-pink-100 text-pink-900"
-          accentClassName="bg-pink-500"
-        />
-      </div>
+          <div className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-bold text-slate-500">
+            보관중 · 픽업완료 · 예약 · 취소 기준
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryStatChip
+            label="보관중(명)"
+            value={completedCount}
+            className="bg-emerald-100 text-emerald-900"
+          />
+          <SummaryStatChip
+            label="픽업완료(명)"
+            value={pickupDoneCount}
+            className="bg-fuchsia-100 text-fuchsia-900"
+          />
+          <SummaryStatChip
+            label="예약"
+            value={pendingCount}
+            className="bg-cyan-100 text-cyan-900"
+          />
+          <SummaryStatChip
+            label="취소"
+            value={canceledCount}
+            className="bg-rose-100 text-rose-900"
+          />
+        </div>
+      </section>
+
+      {/* 보관함 이용 요약 */}
+      <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] backdrop-blur sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="text-[13px] font-extrabold tracking-[-0.02em] text-slate-500">
+              보관함 이용 요약
+            </div>
+            <div className="mt-1 flex items-end gap-2">
+              <span className="text-[34px] font-black leading-none tracking-[-0.05em] text-slate-900 sm:text-[42px]">
+                {storageCount}
+              </span>
+              <span className="pb-1 text-[13px] font-bold text-slate-500 sm:text-[14px]">
+                전체 보관함 건수
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-bold text-slate-500">
+            냉장 · 상온 · 케리어 · 픽업보관 기준
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryStatChip
+            label="냉장 건수"
+            value={coldCount}
+            className="bg-sky-100 text-sky-900"
+          />
+          <SummaryStatChip
+            label="상온 건수"
+            value={roomCount}
+            className="bg-amber-100 text-amber-900"
+          />
+          <SummaryStatChip
+            label="케리어 건수"
+            value={carrierCount}
+            className="bg-violet-100 text-violet-900"
+          />
+          <SummaryStatChip
+            label="픽업보관 건수"
+            value={pickupCount}
+            className="bg-pink-100 text-pink-900"
+          />
+        </div>
+      </section>
     </div>
   );
 }

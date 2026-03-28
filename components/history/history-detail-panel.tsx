@@ -7,6 +7,17 @@ import {
   formatStorageType,
 } from "@/lib/common";
 
+type BadgeTone =
+  | "slate"
+  | "sky"
+  | "amber"
+  | "pink"
+  | "emerald"
+  | "rose"
+  | "violet"
+  | "fuchsia"
+  | "cyan";
+
 type Props = {
   loading: boolean;
   errorText: string;
@@ -18,7 +29,7 @@ function Badge({
   tone,
 }: {
   text: string;
-  tone: "slate" | "sky" | "amber" | "pink" | "emerald" | "rose";
+  tone: BadgeTone;
 }) {
   const toneClass =
     tone === "sky"
@@ -31,6 +42,12 @@ function Badge({
       ? "bg-emerald-100 text-emerald-700"
       : tone === "rose"
       ? "bg-rose-100 text-rose-700"
+      : tone === "violet"
+      ? "bg-violet-100 text-violet-700"
+      : tone === "fuchsia"
+      ? "bg-fuchsia-100 text-fuchsia-700"
+      : tone === "cyan"
+      ? "bg-cyan-100 text-cyan-900"
       : "bg-slate-100 text-slate-700";
 
   return (
@@ -42,11 +59,28 @@ function Badge({
   );
 }
 
-function statusTone(statusLabel: string) {
+function statusTone(statusLabel: string): BadgeTone {
   if (statusLabel === "보관중") return "emerald";
-  if (statusLabel === "찾기대기") return "amber";
-  if (statusLabel === "픽업") return "pink";
+  if (statusLabel === "예약" || statusLabel === "찾기대기") return "cyan";
+  if (statusLabel === "픽업" || statusLabel === "픽업완료") return "fuchsia";
   if (statusLabel === "취소") return "rose";
+  return "slate";
+}
+
+function storageTypeTone(typeLabel: string): BadgeTone {
+  if (typeLabel === "냉장") return "sky";
+  if (typeLabel === "상온") return "amber";
+  if (typeLabel === "케리어") return "violet";
+  return "slate";
+}
+
+function pickupTone(pickupProduct?: boolean | null): BadgeTone {
+  return pickupProduct ? "pink" : "slate";
+}
+
+function channelTone(osLabel: string): BadgeTone {
+  if (osLabel === "키오스크") return "amber";
+  if (osLabel === "앱") return "sky";
   return "slate";
 }
 
@@ -63,7 +97,6 @@ function formatDateTime(value?: string | null) {
   const raw = String(value).trim();
   if (!raw) return "-";
 
-  // 1) ISO 문자열이면 그대로 처리
   const normalDate = new Date(raw);
   if (!Number.isNaN(normalDate.getTime())) {
     const yyyy = normalDate.getFullYear();
@@ -76,7 +109,6 @@ function formatDateTime(value?: string | null) {
     return `${yyyy}.${mm}.${dd} ${hh}:${mi}:${ss}`;
   }
 
-  // 2) "2026,3,24,12,50,42,768000000" 형태 처리
   if (raw.includes(",")) {
     const parts = raw.split(",").map((v) => v.trim());
 
@@ -104,11 +136,6 @@ function formatDateTime(value?: string | null) {
   }
 
   return raw;
-}
-
-function maskPassword(value?: string | null) {
-  if (!value) return "-";
-  return "●".repeat(String(value).length);
 }
 
 function formatPickupLabel(pickupProduct?: boolean | null) {
@@ -157,7 +184,6 @@ export function HistoryDetailPanel({
         );
         const updateAtText = formatDateTime(item.updateAt);
         const pointLabel = formatPoint(item.point);
-        const maskedPwd = maskPassword(item.pwd);
 
         return (
           <section
@@ -168,7 +194,7 @@ export function HistoryDetailPanel({
               <div>
                 <div className="flex flex-wrap items-center gap-2 text-base font-black text-slate-900">
                   <span>보관함 {item.storageId ?? "-"}</span>
-                  <Badge text={typeLabel} tone="sky" />
+                  <Badge text={typeLabel} tone={storageTypeTone(typeLabel)} />
                 </div>
                 <div className="mt-1 text-sm font-semibold text-slate-500">
                   예약 #{item.reserveId} · 상세 ID {item.id}
@@ -177,11 +203,8 @@ export function HistoryDetailPanel({
 
               <div className="flex flex-wrap gap-2">
                 <Badge text={statusLabel} tone={statusTone(statusLabel)} />
-                <Badge text={pickupLabel} tone="pink" />
-                <Badge
-                  text={osLabel}
-                  tone={osLabel === "키오스크" ? "amber" : "slate"}
-                />
+                <Badge text={pickupLabel} tone={pickupTone(item.pickupProduct)} />
+                <Badge text={osLabel} tone={channelTone(osLabel)} />
               </div>
             </div>
 
@@ -220,7 +243,6 @@ export function HistoryDetailPanel({
                   {pointLabel}
                 </div>
               </div>
-
             </div>
 
             {item.memo ? (

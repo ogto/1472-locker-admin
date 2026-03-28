@@ -22,7 +22,9 @@ function Badge({
     | "amber"
     | "pink"
     | "emerald"
-    | "rose";
+    | "rose"
+    | "cyan"
+    | "fuchsia";
 }) {
   const toneClass =
     tone === "sky"
@@ -35,6 +37,10 @@ function Badge({
       ? "bg-emerald-100 text-emerald-700"
       : tone === "rose"
       ? "bg-rose-100 text-rose-700"
+      : tone === "cyan"
+      ? "bg-cyan-100 text-cyan-900"
+      : tone === "fuchsia"
+      ? "bg-fuchsia-100 text-fuchsia-700"
       : "bg-slate-100 text-slate-700";
 
   return (
@@ -46,8 +52,8 @@ function Badge({
 
 function statusTone(statusLabel: string) {
   if (statusLabel === "보관중") return "emerald";
-  if (statusLabel === "찾기대기") return "amber";
-  if (statusLabel === "픽업완료") return "pink";
+  if (statusLabel === "예약" || statusLabel === "찾기대기") return "cyan";
+  if (statusLabel === "픽업완료" || statusLabel === "픽업") return "fuchsia";
   if (statusLabel === "취소") return "rose";
   return "slate";
 }

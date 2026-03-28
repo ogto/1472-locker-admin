@@ -1,53 +1,36 @@
 import type { DashboardSummary, ZoneKey } from "@/lib/dashboard/types";
 
-type CardProps = {
-  title: string;
+type ReservationStatChipProps = {
+  label: string;
   value: number;
-  helper: string;
   className: string;
   active?: boolean;
   onClick?: () => void;
-  disabled?: boolean;
 };
 
-function SummaryCard({
-  title,
+function ReservationStatChip({
+  label,
   value,
-  helper,
   className,
   active = false,
   onClick,
-  disabled = false,
-}: CardProps) {
-  const clickable = !!onClick && !disabled;
-
+}: ReservationStatChipProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
       className={[
-        "w-full rounded-[24px] px-4 py-4 text-left transition-all duration-200",
-        "shadow-[0_8px_24px_rgba(15,23,42,0.06)]",
-        clickable
-          ? "cursor-pointer hover:-translate-y-[1px] hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] active:scale-[0.99]"
-          : "cursor-default",
-        active ? "ring-4 ring-rose-200" : "",
-        disabled ? "opacity-100" : "",
+        "flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left transition-all duration-200",
+        "border border-white/70",
+        "hover:-translate-y-[1px] hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)] active:scale-[0.99]",
         className,
+        active ? "shadow-[0_12px_28px_rgba(15,23,42,0.10)]" : "",
       ].join(" ")}
     >
-      <div className="text-[12px] font-extrabold tracking-[-0.02em] opacity-80 sm:text-[13px]">
-        {title}
-      </div>
-
-      <div className="mt-2 text-[28px] font-black tracking-[-0.04em] leading-none sm:text-[34px]">
-        {value}
-      </div>
-
-      <div className="mt-2 text-[11px] leading-4 opacity-75 sm:text-[12px]">
-        {helper}
-      </div>
+      <span className="text-[13px] font-extrabold tracking-[-0.02em] opacity-80">
+        {label}
+      </span>
+      <span className="text-[20px] font-black tracking-[-0.03em]">{value}</span>
     </button>
   );
 }
@@ -97,46 +80,61 @@ export function DashboardSummaryCards({
 
   return (
     <section className="space-y-4">
-      {/* 예약 기준 요약 */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <SummaryCard
-          title="보관중 예약"
-          value={activeReservations}
-          helper="현재 진행중인 전체 예약"
-          className="bg-slate-900 text-white"
-          active={filter === "all"}
-          onClick={() => onChangeFilter("all")}
-        />
+      <div className="overflow-hidden rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] backdrop-blur sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <button
+            type="button"
+            onClick={() => onChangeFilter("all")}
+            className={[
+              "text-left transition-all duration-200 hover:-translate-y-[1px]",
+              filter === "all"
+                ? "rounded-2xl shadow-[0_12px_28px_rgba(15,23,42,0.10)]"
+                : "",
+            ].join(" ")}
+          >
+            <div className="text-[13px] font-extrabold tracking-[-0.02em] text-slate-500">
+              보관중 예약
+            </div>
+            <div className="mt-1 flex items-end gap-2">
+              <span className="text-[34px] font-black leading-none tracking-[-0.05em] text-slate-900 sm:text-[42px]">
+                {activeReservations}
+              </span>
+              <span className="pb-1 text-[13px] font-bold text-slate-500 sm:text-[14px]">
+                현재 진행중인 전체 예약
+              </span>
+            </div>
+          </button>
 
-        <SummaryCard
-          title="앱 예약"
-          value={app}
-          helper="앱으로 접수된 예약"
-          className="bg-sky-100 text-sky-900"
-          active={filter === "app"}
-          onClick={() => onChangeFilter("app")}
-        />
+          <div className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-bold text-slate-500">
+            앱 · 키오스크 · 픽업 예약 기준
+          </div>
+        </div>
 
-        <SummaryCard
-          title="키오스크 예약"
-          value={kiosk}
-          helper="키오스크 접수 예약"
-          className="bg-amber-100 text-amber-900"
-          active={filter === "kiosk"}
-          onClick={() => onChangeFilter("kiosk")}
-        />
-
-        <SummaryCard
-          title="픽업보관"
-          value={pickup}
-          helper="픽업 상품 포함 예약"
-          className="bg-rose-100 text-rose-900"
-          active={filter === "pickup"}
-          onClick={() => onChangeFilter("pickup")}
-        />
+        <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+          <ReservationStatChip
+            label="앱 예약"
+            value={app}
+            className="bg-sky-100 text-sky-900"
+            active={filter === "app"}
+            onClick={() => onChangeFilter("app")}
+          />
+          <ReservationStatChip
+            label="키오스크 예약"
+            value={kiosk}
+            className="bg-amber-100 text-amber-900"
+            active={filter === "kiosk"}
+            onClick={() => onChangeFilter("kiosk")}
+          />
+          <ReservationStatChip
+            label="픽업보관"
+            value={pickup}
+            className="bg-rose-100 text-rose-900"
+            active={filter === "pickup"}
+            onClick={() => onChangeFilter("pickup")}
+          />
+        </div>
       </div>
 
-      {/* 보관 칸 요약 */}
       <div className="overflow-hidden rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] backdrop-blur sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
