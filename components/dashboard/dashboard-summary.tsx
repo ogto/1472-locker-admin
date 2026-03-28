@@ -126,7 +126,7 @@ export function DashboardSummaryCards({
             onClick={() => onChangeFilter("kiosk")}
           />
           <ReservationStatChip
-            label="픽업보관"
+            label="야구장픽업"
             value={pickup}
             className="bg-rose-100 text-rose-900"
             active={filter === "pickup"}

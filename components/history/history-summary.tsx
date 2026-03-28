@@ -102,7 +102,7 @@ export function HistorySummaryCards({
           </div>
 
           <div className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-bold text-slate-500">
-            냉장 · 상온 · 케리어 · 픽업보관 기준
+            냉장 · 상온 · 케리어 · 야구장픽업 기준
           </div>
         </div>
 
@@ -123,7 +123,7 @@ export function HistorySummaryCards({
             className="bg-violet-100 text-violet-900"
           />
           <SummaryStatChip
-            label="픽업보관 건수"
+            label="야구장픽업 건수"
             value={pickupCount}
             className="bg-pink-100 text-pink-900"
           />

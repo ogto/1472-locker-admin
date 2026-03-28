@@ -1,4 +1,5 @@
 import type {
+  PickupRequest,
   ReserveUserDetailItem,
   ReserveUserResponse,
 } from "./types";
@@ -59,4 +60,32 @@ export async function fetchReserveUserDetail(
   return Array.isArray(data.data)
     ? (data.data as ReserveUserDetailItem[])
     : [];
+}
+
+export async function postPickup({
+  historyIds,
+  point,
+  reserveId,
+}: PickupRequest) {
+  const params = new URLSearchParams();
+
+  historyIds.forEach((id) => {
+    params.append("historyIds", String(id));
+  });
+  params.append("point", point);
+  params.append("reserveId", String(reserveId));
+
+  const res = await fetch(`/api/dashboard/pickup?${params.toString()}`, {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.message || "픽업 처리 실패");
+  }
+
+  return data;
 }

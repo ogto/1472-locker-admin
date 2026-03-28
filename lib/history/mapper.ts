@@ -124,7 +124,7 @@ export function mapHistoryDetailItem(
     reservationDateText: item.reservationDay
       ? `${item.reservationDay} ${item.reservationStartTime || ""}`.trim()
       : "-",
-    pickupLabel: item.pickupProduct ? "픽업보관" : "일반보관",
+    pickupLabel: item.pickupProduct ? "야구장픽업" : "일반보관",
     maskedPwd: item.pwd ? "●".repeat(String(item.pwd).length) : "-",
     memo: item.memo || "",
     ordId: item.ordId || "-",

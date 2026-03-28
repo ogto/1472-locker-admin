@@ -109,3 +109,9 @@ export type DashboardSummary = {
   room: number;
   carrier: number;
 };
+
+export type PickupRequest = {
+  historyIds: number[];
+  point: string;
+  reserveId: number;
+};

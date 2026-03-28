@@ -14,6 +14,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import {
   fetchReserveUser,
   fetchReserveUserDetail,
+  postPickup,
 } from "@/lib/dashboard/api";
 import {
   buildDashboardSummary,
@@ -60,6 +61,7 @@ export default function AdminDashboardPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailErrorText, setDetailErrorText] = useState("");
   const [detailData, setDetailData] = useState<ReserveUserDetailItem[]>([]);
+  const [pickupLoading, setPickupLoading] = useState(false);
 
   useEffect(() => {
     if (!auth.booting && auth.authenticated) {
@@ -107,6 +109,55 @@ export default function AdminDashboardPage() {
       );
     } finally {
       setDetailLoading(false);
+    }
+  }
+
+  async function handlePickup() {
+    const pickupTargets = detailData.filter((item) => {
+      const status = item.reservationStatus?.trim() || "";
+
+      return (
+        item.id != null &&
+        item.reserveId != null &&
+        item.point === "bank" &&
+        item.pickupProduct === true &&
+        status === "COMPLETED"
+      );
+    });
+
+    if (!pickupTargets.length) {
+      setDetailErrorText("픽업 처리할 대상이 없습니다.");
+      return;
+    }
+
+    const reserveId = pickupTargets[0].reserveId as number;
+    const point = pickupTargets[0].point || "bank";
+    const historyIds = pickupTargets.map((item) => item.id);
+
+    try {
+      setPickupLoading(true);
+      setDetailErrorText("");
+
+      await postPickup({
+        historyIds,
+        point,
+        reserveId,
+      });
+
+      if (selected) {
+        const refreshedDetail = await fetchReserveUserDetail(selected.id, "bank");
+        setDetailData(refreshedDetail);
+      }
+
+      const refreshedList = await fetchReserveUser();
+      setRows(refreshedList.items);
+      setCounts(refreshedList.counts);
+    } catch (error) {
+      setDetailErrorText(
+        error instanceof Error ? error.message : "픽업 처리에 실패했습니다."
+      );
+    } finally {
+      setPickupLoading(false);
     }
   }
 
@@ -219,6 +270,8 @@ export default function AdminDashboardPage() {
         loading={detailLoading}
         errorText={detailErrorText}
         data={detailData}
+        pickupLoading={pickupLoading}
+        onPickup={() => void handlePickup()}
         onClose={() => {
           setDetailOpen(false);
           setSelected(null);

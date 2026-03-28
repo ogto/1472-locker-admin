@@ -139,7 +139,7 @@ function formatDateTime(value?: string | null) {
 }
 
 function formatPickupLabel(pickupProduct?: boolean | null) {
-  return pickupProduct ? "픽업보관" : "일반보관";
+  return pickupProduct ? "야구장픽업" : "일반보관";
 }
 
 export function HistoryDetailPanel({
