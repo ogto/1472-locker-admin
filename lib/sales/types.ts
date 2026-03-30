@@ -24,16 +24,17 @@ export type MonthSalesApiItem = {
 export type DailySalesApiItem = {
   id: number;
   price: number;
-  storageId: number;
-  mberNo: number;
+  storageId?: number | null;
+  mberNo?: number | null;
   payType: string | number;
   type: string | number;
   createdAt: string;
-  ordId?: string;
-  tossPaymentKey?: string;
-  couponCodeId?: number;
-  couponPrice?: number;
-  point?: string;
+  ordId?: string | null;
+  tossPaymentKey?: string | null;
+  couponCodeId?: number | null;
+  couponPrice?: number | null;
+  point?: string | null;
+  memo?: string | null;
 };
 
 export type DailySalesApiResponse = {
@@ -72,16 +73,13 @@ export type DailySalesViewRow = {
   createdAtLabel: string;
   price: number;
   priceLabel: string;
-  storageId: number;
   payTypeCode: string;
   payTypeLabel: string;
   rowTypeCode: string;
   rowTypeLabel: string;
-  ordId: string;
   point: string;
   pointLabel: string;
-  couponPrice: number;
-  couponPriceLabel: string;
+  memo: string;
 };
 
 export type MonthSummary = {
@@ -125,4 +123,17 @@ export type SalesDashboardData = {
   dailyRows: DailySalesViewRow[];
   monthSummary: MonthSummary;
   dailySummary: DailySummary;
+};
+
+export type ManualSalesRequest = {
+  price: number;
+  payType: 1 | 2;
+  point: PointKey;
+  memo: string;
+};
+
+export type ManualSalesResponse = {
+  ok: boolean;
+  message: string;
+  item?: DailySalesApiItem;
 };

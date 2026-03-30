@@ -1,5 +1,7 @@
 import type {
   DailySalesApiResponse,
+  ManualSalesRequest,
+  ManualSalesResponse,
   MonthSalesApiItem,
   PointKey,
 } from "./types";
@@ -15,6 +17,18 @@ type GetDailySalesParams = {
   point: PointKey;
 };
 
+async function parseJsonSafely(response: Response) {
+  const text = await response.text();
+
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
 export async function getMonthSales(params: GetMonthSalesParams) {
   const searchParams = new URLSearchParams({
     year: String(params.year),
@@ -27,11 +41,16 @@ export async function getMonthSales(params: GetMonthSalesParams) {
     cache: "no-store",
   });
 
+  const data = await parseJsonSafely(response);
+
   if (!response.ok) {
-    throw new Error("월별 매출 데이터를 불러오지 못했습니다.");
+    throw new Error(
+      (data as { message?: string } | null)?.message ||
+        "월별 매출 데이터를 불러오지 못했습니다.",
+    );
   }
 
-  return (await response.json()) as MonthSalesApiItem[];
+  return (data ?? []) as MonthSalesApiItem[];
 }
 
 export async function getDailySales(params: GetDailySalesParams) {
@@ -45,9 +64,36 @@ export async function getDailySales(params: GetDailySalesParams) {
     cache: "no-store",
   });
 
+  const data = await parseJsonSafely(response);
+
   if (!response.ok) {
-    throw new Error("일별 매출 데이터를 불러오지 못했습니다.");
+    throw new Error(
+      (data as { message?: string } | null)?.message ||
+        "일별 매출 데이터를 불러오지 못했습니다.",
+    );
   }
 
-  return (await response.json()) as DailySalesApiResponse;
+  return (data ?? null) as DailySalesApiResponse;
+}
+
+export async function createManualSales(params: ManualSalesRequest) {
+  const response = await fetch("/api/sales/manual", {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
+
+  const data = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(
+      (data as { message?: string } | null)?.message ||
+        "수동 매출을 등록하지 못했습니다.",
+    );
+  }
+
+  return (data ?? null) as ManualSalesResponse;
 }

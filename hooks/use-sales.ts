@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDailySales, getMonthSales } from "@/lib/sales/api";
+import { createManualSales, getDailySales, getMonthSales } from "@/lib/sales/api";
 import { mapSalesDashboardData } from "@/lib/sales/mapper";
 import type {
   DailySalesApiResponse,
+  ManualSalesRequest,
   PointKey,
   SalesDashboardData,
   SalesPeriodType,
@@ -33,10 +34,10 @@ const EMPTY_DAILY_DATA: DailySalesApiResponse = {
   items: [],
 };
 
-
 export function useSales(params: Params) {
   const [data, setData] = useState<SalesDashboardData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   const fetchData = useCallback(async () => {
@@ -67,6 +68,27 @@ export function useSales(params: Params) {
     }
   }, [params.periodType, params.year, params.month, params.date, params.point]);
 
+  const submitManualSales = useCallback(
+    async (payload: ManualSalesRequest) => {
+      setSubmitting(true);
+      setError("");
+
+      try {
+        const result = await createManualSales(payload);
+        await fetchData();
+        return result;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "수동 매출 등록에 실패했습니다.";
+        setError(message);
+        throw err;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [fetchData],
+  );
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -75,9 +97,11 @@ export function useSales(params: Params) {
     () => ({
       data,
       loading,
+      submitting,
       error,
       refetch: fetchData,
+      submitManualSales,
     }),
-    [data, loading, error, fetchData],
+    [data, loading, submitting, error, fetchData, submitManualSales],
   );
 }

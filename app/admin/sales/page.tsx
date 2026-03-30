@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { StatusBanner } from "@/components/admin/status-banner";
 import { SalesDailyTable } from "@/components/sales/sales-daily-table";
 import { SalesFilters } from "@/components/sales/sales-filters";
+import { SalesManualModal } from "@/components/sales/sales-manual-modal";
 import { SalesMonthChart } from "@/components/sales/sales-month-chart";
 import { SalesPaymentChart } from "@/components/sales/sales-payment-chart";
 import { SalesSummaryCards } from "@/components/sales/sales-summary-cards";
@@ -31,8 +32,9 @@ export default function AdminSalesPage() {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [date, setDate] = useState(getTodayDateString());
+  const [manualModalOpen, setManualModalOpen] = useState(false);
 
-  const { data, loading, error, refetch } = useSales({
+  const { data, loading, submitting, error, refetch, submitManualSales } = useSales({
     periodType,
     year,
     month,
@@ -42,13 +44,13 @@ export default function AdminSalesPage() {
 
   if (auth.authenticated && auth.role !== "super-admin") {
     return (
-        <AdminShell role={auth.role}>
+      <AdminShell role={auth.role}>
         <section className="rounded-[28px] border border-rose-200 bg-rose-50 p-6 text-sm font-bold text-rose-600">
-            슈퍼관리자만 접근할 수 있습니다.
+          슈퍼관리자만 접근할 수 있습니다.
         </section>
-        </AdminShell>
+      </AdminShell>
     );
-    }
+  }
 
   if (auth.booting) {
     return (
@@ -77,7 +79,6 @@ export default function AdminSalesPage() {
       <AdminHeader title="매출관리" onLogout={auth.handleLogout} />
 
       <div className="space-y-4 lg:space-y-6">
-
         <SalesFilters
           periodType={periodType}
           point={point}
@@ -113,11 +114,25 @@ export default function AdminSalesPage() {
                 <SalesPaymentChart rows={data.paymentRows} />
               </div>
             ) : (
-              <SalesDailyTable rows={data.dailyRows} periodType={periodType} />
+              <SalesDailyTable
+                rows={data.dailyRows}
+                periodType={periodType}
+                onClickAddManual={() => setManualModalOpen(true)}
+              />
             )}
           </>
         )}
       </div>
+
+      <SalesManualModal
+        open={manualModalOpen}
+        point={point}
+        loading={submitting}
+        onClose={() => setManualModalOpen(false)}
+        onSubmit={async (payload) => {
+          await submitManualSales(payload);
+        }}
+      />
     </AdminShell>
   );
 }

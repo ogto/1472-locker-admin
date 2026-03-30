@@ -192,7 +192,6 @@ export function mapDailyRows(rows: DailySalesApiItem[]): DailySalesViewRow[] {
     .map((row) => {
       const payTypeCode = extractCode(row.payType);
       const rowTypeCode = extractCode(row.type);
-      const couponPrice = Number(row.couponPrice || 0);
 
       return {
         id: row.id,
@@ -200,16 +199,13 @@ export function mapDailyRows(rows: DailySalesApiItem[]): DailySalesViewRow[] {
         createdAtLabel: formatDateTimeLabel(row.createdAt),
         price: Number(row.price || 0),
         priceLabel: formatPrice(Number(row.price || 0)),
-        storageId: Number(row.storageId || 0),
         payTypeCode,
         payTypeLabel: getPaymentTypeLabel(row.payType),
         rowTypeCode,
         rowTypeLabel: getRowTypeLabel(row.type),
-        ordId: row.ordId || "-",
         point: row.point || "-",
         pointLabel: getPointLabel(row.point),
-        couponPrice,
-        couponPriceLabel: formatPrice(couponPrice),
+        memo: row.memo?.trim() || "-",
       };
     })
     .sort((a, b) => {
