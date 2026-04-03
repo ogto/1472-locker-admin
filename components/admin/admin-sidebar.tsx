@@ -12,7 +12,7 @@ const menus: SidebarMenu[] = [
   { href: "/admin/dashboard", label: "대시보드", emoji: "📊" },
   { href: "/admin/history", label: "이용내역", emoji: "📁" },
   { href: "/admin/sales", label: "매출관리", emoji: "💳", superOnly: true },
-  { href: "/admin/manual-sales", label: "매출입력", emoji: "🧾" },
+  { href: "/admin/manual-sales", label: "매출입력(직원용)", emoji: "🧾" },
   { href: "/admin/lockers", label: "보관함 제어", emoji: "🧰" },
   { href: "/admin/logs", label: "명령 이력", emoji: "🧾" },
   { href: "/admin/devices", label: "장치 상태", emoji: "📡" },
