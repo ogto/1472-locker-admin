@@ -89,10 +89,17 @@ export async function fetchReserveHistorySummary(
   return {
     reservationCount: Number(data?.reservationCount || 0),
     storageCount: Number(data?.storageCount || 0),
+
     coldCount: Number(data?.coldCount || 0),
     roomCount: Number(data?.roomCount || 0),
     carrierCount: Number(data?.carrierCount || 0),
     pickupCount: Number(data?.pickupCount || 0),
+
+    coldCanceledCount: Number(data?.coldCanceledCount || 0),
+    roomCanceledCount: Number(data?.roomCanceledCount || 0),
+    carrierCanceledCount: Number(data?.carrierCanceledCount || 0),
+    pickupCanceledCount: Number(data?.pickupCanceledCount || 0),
+
     completedCount: Number(data?.completedCount || 0),
     pickupDoneCount: Number(data?.pickupDoneCount || 0),
     pendingCount: Number(data?.pendingCount || 0),

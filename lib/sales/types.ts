@@ -137,3 +137,20 @@ export type ManualSalesResponse = {
   message: string;
   item?: DailySalesApiItem;
 };
+
+export type ManualSalesViewRow = {
+  id: number;
+  createdAt: string;
+  createdAtLabel: string;
+  price: number;
+  priceLabel: string;
+  payTypeCode: string;
+  payTypeLabel: string;
+  point: string;
+  pointLabel: string;
+  memo: string;
+};
+
+export type ManualSalesDashboardData = {
+  manualRows: ManualSalesViewRow[];
+};

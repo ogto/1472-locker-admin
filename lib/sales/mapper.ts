@@ -4,6 +4,7 @@ import type {
   DailySalesApiResponse,
   DailySalesViewRow,
   DailySummary,
+  ManualSalesViewRow,
   MonthSalesApiItem,
   MonthSummary,
   MonthlyChartRow,
@@ -203,6 +204,42 @@ export function mapDailyRows(rows: DailySalesApiItem[]): DailySalesViewRow[] {
         payTypeLabel: getPaymentTypeLabel(row.payType),
         rowTypeCode,
         rowTypeLabel: getRowTypeLabel(row.type),
+        point: row.point || "-",
+        pointLabel: getPointLabel(row.point),
+        memo: row.memo?.trim() || "-",
+      };
+    })
+    .sort((a, b) => {
+      const aDate = parseFlexibleDate(a.createdAt)?.getTime() ?? 0;
+      const bDate = parseFlexibleDate(b.createdAt)?.getTime() ?? 0;
+      return bDate - aDate;
+    });
+}
+
+export function mapManualSalesRows(rows: DailySalesApiItem[]): ManualSalesViewRow[] {
+  return [...rows]
+    .filter((row) => {
+      const payTypeCode = extractCode(row.payType);
+      const rowTypeCode = extractCode(row.type);
+      const memo = row.memo?.trim() || "";
+
+      // 임시 기준:
+      // 1) 기본결제
+      // 2) 카드/현금
+      // 3) 메모 있음
+      return rowTypeCode === "0" && (payTypeCode === "1" || payTypeCode === "2") && !!memo;
+    })
+    .map((row) => {
+      const payTypeCode = extractCode(row.payType);
+
+      return {
+        id: row.id,
+        createdAt: row.createdAt,
+        createdAtLabel: formatDateTimeLabel(row.createdAt),
+        price: Number(row.price || 0),
+        priceLabel: formatPrice(Number(row.price || 0)),
+        payTypeCode,
+        payTypeLabel: getPaymentTypeLabel(row.payType),
         point: row.point || "-",
         pointLabel: getPointLabel(row.point),
         memo: row.memo?.trim() || "-",

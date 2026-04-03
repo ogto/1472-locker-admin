@@ -24,6 +24,39 @@ function SummaryStatChip({
   );
 }
 
+function SummaryStatWithCancelChip({
+  label,
+  value,
+  canceledValue,
+  className,
+}: {
+  label: string;
+  value: number;
+  canceledValue: number;
+  className: string;
+}) {
+  return (
+    <div
+      className={[
+        "rounded-2xl border border-white/70 px-4 py-3",
+        className,
+      ].join(" ")}
+    >
+      <div className="text-[13px] font-extrabold tracking-[-0.02em] opacity-80">
+        {label}
+      </div>
+
+      <div className="mt-2 text-right text-[18px] font-black tracking-[-0.03em]">
+        <span className="text-[12px] font-bold opacity-70">전체</span>
+        <span className="ml-1">{value}</span>
+        <span className="mx-2 opacity-40">|</span>
+        <span className="text-[12px] font-bold opacity-70">취소</span>
+        <span className="ml-1">{canceledValue}</span>
+      </div>
+    </div>
+  );
+}
+
 export function HistorySummaryCards({
   reservationCount,
   storageCount,
@@ -31,6 +64,10 @@ export function HistorySummaryCards({
   roomCount,
   carrierCount,
   pickupCount,
+  coldCanceledCount,
+  roomCanceledCount,
+  carrierCanceledCount,
+  pickupCanceledCount,
   completedCount,
   pickupDoneCount,
   pendingCount,
@@ -38,7 +75,6 @@ export function HistorySummaryCards({
 }: HistorySummary) {
   return (
     <div className="space-y-4">
-      {/* 예약 상태 요약 */}
       <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] backdrop-blur sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -84,7 +120,6 @@ export function HistorySummaryCards({
         </div>
       </section>
 
-      {/* 보관함 이용 요약 */}
       <section className="overflow-hidden rounded-[28px] border border-white/70 bg-white/90 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)] backdrop-blur sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -102,29 +137,33 @@ export function HistorySummaryCards({
           </div>
 
           <div className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-bold text-slate-500">
-            냉장 · 상온 · 케리어 · 야구장픽업 기준
+            전체 건수와 취소 건수 기준
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryStatChip
+          <SummaryStatWithCancelChip
             label="냉장 건수"
             value={coldCount}
+            canceledValue={coldCanceledCount}
             className="bg-sky-100 text-sky-900"
           />
-          <SummaryStatChip
+          <SummaryStatWithCancelChip
             label="상온 건수"
             value={roomCount}
+            canceledValue={roomCanceledCount}
             className="bg-amber-100 text-amber-900"
           />
-          <SummaryStatChip
+          <SummaryStatWithCancelChip
             label="케리어 건수"
             value={carrierCount}
+            canceledValue={carrierCanceledCount}
             className="bg-violet-100 text-violet-900"
           />
-          <SummaryStatChip
+          <SummaryStatWithCancelChip
             label="야구장픽업 건수"
             value={pickupCount}
+            canceledValue={pickupCanceledCount}
             className="bg-pink-100 text-pink-900"
           />
         </div>

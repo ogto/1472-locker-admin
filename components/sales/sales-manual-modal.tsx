@@ -159,7 +159,7 @@ export function SalesManualModal({
                 onChange={(e) => setMemo(e.target.value)}
                 rows={4}
                 className="w-full resize-none rounded-[22px] border border-slate-200 px-4 py-4 text-[16px] font-medium outline-none transition focus:border-slate-400"
-                placeholder="예: 현장 수기 등록 / 누락 매출 보정"
+                placeholder="예: 딸기우유 / 환타 오렌지"
               />
             </label>
           </div>

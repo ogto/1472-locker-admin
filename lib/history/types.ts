@@ -98,10 +98,17 @@ export type HistorySearchParams = {
 export type HistorySummary = {
   reservationCount: number;
   storageCount: number;
+
   coldCount: number;
   roomCount: number;
   carrierCount: number;
   pickupCount: number;
+
+  coldCanceledCount: number;
+  roomCanceledCount: number;
+  carrierCanceledCount: number;
+  pickupCanceledCount: number;
+
   completedCount: number;
   pickupDoneCount: number;
   pendingCount: number;
