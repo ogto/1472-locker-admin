@@ -90,10 +90,6 @@ export function HistorySummaryCards({
               </span>
             </div>
           </div>
-
-          <div className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-bold text-slate-500">
-            보관중 · 픽업완료 · 예약 · 취소 기준
-          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
@@ -134,10 +130,6 @@ export function HistorySummaryCards({
                 전체 보관함 건수
               </span>
             </div>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-bold text-slate-500">
-            전체 건수와 취소 건수 기준
           </div>
         </div>
 
