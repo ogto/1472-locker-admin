@@ -17,9 +17,11 @@ export function CctvGrid({ cameras }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 2xl:grid-cols-2">
       {cameras.map((camera) => (
-        <CctvCard key={camera.id} camera={camera} />
+        <div key={camera.id} className="min-w-0">
+          <CctvCard camera={camera} />
+        </div>
       ))}
     </div>
   );
