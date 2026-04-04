@@ -104,10 +104,6 @@ export function DashboardSummaryCards({
               </span>
             </div>
           </button>
-
-          <div className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-bold text-slate-500">
-            앱 · 키오스크 · 픽업 예약 기준
-          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
@@ -149,10 +145,6 @@ export function DashboardSummaryCards({
                 총 보관 칸 수
               </span>
             </div>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] font-bold text-slate-500">
-            냉장 · 상온 · 케리어 사용 칸 기준
           </div>
         </div>
 
