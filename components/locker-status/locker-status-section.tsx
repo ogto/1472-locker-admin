@@ -1,7 +1,12 @@
 "use client";
 
-import { formatChannel, formatReservationDate } from "@/lib/common";
-import type { ReserveUserItem } from "@/lib/dashboard/types";
+type LockerOccupantInfo = {
+  name: string;
+  tel: string;
+  channel: string;
+  reservationDate: string;
+  status: string;
+};
 
 type LockerStatusSectionProps = {
   title: string;
@@ -10,7 +15,7 @@ type LockerStatusSectionProps = {
   totalCount: number;
   tone: "cold" | "room";
   lockers: number[];
-  occupiedMap: Map<number, ReserveUserItem>;
+  occupiedMap: Map<number, LockerOccupantInfo | null>;
   onLockerClick: (lockerNumber: number) => void;
 };
 
@@ -72,13 +77,10 @@ export function LockerStatusSection({
           const titleText = item
             ? [
                 `${lockerNumber}번 ${statusText}`,
-                `고객: ${item.mberNm?.trim() || "-"}`,
-                `연락처: ${item.tel?.trim() || "-"}`,
-                `채널: ${formatChannel(item.os)}`,
-                `예약일시: ${formatReservationDate(
-                  item.reservationDay,
-                  item.reservationStartTime
-                )}`,
+                `고객: ${item.name || "-"}`,
+                `연락처: ${item.tel || "-"}`,
+                `채널: ${item.channel || "-"}`,
+                `예약일시: ${item.reservationDate || "-"}`,
               ].join("\n")
             : `${lockerNumber}번 비어있음`;
 
