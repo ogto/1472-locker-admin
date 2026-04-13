@@ -6,6 +6,13 @@ type Props = {
   storageId: number | null;
   pulseMs: number;
   submitting: boolean;
+  userInfo?: {
+    name: string;
+    tel: string;
+    channel: string;
+    reservationDate: string;
+    status: string;
+  } | null;
   onClose: () => void;
   onConfirm: () => void;
 };
@@ -16,6 +23,7 @@ export function ConfirmOpenModal({
   storageId,
   pulseMs,
   submitting,
+  userInfo,
   onClose,
   onConfirm,
 }: Props) {
@@ -49,6 +57,24 @@ export function ConfirmOpenModal({
           </div>
         </div>
 
+        <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4">
+          <div className="text-sm font-black text-slate-900">현재 사용중인 사람</div>
+
+          {userInfo ? (
+            <div className="mt-3 space-y-2 text-sm">
+              <Row label="이름" value={userInfo.name} />
+              <Row label="연락처" value={userInfo.tel} />
+              <Row label="채널" value={userInfo.channel} />
+              <Row label="예약일시" value={userInfo.reservationDate} />
+              <Row label="상태" value={userInfo.status} />
+            </div>
+          ) : (
+            <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+              사용자 정보 없음
+            </div>
+          )}
+        </div>
+
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
@@ -67,6 +93,15 @@ export function ConfirmOpenModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-slate-500">{label}</span>
+      <strong className="text-right text-slate-900">{value}</strong>
     </div>
   );
 }

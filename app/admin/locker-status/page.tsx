@@ -11,9 +11,18 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { fetchReserveUser } from "@/lib/dashboard/api";
 import type { ReserveUserItem } from "@/lib/dashboard/types";
 import { DEFAULT_POINT, DEFAULT_PULSE_MS } from "@/lib/lockers/constants";
+import { formatChannel, formatReservationDate, formatStatus } from "@/lib/common";
 
 const COLD_LOCKERS = Array.from({ length: 300 }, (_, index) => index + 1);
 const ROOM_LOCKERS = Array.from({ length: 100 }, (_, index) => index + 301);
+
+type LockerOccupantInfo = {
+  name: string;
+  tel: string;
+  channel: string;
+  reservationDate: string;
+  status: string;
+};
 
 function extractStorageId(value: unknown): number | null {
   if (typeof value === "number" && Number.isInteger(value)) {
@@ -28,43 +37,57 @@ function extractStorageId(value: unknown): number | null {
   return null;
 }
 
-function extractOccupiedStorageIds(items: unknown[]): number[] {
-  const ids = new Set<number>();
+function pickText(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
 
-  for (const item of items) {
-    const candidates: unknown[] = [];
-
-    if (typeof item === "number" || typeof item === "string") {
-      candidates.push(item);
-    }
-
-    if (item && typeof item === "object") {
-      const record = item as Record<string, unknown>;
-      candidates.push(
-        record.storageId,
-        record.storageNo,
-        record.storageNumber,
-        record.lockerId,
-        record.lockerNo,
-        record.no
-      );
-    }
-
-    for (const candidate of candidates) {
-      const storageId = extractStorageId(candidate);
-
-      if (storageId != null && storageId >= 1 && storageId <= 400) {
-        ids.add(storageId);
-      }
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
     }
   }
 
-  return Array.from(ids);
+  return "";
 }
 
-function buildOccupiedMap(storageIds: number[], reserveUsers: ReserveUserItem[]) {
-  const map = new Map<number, ReserveUserItem>();
-  const reserveUserMap = new Map<number, ReserveUserItem>();
+function buildReserveUserInfo(item: ReserveUserItem): LockerOccupantInfo {
+  return {
+    name: item.mberNm?.trim() || "-",
+    tel: item.tel?.trim() || "-",
+    channel: formatChannel(item.os),
+    reservationDate: formatReservationDate(item.reservationDay, item.reservationStartTime),
+    status: formatStatus(item.reservationStatus),
+  };
+}
+
+function buildEnableStorageInfo(record: Record<string, unknown>): LockerOccupantInfo {
+  const reservationDay = pickText(record, ["reservationDay", "reserveDay", "day"]);
+  const reservationStartTime = pickText(record, [
+    "reservationStartTime",
+    "reserveStartTime",
+    "startTime",
+    "time",
+  ]);
+
+  return {
+    name: pickText(record, ["mberNm", "memberName", "userName", "name"]) || "-",
+    tel: pickText(record, ["tel", "phone", "phoneNumber", "mobile"]) || "-",
+    channel:
+      formatChannel(
+        pickText(record, ["os", "channel", "platform", "requestChannel"]) || "-"
+      ) || "-",
+    reservationDate: formatReservationDate(reservationDay, reservationStartTime),
+    status: formatStatus(
+      pickText(record, ["reservationStatus", "status", "reserveStatus"]) || "-"
+    ),
+  };
+}
+
+function buildOccupiedMap(
+  enableStorageItems: unknown[],
+  reserveUsers: ReserveUserItem[]
+) {
+  const map = new Map<number, LockerOccupantInfo | null>();
+  const reserveUserMap = new Map<number, LockerOccupantInfo>();
 
   for (const item of reserveUsers) {
     const storageId = Number(item.storageId);
@@ -73,11 +96,31 @@ function buildOccupiedMap(storageIds: number[], reserveUsers: ReserveUserItem[])
       continue;
     }
 
-    reserveUserMap.set(storageId, item);
+    reserveUserMap.set(storageId, buildReserveUserInfo(item));
   }
 
-  for (const storageId of storageIds) {
-    map.set(storageId, reserveUserMap.get(storageId) ?? ({ storageId } as ReserveUserItem));
+  for (const item of enableStorageItems) {
+    const record =
+      item && typeof item === "object" ? (item as Record<string, unknown>) : null;
+
+    const storageId = extractStorageId(
+      record?.storageId ??
+        record?.storageNo ??
+        record?.storageNumber ??
+        record?.lockerId ??
+        record?.lockerNo ??
+        record?.no ??
+        item
+    );
+
+    if (storageId == null || storageId < 1 || storageId > 400) {
+      continue;
+    }
+
+    map.set(
+      storageId,
+      reserveUserMap.get(storageId) ?? (record ? buildEnableStorageInfo(record) : null)
+    );
   }
 
   return map;
@@ -86,7 +129,7 @@ function buildOccupiedMap(storageIds: number[], reserveUsers: ReserveUserItem[])
 export default function AdminLockerStatusPage() {
   const auth = useAdminAuth();
   const [reserveUsers, setReserveUsers] = useState<ReserveUserItem[]>([]);
-  const [occupiedStorageIds, setOccupiedStorageIds] = useState<number[]>([]);
+  const [enableStorageItems, setEnableStorageItems] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
@@ -114,8 +157,6 @@ export default function AdminLockerStatusPage() {
         fetchReserveUser(),
       ]);
 
-      let nextOccupiedStorageIds: number[] = [];
-
       if (enableStorageResult.status === "fulfilled") {
         const response = enableStorageResult.value;
         const data = await response.json();
@@ -125,7 +166,7 @@ export default function AdminLockerStatusPage() {
         }
 
         const rawItems = Array.isArray(data.data) ? data.data : [];
-        nextOccupiedStorageIds = extractOccupiedStorageIds(rawItems);
+        setEnableStorageItems(rawItems);
       } else {
         throw enableStorageResult.reason;
       }
@@ -135,11 +176,9 @@ export default function AdminLockerStatusPage() {
       } else {
         setReserveUsers([]);
       }
-
-      setOccupiedStorageIds(nextOccupiedStorageIds);
     } catch (error) {
       setReserveUsers([]);
-      setOccupiedStorageIds([]);
+      setEnableStorageItems([]);
       setErrorText(
         error instanceof Error ? error.message : "보관함 상태를 불러오지 못했습니다."
       );
@@ -196,9 +235,13 @@ export default function AdminLockerStatusPage() {
   }
 
   const occupiedMap = useMemo(
-    () => buildOccupiedMap(occupiedStorageIds, reserveUsers),
-    [occupiedStorageIds, reserveUsers]
+    () => buildOccupiedMap(enableStorageItems, reserveUsers),
+    [enableStorageItems, reserveUsers]
   );
+  const selectedUserInfo = useMemo(() => {
+    if (selectedLockerId == null) return null;
+    return occupiedMap.get(selectedLockerId) ?? null;
+  }, [occupiedMap, selectedLockerId]);
   const coldOccupiedCount = useMemo(
     () => COLD_LOCKERS.filter((lockerNumber) => occupiedMap.has(lockerNumber)).length,
     [occupiedMap]
@@ -281,6 +324,7 @@ export default function AdminLockerStatusPage() {
         storageId={selectedLockerId}
         pulseMs={DEFAULT_PULSE_MS}
         submitting={submitLoading}
+        userInfo={selectedUserInfo}
         onClose={() => setConfirmOpen(false)}
         onConfirm={() => void handleConfirmOpen()}
       />
