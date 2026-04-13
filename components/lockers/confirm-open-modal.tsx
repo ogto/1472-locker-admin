@@ -29,7 +29,7 @@ export function ConfirmOpenModal({
         </div>
 
         <h3 className="text-2xl font-black tracking-tight text-slate-900">
-          정말 열기 명령을 보낼까?
+          정말 열기 명령을 보낼까요?
         </h3>
 
         <div className="mt-5 space-y-3 rounded-3xl bg-slate-50 p-4">

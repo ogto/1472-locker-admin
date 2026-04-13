@@ -14,6 +14,7 @@ const menus: SidebarMenu[] = [
   { href: "/admin/sales", label: "매출관리", emoji: "💳", superOnly: true },
   { href: "/admin/manual-sales", label: "매출입력(직원용)", emoji: "🧾" },
   { href: "/admin/lockers", label: "보관함 제어", emoji: "🧰" },
+  { href: "/admin/locker-status", label: "보관함 관리", emoji: "🗂️" },
   { href: "/admin/logs", label: "명령 이력", emoji: "🧾" },
   { href: "/admin/devices", label: "장치 상태", emoji: "📡" },
   { href: "/admin/settings", label: "설정", emoji: "⚙️" },
