@@ -1,4 +1,5 @@
 import type {
+  CancelReserveRequest,
   PickupRequest,
   ReserveUserDetailItem,
   ReserveUserResponse,
@@ -85,6 +86,29 @@ export async function postPickup({
 
   if (!res.ok || !data?.ok) {
     throw new Error(data?.message || "픽업 처리 실패");
+  }
+
+  return data;
+}
+
+export async function postCancelReserve({
+  point,
+  reserveId,
+}: CancelReserveRequest) {
+  const params = new URLSearchParams();
+  params.set("point", point);
+  params.set("reserveId", String(reserveId));
+
+  const res = await fetch(`/api/dashboard/cancel?${params.toString()}`, {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.message || "보관 취소 실패");
   }
 
   return data;

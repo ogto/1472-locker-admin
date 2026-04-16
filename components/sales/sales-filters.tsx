@@ -1,13 +1,15 @@
-import type { PointKey, SalesPeriodType } from "@/lib/sales/types";
+import type { PointKey, SalesPaymentFilter, SalesPeriodType } from "@/lib/sales/types";
 
 type Props = {
   periodType: SalesPeriodType;
+  paymentFilter: SalesPaymentFilter;
   point: PointKey;
   year: number;
   month: number;
   date: string;
   loading: boolean;
   onChangePeriodType: (value: SalesPeriodType) => void;
+  onChangePaymentFilter: (value: SalesPaymentFilter) => void;
   onChangePoint: (value: PointKey) => void;
   onChangeYear: (value: number) => void;
   onChangeMonth: (value: number) => void;
@@ -23,12 +25,14 @@ const pointOptions: { label: string; value: PointKey }[] = [
 
 export function SalesFilters({
   periodType,
+  paymentFilter,
   point,
   year,
   month,
   date,
   loading,
   onChangePeriodType,
+  onChangePaymentFilter,
   onChangePoint,
   onChangeYear,
   onChangeMonth,
@@ -62,6 +66,28 @@ export function SalesFilters({
         >
           월별
         </button>
+      </div>
+
+      <div className="mb-5 flex flex-wrap gap-2">
+        {[
+          { label: "전체", value: "all" },
+          { label: "앱결제", value: "app" },
+          { label: "카드결제", value: "card" },
+        ].map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChangePaymentFilter(option.value as SalesPaymentFilter)}
+            className={[
+              "rounded-2xl px-4 py-2 text-sm font-black transition",
+              paymentFilter === option.value
+                ? "bg-rose-500 text-white"
+                : "bg-rose-50 text-rose-700 hover:bg-rose-100",
+            ].join(" ")}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
 
       <div

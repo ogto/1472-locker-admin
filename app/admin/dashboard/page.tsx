@@ -14,6 +14,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import {
   fetchReserveUser,
   fetchReserveUserDetail,
+  postCancelReserve,
   postPickup,
 } from "@/lib/dashboard/api";
 import {
@@ -62,6 +63,7 @@ export default function AdminDashboardPage() {
   const [detailErrorText, setDetailErrorText] = useState("");
   const [detailData, setDetailData] = useState<ReserveUserDetailItem[]>([]);
   const [pickupLoading, setPickupLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     if (!auth.booting && auth.authenticated) {
@@ -158,6 +160,48 @@ export default function AdminDashboardPage() {
       );
     } finally {
       setPickupLoading(false);
+    }
+  }
+
+  async function handleCancelReserve() {
+    const cancelTarget = detailData.find((item) => {
+      const status = item.reservationStatus?.trim().toUpperCase() || "";
+
+      return (
+        item.reserveId != null &&
+        item.point === "bank" &&
+        status !== "PICKUP" &&
+        status !== "CANCEL" &&
+        status !== "CANCELED"
+      );
+    });
+
+    if (!cancelTarget?.reserveId) {
+      setDetailErrorText("취소 가능한 보관 건이 없습니다.");
+      return;
+    }
+
+    try {
+      setCancelLoading(true);
+      setDetailErrorText("");
+
+      await postCancelReserve({
+        point: cancelTarget.point || "bank",
+        reserveId: cancelTarget.reserveId,
+      });
+
+      const refreshedList = await fetchReserveUser();
+      setRows(refreshedList.items);
+      setCounts(refreshedList.counts);
+      setDetailOpen(false);
+      setSelected(null);
+      setDetailData([]);
+    } catch (error) {
+      setDetailErrorText(
+        error instanceof Error ? error.message : "보관 취소에 실패했습니다."
+      );
+    } finally {
+      setCancelLoading(false);
     }
   }
 
@@ -271,7 +315,9 @@ export default function AdminDashboardPage() {
         errorText={detailErrorText}
         data={detailData}
         pickupLoading={pickupLoading}
+        cancelLoading={cancelLoading}
         onPickup={() => void handlePickup()}
+        onCancelReserve={() => void handleCancelReserve()}
         onClose={() => {
           setDetailOpen(false);
           setSelected(null);

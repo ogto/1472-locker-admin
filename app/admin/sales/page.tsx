@@ -13,7 +13,14 @@ import { SalesPaymentChart } from "@/components/sales/sales-payment-chart";
 import { SalesSummaryCards } from "@/components/sales/sales-summary-cards";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useSales } from "@/hooks/use-sales";
-import type { PointKey, SalesPeriodType } from "@/lib/sales/types";
+import {
+  buildFilteredDailySummary,
+  buildFilteredMonthSummary,
+  filterDailyRows,
+  mapFilteredMonthRows,
+  mapFilteredPaymentRows,
+} from "@/lib/sales/mapper";
+import type { PointKey, SalesPaymentFilter, SalesPeriodType } from "@/lib/sales/types";
 
 function getTodayDateString() {
   const now = new Date();
@@ -28,6 +35,7 @@ export default function AdminSalesPage() {
 
   const today = useMemo(() => new Date(), []);
   const [periodType, setPeriodType] = useState<SalesPeriodType>("daily");
+  const [paymentFilter, setPaymentFilter] = useState<SalesPaymentFilter>("all");
   const [point, setPoint] = useState<PointKey>("bank");
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -41,6 +49,23 @@ export default function AdminSalesPage() {
     date,
     point,
   });
+
+  const filteredData = useMemo(() => {
+    if (!data) return null;
+
+    return {
+      ...data,
+      monthRows: mapFilteredMonthRows(data.rawMonthItems, paymentFilter),
+      paymentRows: mapFilteredPaymentRows(data.rawMonthItems, paymentFilter),
+      monthSummary: buildFilteredMonthSummary(data.rawMonthItems, paymentFilter),
+      dailyRows: filterDailyRows(data.dailyRows, paymentFilter),
+      dailySummary: buildFilteredDailySummary(
+        filterDailyRows(data.dailyRows, paymentFilter),
+        data.dailySummary,
+        paymentFilter,
+      ),
+    };
+  }, [data, paymentFilter]);
 
   if (auth.authenticated && auth.role !== "super-admin") {
     return (
@@ -81,12 +106,14 @@ export default function AdminSalesPage() {
       <div className="space-y-4 lg:space-y-6">
         <SalesFilters
           periodType={periodType}
+          paymentFilter={paymentFilter}
           point={point}
           year={year}
           month={month}
           date={date}
           loading={loading}
           onChangePeriodType={setPeriodType}
+          onChangePaymentFilter={setPaymentFilter}
           onChangePoint={setPoint}
           onChangeYear={setYear}
           onChangeMonth={setMonth}
@@ -96,7 +123,7 @@ export default function AdminSalesPage() {
 
         {error ? <StatusBanner type="error" text={error} /> : null}
 
-        {!data ? (
+        {!filteredData ? (
           <section className="rounded-[28px] border border-slate-200 bg-white px-5 py-10 text-center text-sm font-medium text-slate-500 shadow-sm">
             {loading ? "데이터를 불러오는 중입니다." : "표시할 데이터가 없습니다."}
           </section>
@@ -104,18 +131,18 @@ export default function AdminSalesPage() {
           <>
             <SalesSummaryCards
               periodType={periodType}
-              monthSummary={data.monthSummary}
-              dailySummary={data.dailySummary}
+              monthSummary={filteredData.monthSummary}
+              dailySummary={filteredData.dailySummary}
             />
 
             {periodType === "month" ? (
               <div className="grid gap-5 xl:grid-cols-2">
-                <SalesMonthChart rows={data.monthRows} />
-                <SalesPaymentChart rows={data.paymentRows} />
+                <SalesMonthChart rows={filteredData.monthRows} />
+                <SalesPaymentChart rows={filteredData.paymentRows} />
               </div>
             ) : (
               <SalesDailyTable
-                rows={data.dailyRows}
+                rows={filteredData.dailyRows}
                 periodType={periodType}
                 onClickAddManual={() => setManualModalOpen(true)}
               />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { groupDetailByType } from "@/lib/dashboard/mapper";
 import {
   formatReservationDate,
@@ -15,7 +15,9 @@ type Props = {
   errorText: string;
   data: ReserveUserDetailItem[];
   pickupLoading: boolean;
+  cancelLoading: boolean;
   onPickup: () => Promise<void> | void;
+  onCancelReserve: () => Promise<void> | void;
   onClose: () => void;
 };
 
@@ -25,16 +27,13 @@ export function DashboardDetailModal({
   errorText,
   data,
   pickupLoading,
+  cancelLoading,
   onPickup,
+  onCancelReserve,
   onClose,
 }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) {
-      setConfirmOpen(false);
-    }
-  }, [open]);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   const first = data[0];
   const grouped = groupDetailByType(data);
@@ -52,10 +51,33 @@ export function DashboardDetailModal({
   });
 
   const canPickup = pickupTargets.length > 0;
+  const cancelTargets = data.filter((item) => {
+    const status = item.reservationStatus?.trim().toUpperCase() || "";
+
+    return (
+      item.reserveId != null &&
+      item.point === "bank" &&
+      status !== "PICKUP" &&
+      status !== "CANCEL" &&
+      status !== "CANCELED"
+    );
+  });
+  const canCancel = cancelTargets.length > 0;
 
   const handleConfirmPickup = async () => {
     await onPickup();
     setConfirmOpen(false);
+  };
+
+  const handleConfirmCancel = async () => {
+    await onCancelReserve();
+    setCancelConfirmOpen(false);
+  };
+
+  const handleClose = () => {
+    setConfirmOpen(false);
+    setCancelConfirmOpen(false);
+    onClose();
   };
 
   if (!open) return null;
@@ -64,7 +86,7 @@ export function DashboardDetailModal({
     <>
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.46)] p-3 sm:p-4 backdrop-blur-[3px]"
-        onClick={onClose}
+        onClick={handleClose}
       >
         <div
           className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,247,249,0.96)_100%)] shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:rounded-[32px]"
@@ -81,6 +103,17 @@ export function DashboardDetailModal({
             </div>
 
             <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end md:w-auto">
+              {canCancel ? (
+                <button
+                  type="button"
+                  onClick={() => setCancelConfirmOpen(true)}
+                  disabled={cancelLoading}
+                  className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-rose-100 bg-rose-50 px-4 py-2.5 text-[14px] font-extrabold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[120px] sm:w-auto"
+                >
+                  {cancelLoading ? "처리중..." : "보관 취소"}
+                </button>
+              ) : null}
+
               {canPickup ? (
                 <button
                   type="button"
@@ -94,7 +127,7 @@ export function DashboardDetailModal({
 
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-rose-100 bg-white/90 px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-rose-50 sm:min-w-[96px] sm:w-auto"
               >
                 닫기
@@ -137,6 +170,18 @@ export function DashboardDetailModal({
           onConfirm={handleConfirmPickup}
           onCancel={() => {
             if (!pickupLoading) setConfirmOpen(false);
+          }}
+        />
+      ) : null}
+
+      {cancelConfirmOpen ? (
+        <ConfirmCancelModal
+          loading={cancelLoading}
+          customerName={first?.mberNm?.trim() || "-"}
+          reserveId={first?.reserveId ?? null}
+          onConfirm={handleConfirmCancel}
+          onCancel={() => {
+            if (!cancelLoading) setCancelConfirmOpen(false);
           }}
         />
       ) : null}
@@ -205,6 +250,77 @@ function ConfirmPickupModal({
             className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-emerald-100 bg-emerald-500 px-4 py-2.5 text-[14px] font-extrabold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[132px] sm:w-auto"
           >
             {loading ? "처리중..." : "확인 후 완료"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmCancelModal({
+  loading,
+  customerName,
+  reserveId,
+  onConfirm,
+  onCancel,
+}: {
+  loading: boolean;
+  customerName: string;
+  reserveId: number | null;
+  onConfirm: () => Promise<void> | void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(15,23,42,0.52)] p-4 backdrop-blur-[2px]"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-rose-50 text-xl">
+            ⚠️
+          </div>
+          <div className="min-w-0">
+            <div className="text-[20px] font-black tracking-[-0.03em] text-slate-900">
+              보관 취소
+            </div>
+            <div className="mt-1 text-[13px] font-bold text-slate-500">
+              취소 후 목록과 상태가 바로 갱신됩니다
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-[22px] border border-rose-100 bg-rose-50/70 px-4 py-4">
+          <div className="text-[14px] font-bold leading-6 text-slate-700">
+            <span className="font-black text-slate-900">{customerName}</span> 고객의
+            보관
+            <span className="mx-1 font-black text-slate-900">
+              #{reserveId ?? "-"}
+            </span>
+            건을 정말 취소할까요?
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[96px] sm:w-auto"
+          >
+            닫기
+          </button>
+
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-rose-100 bg-rose-500 px-4 py-2.5 text-[14px] font-extrabold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[132px] sm:w-auto"
+          >
+            {loading ? "처리중..." : "확인"}
           </button>
         </div>
       </div>

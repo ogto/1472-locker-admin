@@ -115,3 +115,8 @@ export type PickupRequest = {
   point: string;
   reserveId: number;
 };
+
+export type CancelReserveRequest = {
+  point: string;
+  reserveId: number;
+};

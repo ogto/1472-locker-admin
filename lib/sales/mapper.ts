@@ -10,6 +10,7 @@ import type {
   MonthlyChartRow,
   PaymentChartRow,
   PointKey,
+  SalesPaymentFilter,
   SalesDashboardData,
 } from "./types";
 
@@ -112,6 +113,19 @@ function sumRecordValues(record?: Record<string, number>) {
   );
 }
 
+function sumSelectedRecordValues(
+  record: Record<string, number> | undefined,
+  paymentFilter: SalesPaymentFilter,
+) {
+  if (paymentFilter === "all") {
+    return sumRecordValues(record);
+  }
+
+  const targetKey = paymentFilter === "app" ? "0" : "1";
+
+  return Number(record?.[targetKey] ?? 0);
+}
+
 export function getPaymentTypeLabel(raw?: string | number | null) {
   const code = extractCode(raw);
   return PAYMENT_TYPE_LABEL[code] ?? "-";
@@ -186,6 +200,37 @@ export function mapPaymentRows(rows: MonthSalesApiItem[]): PaymentChartRow[] {
     cancelAmount: cancelAmountMap[key] ?? 0,
     cancelCount: cancelCountMap[key] ?? 0,
   }));
+}
+
+export function mapFilteredMonthRows(
+  rows: MonthSalesApiItem[],
+  paymentFilter: SalesPaymentFilter,
+): MonthlyChartRow[] {
+  if (paymentFilter === "all") {
+    return mapMonthRows(rows);
+  }
+
+  return [...rows]
+    .map((row) => ({
+      date: row.createdAt,
+      label: formatDateLabel(row.createdAt),
+      totalAmount:
+        sumSelectedRecordValues(row.paymentTypeAmount, paymentFilter) -
+        sumSelectedRecordValues(row.paymentTypeCancelAmount, paymentFilter),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function mapFilteredPaymentRows(
+  rows: MonthSalesApiItem[],
+  paymentFilter: SalesPaymentFilter,
+): PaymentChartRow[] {
+  const mapped = mapPaymentRows(rows);
+
+  if (paymentFilter === "all") return mapped;
+
+  const targetKey = paymentFilter === "app" ? "0" : "1";
+  return mapped.filter((row) => row.key === targetKey || row.label === (paymentFilter === "app" ? "앱" : "카드"));
 }
 
 export function mapDailyRows(rows: DailySalesApiItem[]): DailySalesViewRow[] {
@@ -342,6 +387,99 @@ export function buildMonthSummary(
   };
 }
 
+export function buildFilteredMonthSummary(
+  monthRows: MonthSalesApiItem[],
+  paymentFilter: SalesPaymentFilter,
+): MonthSummary {
+  if (paymentFilter === "all") {
+    return buildMonthSummary(monthRows, mapPaymentRows(monthRows));
+  }
+
+  const baseSummary = buildMonthSummary(monthRows, mapPaymentRows(monthRows));
+  const filteredPaymentRows = mapFilteredPaymentRows(monthRows, paymentFilter);
+  const filteredMonthRows = mapFilteredMonthRows(monthRows, paymentFilter);
+
+  const totalPaymentAmount = filteredPaymentRows.reduce(
+    (acc, cur) => acc + Number(cur.amount || 0),
+    0,
+  );
+  const totalCancelAmount = filteredPaymentRows.reduce(
+    (acc, cur) => acc + Number(cur.cancelAmount || 0),
+    0,
+  );
+  const totalPaymentCount = filteredPaymentRows.reduce(
+    (acc, cur) => acc + Number(cur.count || 0),
+    0,
+  );
+  const totalCancelCount = filteredPaymentRows.reduce(
+    (acc, cur) => acc + Number(cur.cancelCount || 0),
+    0,
+  );
+  const totalAmount = filteredMonthRows.reduce(
+    (acc, cur) => acc + Number(cur.totalAmount || 0),
+    0,
+  );
+
+  const appRow = filteredPaymentRows.find((row) => row.key === "0" || row.label === "앱");
+  const cardRow = filteredPaymentRows.find((row) => row.key === "1" || row.label === "카드");
+
+  return {
+    ...baseSummary,
+    totalAmount,
+    totalPaymentAmount,
+    totalCancelAmount,
+    totalPaymentCount,
+    totalCancelCount,
+    appPaymentAmount: Number(appRow?.amount || 0),
+    cardPaymentAmount: Number(cardRow?.amount || 0),
+    appCancelAmount: Number(appRow?.cancelAmount || 0),
+    cardCancelAmount: Number(cardRow?.cancelAmount || 0),
+  };
+}
+
+export function filterDailyRows(
+  rows: DailySalesViewRow[],
+  paymentFilter: SalesPaymentFilter,
+) {
+  if (paymentFilter === "all") return rows;
+
+  const targetCode = paymentFilter === "app" ? "0" : "1";
+  return rows.filter((row) => row.payTypeCode === targetCode);
+}
+
+export function buildFilteredDailySummary(
+  rows: DailySalesViewRow[],
+  baseSummary: DailySummary,
+  paymentFilter: SalesPaymentFilter,
+): DailySummary {
+  if (paymentFilter === "all") {
+    return baseSummary;
+  }
+
+  const paymentRows = rows.filter(
+    (row) => row.rowTypeCode === "0" || row.rowTypeCode === "1",
+  );
+  const refundRows = rows.filter((row) => row.rowTypeCode === "2");
+  const paymentAmount = paymentRows.reduce((acc, cur) => acc + Number(cur.price || 0), 0);
+  const refundAmount = refundRows.reduce((acc, cur) => acc + Number(cur.price || 0), 0);
+  const baseRows = rows.filter((row) => row.rowTypeCode === "0");
+  const addRows = rows.filter((row) => row.rowTypeCode === "1");
+
+  return {
+    ...baseSummary,
+    paymentAmount,
+    refundAmount,
+    paymentCount: paymentRows.length,
+    refundCount: refundRows.length,
+    avgPaymentAmount: paymentRows.length ? Math.round(paymentAmount / paymentRows.length) : 0,
+    baseAmount: baseRows.reduce((acc, cur) => acc + Number(cur.price || 0), 0),
+    baseCount: baseRows.length,
+    addAmount: addRows.reduce((acc, cur) => acc + Number(cur.price || 0), 0),
+    addCount: addRows.length,
+    netAmount: paymentAmount - refundAmount,
+  };
+}
+
 export function buildDailySummary(daily: DailySalesApiResponse): DailySummary {
   const paymentCount = daily.items.filter((row) => {
     const type = extractCode(row.type);
@@ -386,5 +524,7 @@ export function mapSalesDashboardData(
     dailyRows: mapDailyRows(dailyData.items ?? []),
     monthSummary: buildMonthSummary(monthItems, paymentRows),
     dailySummary: buildDailySummary(dailyData),
+    rawMonthItems: monthItems,
+    rawDailyData: dailyData,
   };
 }

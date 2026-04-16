@@ -1,5 +1,6 @@
 export type PointKey = "sungsim" | "baseball" | "bank";
 export type SalesPeriodType = "month" | "daily";
+export type SalesPaymentFilter = "all" | "app" | "card";
 
 export type MonthSalesApiItem = {
   createdAt: string;
@@ -123,6 +124,8 @@ export type SalesDashboardData = {
   dailyRows: DailySalesViewRow[];
   monthSummary: MonthSummary;
   dailySummary: DailySummary;
+  rawMonthItems: MonthSalesApiItem[];
+  rawDailyData: DailySalesApiResponse;
 };
 
 export type ManualSalesRequest = {
