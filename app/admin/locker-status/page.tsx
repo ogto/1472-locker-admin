@@ -9,6 +9,8 @@ import { ConfirmOpenModal } from "@/components/lockers/confirm-open-modal";
 import { LockerStatusSection } from "@/components/locker-status/locker-status-section";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { fetchReserveUser } from "@/lib/dashboard/api";
+import { fetchTodayHistoryByStorage } from "@/lib/history/api";
+import type { HistoryItem } from "@/lib/history/types";
 import type { ReserveUserItem } from "@/lib/dashboard/types";
 import { DEFAULT_POINT, DEFAULT_PULSE_MS } from "@/lib/lockers/constants";
 import { formatChannel, formatReservationDate, formatStatus } from "@/lib/common";
@@ -21,6 +23,14 @@ type LockerOccupantInfo = {
   tel: string;
   channel: string;
   reservationDate: string;
+  status: string;
+};
+
+type LockerHistoryRow = {
+  id: number;
+  name: string;
+  tel: string;
+  timeRange: string;
   status: string;
 };
 
@@ -136,6 +146,9 @@ export default function AdminLockerStatusPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedLockerId, setSelectedLockerId] = useState<number | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [historyRows, setHistoryRows] = useState<LockerHistoryRow[]>([]);
 
   useEffect(() => {
     if (!auth.booting && auth.authenticated) {
@@ -192,6 +205,105 @@ export default function AdminLockerStatusPage() {
     setConfirmOpen(true);
     setErrorText("");
     setSuccessText("");
+    setHistoryRows([]);
+    setHistoryError("");
+    void loadLockerHistory(lockerNumber);
+  }
+
+  function buildHistoryTimeRange(item: HistoryItem) {
+    const day = item.reservationDay?.trim() || "";
+    const start = item.reservationStartTime?.trim() || "";
+    const status = item.reservationStatus?.trim().toUpperCase() || "";
+
+    if (!day || !start) return "-";
+
+    if (status === "COMPLETED") {
+      return `${start} ~ -`;
+    }
+
+    const updateAt = item.updateAt;
+
+    if (Array.isArray(updateAt) && updateAt.length >= 5) {
+      const [, , , hour, minute] = updateAt;
+      const endText = `${String(Number(hour) || 0).padStart(2, "0")}:${String(
+        Number(minute) || 0
+      ).padStart(2, "0")}`;
+
+      return `${start} ~ ${endText}`;
+    }
+
+    if (typeof updateAt === "string" && updateAt.trim()) {
+      const parsed = new Date(updateAt);
+
+      if (!Number.isNaN(parsed.getTime())) {
+        const endText = `${String(parsed.getHours()).padStart(2, "0")}:${String(
+          parsed.getMinutes()
+        ).padStart(2, "0")}`;
+
+        return `${start} ~ ${endText}`;
+      }
+    }
+
+    return `${start} ~ -`;
+  }
+
+  function buildCurrentUserTimeRange(reservationDate?: string) {
+    const text = reservationDate?.trim() || "";
+    const match = text.match(/(\d{2}:\d{2})$/);
+
+    if (!match) return "-";
+
+    return `${match[1]} ~ -`;
+  }
+
+  async function loadLockerHistory(lockerNumber: number) {
+    setHistoryLoading(true);
+    setHistoryError("");
+
+    try {
+      const collected = await fetchTodayHistoryByStorage(DEFAULT_POINT, lockerNumber);
+
+      const mappedRows = collected.map((item) => ({
+          id: item.id,
+          name: item.mberNm?.trim() || "-",
+          tel: item.tel?.trim() || "-",
+          timeRange: buildHistoryTimeRange(item),
+          status: formatStatus(item.reservationStatus),
+        }));
+
+      const currentUser = occupiedMap.get(lockerNumber);
+      const hasCurrentUserRow =
+        currentUser == null
+          ? true
+          : mappedRows.some(
+              (row) =>
+                row.tel === currentUser.tel &&
+                row.name === currentUser.name &&
+                (row.status === "이용중" || row.status === "보관중")
+            );
+
+      setHistoryRows(
+        hasCurrentUserRow || !currentUser
+          ? mappedRows
+          : [
+              {
+                id: -lockerNumber,
+                name: currentUser.name,
+                tel: currentUser.tel,
+                timeRange: buildCurrentUserTimeRange(currentUser.reservationDate),
+                status: "이용중",
+              },
+              ...mappedRows,
+            ]
+      );
+    } catch (error) {
+      setHistoryRows([]);
+      setHistoryError(
+        error instanceof Error ? error.message : "히스토리 조회에 실패했습니다."
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
   async function handleConfirmOpen() {
@@ -325,7 +437,14 @@ export default function AdminLockerStatusPage() {
         pulseMs={DEFAULT_PULSE_MS}
         submitting={submitLoading}
         userInfo={selectedUserInfo}
-        onClose={() => setConfirmOpen(false)}
+        historyLoading={historyLoading}
+        historyError={historyError}
+        historyRows={historyRows}
+        onClose={() => {
+          setConfirmOpen(false);
+          setHistoryRows([]);
+          setHistoryError("");
+        }}
         onConfirm={() => void handleConfirmOpen()}
       />
     </AdminShell>

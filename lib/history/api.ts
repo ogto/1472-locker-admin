@@ -1,5 +1,6 @@
 import type {
   HistoryDetailItem,
+  HistoryItem,
   HistoryPageResponse,
   HistorySearchParams,
   HistorySummary,
@@ -127,6 +128,31 @@ export async function fetchReserveHistoryDetail(
 
   if (!response.ok || !result?.ok) {
     throw new Error(result?.message || "이용내역 상세 조회에 실패했습니다.");
+  }
+
+  return Array.isArray(result?.data) ? result.data : [];
+}
+
+export async function fetchTodayHistoryByStorage(
+  point: string,
+  storageId: number
+): Promise<HistoryItem[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("point", point);
+  searchParams.set("storageId", String(storageId));
+
+  const response = await fetch(
+    `/api/history/today-by-storage?${searchParams.toString()}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.message || "보관함 히스토리 조회에 실패했습니다.");
   }
 
   return Array.isArray(result?.data) ? result.data : [];
