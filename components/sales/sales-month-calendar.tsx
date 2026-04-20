@@ -474,10 +474,18 @@ function SalesDayDetailModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-3xl rounded-[32px] bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.16)] sm:p-8"
+        className="relative w-full max-w-3xl rounded-[32px] bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.16)] sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-4 top-4 grid h-12 w-12 place-items-center rounded-2xl border border-slate-200 bg-white text-[34px] font-light leading-none text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 hover:text-slate-900 sm:right-5 sm:top-5 sm:h-14 sm:w-14 sm:text-[40px]"
+        >
+          ×
+        </button>
+
+        <div className="flex items-start justify-between gap-4 pr-14 sm:pr-16">
           <div>
             <div className="text-[34px] font-black tracking-[-0.05em] text-slate-800 sm:text-[38px]">
               매출액
@@ -486,14 +494,6 @@ function SalesDayDetailModal({
               {cell.date.getFullYear()}년 {cell.date.getMonth() + 1}월 {cell.dayNumber}일
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-11 w-11 place-items-center rounded-2xl text-4xl font-light text-slate-300 transition hover:bg-slate-50 hover:text-slate-500"
-          >
-            ×
-          </button>
         </div>
 
         <div className="mt-6 overflow-hidden rounded-[24px] border border-slate-200">
