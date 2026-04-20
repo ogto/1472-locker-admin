@@ -7,9 +7,10 @@ import type { AdminRole } from "@/lib/admin/types";
 type Props = {
   children: ReactNode;
   role: AdminRole | null;
+  onLogout?: () => void;
 };
 
-export function AdminShell({ children, role }: Props) {
+export function AdminShell({ children, role, onLogout }: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -27,7 +28,7 @@ export function AdminShell({ children, role }: Props) {
 
         <main className="min-w-0 flex-1">
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-8">
-            <div className="mb-4 lg:hidden">
+            <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
@@ -36,6 +37,16 @@ export function AdminShell({ children, role }: Props) {
                 <span>☰</span>
                 <span>메뉴</span>
               </button>
+
+              {onLogout ? (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="shrink-0 rounded-2xl border border-white/70 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5"
+                >
+                  로그아웃
+                </button>
+              ) : null}
             </div>
 
             {children}

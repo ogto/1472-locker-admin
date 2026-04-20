@@ -381,7 +381,7 @@ export default function AdminManualSalesPage() {
   }
 
   return (
-    <AdminShell role={auth.role}>
+    <AdminShell role={auth.role} onLogout={auth.handleLogout}>
       <AdminHeader title="수동매출입력" onLogout={auth.handleLogout} />
 
       <div className="space-y-4 lg:space-y-6">

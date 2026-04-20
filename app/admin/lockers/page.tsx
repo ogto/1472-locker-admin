@@ -46,7 +46,7 @@ export default function AdminLockersPage() {
 
   return (
     <>
-      <AdminShell role={auth.role}>
+      <AdminShell role={auth.role} onLogout={auth.handleLogout}>
         <AdminHeader
           title="보관함 제어"
           description="보관함 번호를 입력하고 수동 오픈 명령을 생성합니다."

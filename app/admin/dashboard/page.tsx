@@ -265,7 +265,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <AdminShell role={auth.role}>
+    <AdminShell role={auth.role} onLogout={auth.handleLogout}>
       <AdminHeader title="보관함 현황" onLogout={auth.handleLogout} />
 
       <div className="space-y-4 lg:space-y-6">

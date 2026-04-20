@@ -55,7 +55,7 @@ const auth = useAdminAuth();
   }, []);
 
   return (
-        <AdminShell role={auth.role}>
+        <AdminShell role={auth.role} onLogout={auth.handleLogout}>
       <AdminHeader
         title="CCTV"
         onLogout={auth.handleLogout}

@@ -386,7 +386,7 @@ export default function AdminLockerStatusPage() {
   }
 
   return (
-    <AdminShell role={auth.role}>
+    <AdminShell role={auth.role} onLogout={auth.handleLogout}>
       <AdminHeader
         title="보관함 관리"
         onLogout={auth.handleLogout}

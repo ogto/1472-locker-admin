@@ -23,7 +23,7 @@ export function AdminHeader({ title, description, onLogout }: Props) {
       <button
         type="button"
         onClick={onLogout}
-        className="shrink-0 rounded-2xl border border-white/70 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5"
+        className="hidden shrink-0 rounded-2xl border border-white/70 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 lg:inline-flex"
       >
         로그아웃
       </button>

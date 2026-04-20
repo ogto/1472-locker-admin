@@ -78,7 +78,7 @@ export default function AdminSalesPage() {
 
   if (auth.authenticated && auth.role !== "super-admin") {
     return (
-      <AdminShell role={auth.role}>
+      <AdminShell role={auth.role} onLogout={auth.handleLogout}>
         <section className="rounded-[28px] border border-rose-200 bg-rose-50 p-6 text-sm font-bold text-rose-600">
           슈퍼관리자만 접근할 수 있습니다.
         </section>
@@ -109,7 +109,7 @@ export default function AdminSalesPage() {
   }
 
   return (
-    <AdminShell role={auth.role}>
+    <AdminShell role={auth.role} onLogout={auth.handleLogout}>
       <AdminHeader title="매출관리" onLogout={auth.handleLogout} />
 
       <div className="space-y-4 lg:space-y-6">
