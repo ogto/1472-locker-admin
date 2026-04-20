@@ -261,7 +261,7 @@ export function SalesMonthCalendar({
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 border-b border-slate-200 pb-6 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 border-b border-slate-200 pb-6 xl:grid-cols-4">
           <SummaryStat label={`${month}월 총금액`} value={summary.total} />
           <SummaryStat label="앱" value={summary.app} />
           <SummaryStat label="카드" value={summary.card} />
@@ -269,7 +269,7 @@ export function SalesMonthCalendar({
         </div>
 
         <div className="mt-5">
-          <div className="grid grid-cols-7 gap-2">
+          <div className="hidden grid-cols-7 gap-2 sm:grid">
             {weekLabels.map((label, index) => (
               <div
                 key={label}
@@ -287,7 +287,55 @@ export function SalesMonthCalendar({
             ))}
           </div>
 
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-7">
+          <div className="space-y-2 sm:hidden">
+            {cells.map((cell) => (
+              <button
+                key={cell.key}
+                type="button"
+                onClick={() => setSelectedCell(cell)}
+                className={[
+                  "flex w-full items-center justify-between rounded-[20px] border px-4 py-3 text-left transition",
+                  cell.inMonth
+                    ? cell.isToday
+                      ? "border-rose-200 bg-rose-50/40 shadow-[0_10px_30px_rgba(251,113,133,0.08)]"
+                      : "border-slate-100 bg-white"
+                    : "border-slate-100 bg-slate-50/80 text-slate-300",
+                ].join(" ")}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={[
+                        "text-[20px] font-black",
+                        cell.date.getDay() === 0
+                          ? "text-rose-400"
+                          : cell.date.getDay() === 6
+                          ? "text-rose-500"
+                          : "text-slate-700",
+                        !cell.inMonth ? "opacity-40" : "",
+                      ].join(" ")}
+                    >
+                      {cell.dayNumber}
+                    </div>
+                    <div className="text-[12px] font-bold text-slate-400">
+                      {weekLabels[cell.date.getDay()]}
+                    </div>
+                    {cell.isToday ? (
+                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-500">
+                        오늘
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="min-w-[132px]">
+                  <AmountLine label="총금액" value={cell.totalAmount} tone="blue" compact />
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-2 hidden grid-cols-2 gap-2 sm:grid xl:grid-cols-7">
             {cells.map((cell) => (
               <button
                 key={cell.key}
@@ -324,7 +372,11 @@ export function SalesMonthCalendar({
                   ) : null}
                 </div>
 
-                <div className="mt-3 space-y-0.5">
+                <div className="mt-3 space-y-0.5 sm:hidden">
+                  <AmountLine label="총금액" value={cell.totalAmount} tone="blue" compact />
+                </div>
+
+                <div className="mt-3 hidden space-y-0.5 sm:block">
                   <AmountLine label="총금액" value={cell.totalAmount} tone="blue" />
                   <AmountLine label="앱" value={cell.appAmount} tone="green" />
                   <AmountLine label="카드" value={cell.cardAmount} tone="slate" />
@@ -349,8 +401,8 @@ export function SalesMonthCalendar({
 function SummaryStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="border-slate-200 xl:border-r xl:pr-6 xl:last:border-r-0">
-      <div className="text-[14px] font-black text-slate-400">{label}</div>
-      <div className="mt-2 text-[26px] font-black tracking-[-0.04em] text-slate-800">
+      <div className="text-[13px] font-black text-slate-400 sm:text-[14px]">{label}</div>
+      <div className="mt-2 text-[22px] font-black tracking-[-0.04em] text-slate-800 sm:text-[26px]">
         {formatPrice(value)}
       </div>
     </div>
@@ -361,10 +413,12 @@ function AmountLine({
   label,
   value,
   tone,
+  compact = false,
 }: {
   label: string;
   value: number;
   tone: "blue" | "green" | "slate" | "amber";
+  compact?: boolean;
 }) {
   const toneClass =
     tone === "blue"
@@ -378,11 +432,15 @@ function AmountLine({
   return (
     <div
       className={[
-        "grid grid-cols-[40px_minmax(0,1fr)] items-baseline gap-2 text-[13px] font-semibold leading-[1.2]",
+        compact
+          ? "grid grid-cols-[44px_minmax(0,1fr)] items-baseline gap-1 text-[12px] font-semibold leading-[1.15]"
+          : "grid grid-cols-[40px_minmax(0,1fr)] items-baseline gap-2 text-[13px] font-semibold leading-[1.2]",
         toneClass,
       ].join(" ")}
     >
-      <span className="text-right text-[10px] font-black opacity-70">{label}</span>
+      <span className={`text-right font-black opacity-70 ${compact ? "text-[9px]" : "text-[10px]"}`}>
+        {label}
+      </span>
       <span className="text-right">{formatCompactPrice(value)}</span>
     </div>
   );
