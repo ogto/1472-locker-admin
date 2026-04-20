@@ -35,7 +35,7 @@ export function AdminShell({
         <main className="min-w-0 flex-1">
           <div
             className={[
-              "mx-auto max-w-7xl px-4 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-8",
+              "mx-auto max-w-7xl px-4 pt-4 pb-10 sm:px-5 sm:pt-5 sm:pb-12 lg:px-8 lg:pt-8 lg:pb-16",
               contentClassName ?? "",
             ].join(" ")}
           >
