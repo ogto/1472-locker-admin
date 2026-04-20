@@ -207,6 +207,7 @@ export function SalesMonthCalendar({
 
   const title = `${year}년 ${month}월`;
   const weekLabels = ["일", "월", "화", "수", "목", "금", "토"];
+  const monthCells = cells.filter((cell) => cell.inMonth);
 
   return (
     <>
@@ -269,37 +270,17 @@ export function SalesMonthCalendar({
         </div>
 
         <div className="mt-5">
-          <div className="hidden grid-cols-7 gap-2 sm:grid 2xl:gap-3">
-            {weekLabels.map((label, index) => (
-              <div
-                key={label}
-                className={[
-                  "px-1 py-1 text-center text-[14px] font-black 2xl:text-[16px]",
-                  index === 0
-                    ? "text-rose-400"
-                    : index === 6
-                    ? "text-rose-500"
-                    : "text-slate-600",
-                ].join(" ")}
-              >
-                {label}
-              </div>
-            ))}
-          </div>
-
           <div className="space-y-2 sm:hidden">
-            {cells.map((cell) => (
+            {monthCells.map((cell) => (
               <button
                 key={cell.key}
                 type="button"
                 onClick={() => setSelectedCell(cell)}
                 className={[
                   "flex w-full items-center justify-between rounded-[20px] border px-4 py-3 text-left transition",
-                  cell.inMonth
-                    ? cell.isToday
-                      ? "border-rose-200 bg-rose-50/40 shadow-[0_10px_30px_rgba(251,113,133,0.08)]"
-                      : "border-slate-100 bg-white"
-                    : "border-slate-100 bg-slate-50/80 text-slate-300",
+                  cell.isToday
+                    ? "border-rose-200 bg-rose-50/40 shadow-[0_10px_30px_rgba(251,113,133,0.08)]"
+                    : "border-slate-100 bg-white",
                 ].join(" ")}
               >
                 <div className="min-w-0">
@@ -312,7 +293,6 @@ export function SalesMonthCalendar({
                           : cell.date.getDay() === 6
                           ? "text-rose-500"
                           : "text-slate-700",
-                        !cell.inMonth ? "opacity-40" : "",
                       ].join(" ")}
                     >
                       {cell.dayNumber}
@@ -335,53 +315,124 @@ export function SalesMonthCalendar({
             ))}
           </div>
 
-          <div className="mt-2 hidden grid-cols-2 gap-2 sm:grid xl:grid-cols-7 2xl:gap-3">
-            {cells.map((cell) => (
+          <div className="hidden grid-cols-2 gap-3 sm:grid xl:hidden 2xl:gap-4">
+            {monthCells.map((cell) => (
               <button
                 key={cell.key}
                 type="button"
                 onClick={() => setSelectedCell(cell)}
+                className={[
+                  "min-h-[132px] rounded-[22px] border px-4 py-3 text-left transition lg:min-h-[144px]",
+                  cell.isToday
+                    ? "border-rose-200 bg-rose-50/40 shadow-[0_10px_30px_rgba(251,113,133,0.08)] hover:-translate-y-0.5 hover:shadow-md"
+                    : "border-slate-100 bg-white hover:-translate-y-0.5 hover:shadow-md",
+                ].join(" ")}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={[
+                      "text-[18px] font-black",
+                      cell.date.getDay() === 0
+                        ? "text-rose-400"
+                        : cell.date.getDay() === 6
+                        ? "text-rose-500"
+                        : "text-slate-700",
+                    ].join(" ")}
+                  >
+                    {cell.dayNumber}
+                  </div>
+                  <div className="text-[13px] font-bold text-slate-400">
+                    {weekLabels[cell.date.getDay()]}
+                  </div>
+                  {cell.isToday ? (
+                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-500">
+                      오늘
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 space-y-1">
+                  <AmountLine label="총금액" value={cell.totalAmount} tone="blue" />
+                  <AmountLine label="앱" value={cell.appAmount} tone="green" />
+                  <AmountLine label="카드" value={cell.cardAmount} tone="slate" />
+                  <AmountLine label="현금" value={cell.cashAmount} tone="amber" />
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="hidden grid-cols-7 gap-2 xl:grid 2xl:gap-3">
+            {weekLabels.map((label, index) => (
+              <div
+                key={label}
+                className={[
+                  "px-1 py-1 text-center text-[14px] font-black 2xl:text-[16px]",
+                  index === 0
+                    ? "text-rose-400"
+                    : index === 6
+                    ? "text-rose-500"
+                    : "text-slate-600",
+                ].join(" ")}
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-2 hidden grid-cols-7 gap-2 xl:grid 2xl:gap-3">
+            {cells.map((cell) => (
+              <button
+                key={cell.key}
+                type="button"
+                onClick={() => {
+                  if (!cell.inMonth) return;
+                  setSelectedCell(cell);
+                }}
+                disabled={!cell.inMonth}
                 className={[
                   "min-h-[124px] rounded-[22px] border px-3 py-2.5 text-left transition 2xl:min-h-[156px] 2xl:px-4 2xl:py-3.5",
                   cell.inMonth
                     ? cell.isToday
                       ? "border-rose-200 bg-rose-50/40 shadow-[0_10px_30px_rgba(251,113,133,0.08)] hover:-translate-y-0.5 hover:shadow-md"
                       : "border-slate-100 bg-white hover:-translate-y-0.5 hover:shadow-md"
-                    : "border-slate-100 bg-slate-50/80 text-slate-300",
+                    : "border-transparent bg-transparent text-transparent shadow-none",
                 ].join(" ")}
-                >
-                <div className="flex items-center gap-2">
-                  <div
-                    className={[
-                      "text-[15px] font-bold 2xl:text-[20px]",
-                      cell.date.getDay() === 0
-                        ? "text-rose-400"
-                        : cell.date.getDay() === 6
-                        ? "text-rose-500"
-                        : "text-slate-600",
-                      !cell.inMonth ? "opacity-40" : "",
-                    ].join(" ")}
-                  >
-                    {cell.dayNumber}
-                  </div>
+              >
+                {cell.inMonth ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={[
+                          "text-[15px] font-bold 2xl:text-[20px]",
+                          cell.date.getDay() === 0
+                            ? "text-rose-400"
+                            : cell.date.getDay() === 6
+                            ? "text-rose-500"
+                            : "text-slate-600",
+                        ].join(" ")}
+                      >
+                        {cell.dayNumber}
+                      </div>
 
-                  {cell.isToday ? (
-                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-500 2xl:px-2.5 2xl:py-1 2xl:text-[12px]">
-                      오늘
-                    </span>
-                  ) : null}
-                </div>
+                      {cell.isToday ? (
+                        <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-500 2xl:px-2.5 2xl:py-1 2xl:text-[12px]">
+                          오늘
+                        </span>
+                      ) : null}
+                    </div>
 
-                <div className="mt-3 space-y-0.5 sm:hidden">
-                  <AmountLine label="총금액" value={cell.totalAmount} tone="blue" compact />
-                </div>
+                    <div className="mt-3 space-y-0.5 sm:hidden">
+                      <AmountLine label="총금액" value={cell.totalAmount} tone="blue" compact />
+                    </div>
 
-                <div className="mt-3 hidden space-y-0.5 sm:block 2xl:mt-4 2xl:space-y-1">
-                  <AmountLine label="총금액" value={cell.totalAmount} tone="blue" />
-                  <AmountLine label="앱" value={cell.appAmount} tone="green" />
-                  <AmountLine label="카드" value={cell.cardAmount} tone="slate" />
-                  <AmountLine label="현금" value={cell.cashAmount} tone="amber" />
-                </div>
+                    <div className="mt-3 hidden space-y-0.5 sm:block 2xl:mt-4 2xl:space-y-1">
+                      <AmountLine label="총금액" value={cell.totalAmount} tone="blue" />
+                      <AmountLine label="앱" value={cell.appAmount} tone="green" />
+                      <AmountLine label="카드" value={cell.cardAmount} tone="slate" />
+                      <AmountLine label="현금" value={cell.cashAmount} tone="amber" />
+                    </div>
+                  </>
+                ) : null}
               </button>
             ))}
           </div>
