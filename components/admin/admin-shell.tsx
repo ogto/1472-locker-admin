@@ -8,9 +8,15 @@ type Props = {
   children: ReactNode;
   role: AdminRole | null;
   onLogout?: () => void;
+  contentClassName?: string;
 };
 
-export function AdminShell({ children, role, onLogout }: Props) {
+export function AdminShell({
+  children,
+  role,
+  onLogout,
+  contentClassName,
+}: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -27,7 +33,12 @@ export function AdminShell({ children, role, onLogout }: Props) {
         </div>
 
         <main className="min-w-0 flex-1">
-          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-8">
+          <div
+            className={[
+              "mx-auto max-w-7xl px-4 py-4 sm:px-5 sm:py-5 lg:px-8 lg:py-8",
+              contentClassName ?? "",
+            ].join(" ")}
+          >
             <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
               <button
                 type="button"

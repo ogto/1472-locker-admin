@@ -10,6 +10,11 @@ import { LockerStatusSection } from "@/components/locker-status/locker-status-se
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { fetchReserveUser } from "@/lib/dashboard/api";
 import { fetchTodayHistoryByStorage } from "@/lib/history/api";
+import {
+  disableStorage,
+  enableStorage,
+  fetchDisabledStorages,
+} from "@/lib/lockers/api";
 import type { HistoryItem } from "@/lib/history/types";
 import type { ReserveUserItem } from "@/lib/dashboard/types";
 import { DEFAULT_POINT, DEFAULT_PULSE_MS } from "@/lib/lockers/constants";
@@ -140,12 +145,14 @@ export default function AdminLockerStatusPage() {
   const auth = useAdminAuth();
   const [reserveUsers, setReserveUsers] = useState<ReserveUserItem[]>([]);
   const [enableStorageItems, setEnableStorageItems] = useState<unknown[]>([]);
+  const [disabledStorageIds, setDisabledStorageIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedLockerId, setSelectedLockerId] = useState<number | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [disabledSubmitLoading, setDisabledSubmitLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historyRows, setHistoryRows] = useState<LockerHistoryRow[]>([]);
@@ -161,13 +168,15 @@ export default function AdminLockerStatusPage() {
     setErrorText("");
 
     try {
-      const [enableStorageResult, reserveUserResult] = await Promise.allSettled([
+      const [enableStorageResult, reserveUserResult, disabledStorageResult] =
+        await Promise.allSettled([
         fetch("/api/dashboard/enable-storage", {
           method: "POST",
           credentials: "same-origin",
           cache: "no-store",
         }),
         fetchReserveUser(),
+        fetchDisabledStorages(),
       ]);
 
       if (enableStorageResult.status === "fulfilled") {
@@ -189,9 +198,16 @@ export default function AdminLockerStatusPage() {
       } else {
         setReserveUsers([]);
       }
+
+      if (disabledStorageResult.status === "fulfilled") {
+        setDisabledStorageIds(disabledStorageResult.value.map((item) => item.storageId));
+      } else {
+        setDisabledStorageIds([]);
+      }
     } catch (error) {
       setReserveUsers([]);
       setEnableStorageItems([]);
+      setDisabledStorageIds([]);
       setErrorText(
         error instanceof Error ? error.message : "보관함 상태를 불러오지 못했습니다."
       );
@@ -346,14 +362,59 @@ export default function AdminLockerStatusPage() {
     }
   }
 
+  async function handleToggleDisabled() {
+    if (selectedLockerId == null) return;
+
+    const currentlyDisabled = disabledStorageSet.has(selectedLockerId);
+    const confirmed = window.confirm(
+      currentlyDisabled
+        ? `${selectedLockerId}번 보관함을 사용가능으로 변경할까요?`
+        : `${selectedLockerId}번 보관함을 사용불가로 설정할까요?`
+    );
+
+    if (!confirmed) return;
+
+    setDisabledSubmitLoading(true);
+    setErrorText("");
+    setSuccessText("");
+
+    try {
+      if (currentlyDisabled) {
+        await enableStorage(selectedLockerId);
+        setDisabledStorageIds((prev) => prev.filter((id) => id !== selectedLockerId));
+        setSuccessText(`${selectedLockerId}번 보관함을 사용가능으로 변경했습니다.`);
+      } else {
+        await disableStorage(selectedLockerId);
+        setDisabledStorageIds((prev) =>
+          prev.includes(selectedLockerId) ? prev : [...prev, selectedLockerId]
+        );
+        setSuccessText(`${selectedLockerId}번 보관함을 사용불가로 설정했습니다.`);
+      }
+    } catch (error) {
+      setErrorText(
+        error instanceof Error ? error.message : "사용불가 설정 변경에 실패했습니다."
+      );
+    } finally {
+      setDisabledSubmitLoading(false);
+    }
+  }
+
   const occupiedMap = useMemo(
     () => buildOccupiedMap(enableStorageItems, reserveUsers),
     [enableStorageItems, reserveUsers]
+  );
+  const disabledStorageSet = useMemo(
+    () => new Set(disabledStorageIds),
+    [disabledStorageIds]
   );
   const selectedUserInfo = useMemo(() => {
     if (selectedLockerId == null) return null;
     return occupiedMap.get(selectedLockerId) ?? null;
   }, [occupiedMap, selectedLockerId]);
+  const selectedLockerDisabled = useMemo(() => {
+    if (selectedLockerId == null) return false;
+    return disabledStorageSet.has(selectedLockerId);
+  }, [disabledStorageSet, selectedLockerId]);
   const coldOccupiedCount = useMemo(
     () => COLD_LOCKERS.filter((lockerNumber) => occupiedMap.has(lockerNumber)).length,
     [occupiedMap]
@@ -415,6 +476,7 @@ export default function AdminLockerStatusPage() {
           tone="cold"
           lockers={COLD_LOCKERS}
           occupiedMap={occupiedMap}
+          disabledSet={disabledStorageSet}
           onLockerClick={handleLockerClick}
         />
 
@@ -426,6 +488,7 @@ export default function AdminLockerStatusPage() {
           tone="room"
           lockers={ROOM_LOCKERS}
           occupiedMap={occupiedMap}
+          disabledSet={disabledStorageSet}
           onLockerClick={handleLockerClick}
         />
       </div>
@@ -437,6 +500,8 @@ export default function AdminLockerStatusPage() {
         pulseMs={DEFAULT_PULSE_MS}
         submitting={submitLoading}
         userInfo={selectedUserInfo}
+        disabled={selectedLockerDisabled}
+        disableSubmitting={disabledSubmitLoading}
         historyLoading={historyLoading}
         historyError={historyError}
         historyRows={historyRows}
@@ -446,6 +511,7 @@ export default function AdminLockerStatusPage() {
           setHistoryError("");
         }}
         onConfirm={() => void handleConfirmOpen()}
+        onToggleDisabled={() => void handleToggleDisabled()}
       />
     </AdminShell>
   );

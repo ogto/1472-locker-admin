@@ -16,10 +16,15 @@ type LockerStatusSectionProps = {
   tone: "cold" | "room";
   lockers: number[];
   occupiedMap: Map<number, LockerOccupantInfo | null>;
+  disabledSet: Set<number>;
   onLockerClick: (lockerNumber: number) => void;
 };
 
-function buildCellTone(occupied: boolean, tone: "cold" | "room") {
+function buildCellTone(disabled: boolean, occupied: boolean, tone: "cold" | "room") {
+  if (disabled) {
+    return "border-rose-300 bg-rose-100 text-rose-900 shadow-[0_10px_25px_rgba(244,63,94,0.16)]";
+  }
+
   if (!occupied) {
     return "border-slate-200 bg-white text-slate-400";
   }
@@ -39,6 +44,7 @@ export function LockerStatusSection({
   tone,
   lockers,
   occupiedMap,
+  disabledSet,
   onLockerClick,
 }: LockerStatusSectionProps) {
   const availableCount = totalCount - occupiedCount;
@@ -65,14 +71,16 @@ export function LockerStatusSection({
 
       <div className="mt-5 flex flex-wrap gap-3 text-xs font-bold">
         <LegendChip label="사용중" tone={tone} />
+        <LegendChip label="사용불가" tone="disabled" />
         <LegendChip label="비어있음" tone="empty" />
       </div>
 
       <div className="mt-5 grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10 2xl:grid-cols-12">
         {lockers.map((lockerNumber) => {
           const item = occupiedMap.get(lockerNumber);
+          const disabled = disabledSet.has(lockerNumber);
           const occupied = Boolean(item);
-          const statusText = occupied ? "사용중" : "비어있음";
+          const statusText = disabled ? "사용불가" : occupied ? "사용중" : "비어있음";
 
           const titleText = item
             ? [
@@ -93,7 +101,7 @@ export function LockerStatusSection({
               className={[
                 "rounded-2xl border px-2 py-3 text-center transition hover:-translate-y-0.5",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300",
-                buildCellTone(occupied, tone),
+                buildCellTone(disabled, occupied, tone),
               ].join(" ")}
             >
               <div className="text-[11px] font-black tracking-tight sm:text-xs">
@@ -141,13 +149,15 @@ function LegendChip({
   tone,
 }: {
   label: string;
-  tone: "cold" | "room" | "empty";
+  tone: "cold" | "room" | "empty" | "disabled";
 }) {
   const className =
     tone === "cold"
       ? "border-sky-200 bg-sky-50 text-sky-700"
       : tone === "room"
       ? "border-amber-200 bg-amber-50 text-amber-700"
+      : tone === "disabled"
+      ? "border-rose-200 bg-rose-50 text-rose-700"
       : "border-slate-200 bg-slate-50 text-slate-500";
 
   return (

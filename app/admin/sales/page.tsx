@@ -109,7 +109,11 @@ export default function AdminSalesPage() {
   }
 
   return (
-    <AdminShell role={auth.role} onLogout={auth.handleLogout}>
+    <AdminShell
+      role={auth.role}
+      onLogout={auth.handleLogout}
+      contentClassName="2xl:max-w-[1600px] 3xl:max-w-[1800px]"
+    >
       <AdminHeader title="매출관리" onLogout={auth.handleLogout} />
 
       <div className="space-y-4 lg:space-y-6">

@@ -210,11 +210,11 @@ export function SalesMonthCalendar({
 
   return (
     <>
-      <section className="rounded-[32px] border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+      <section className="rounded-[32px] border border-slate-200 bg-white p-4 shadow-sm sm:p-6 2xl:p-8">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-[28px] font-black tracking-[-0.04em] text-slate-800 sm:text-[40px]">
+              <h2 className="text-[28px] font-black tracking-[-0.04em] text-slate-800 sm:text-[40px] 2xl:text-[48px]">
                 {title}
               </h2>
 
@@ -261,7 +261,7 @@ export function SalesMonthCalendar({
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 border-b border-slate-200 pb-6 xl:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 border-b border-slate-200 pb-6 xl:grid-cols-4 2xl:gap-5 2xl:pb-8">
           <SummaryStat label={`${month}월 총금액`} value={summary.total} />
           <SummaryStat label="앱" value={summary.app} />
           <SummaryStat label="카드" value={summary.card} />
@@ -269,12 +269,12 @@ export function SalesMonthCalendar({
         </div>
 
         <div className="mt-5">
-          <div className="hidden grid-cols-7 gap-2 sm:grid">
+          <div className="hidden grid-cols-7 gap-2 sm:grid 2xl:gap-3">
             {weekLabels.map((label, index) => (
               <div
                 key={label}
                 className={[
-                  "px-1 py-1 text-center text-[14px] font-black",
+                  "px-1 py-1 text-center text-[14px] font-black 2xl:text-[16px]",
                   index === 0
                     ? "text-rose-400"
                     : index === 6
@@ -335,14 +335,14 @@ export function SalesMonthCalendar({
             ))}
           </div>
 
-          <div className="mt-2 hidden grid-cols-2 gap-2 sm:grid xl:grid-cols-7">
+          <div className="mt-2 hidden grid-cols-2 gap-2 sm:grid xl:grid-cols-7 2xl:gap-3">
             {cells.map((cell) => (
               <button
                 key={cell.key}
                 type="button"
                 onClick={() => setSelectedCell(cell)}
                 className={[
-                  "min-h-[124px] rounded-[22px] border px-3 py-2.5 text-left transition",
+                  "min-h-[124px] rounded-[22px] border px-3 py-2.5 text-left transition 2xl:min-h-[156px] 2xl:px-4 2xl:py-3.5",
                   cell.inMonth
                     ? cell.isToday
                       ? "border-rose-200 bg-rose-50/40 shadow-[0_10px_30px_rgba(251,113,133,0.08)] hover:-translate-y-0.5 hover:shadow-md"
@@ -353,7 +353,7 @@ export function SalesMonthCalendar({
                 <div className="flex items-center gap-2">
                   <div
                     className={[
-                      "text-[15px] font-bold",
+                      "text-[15px] font-bold 2xl:text-[20px]",
                       cell.date.getDay() === 0
                         ? "text-rose-400"
                         : cell.date.getDay() === 6
@@ -366,7 +366,7 @@ export function SalesMonthCalendar({
                   </div>
 
                   {cell.isToday ? (
-                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-500">
+                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-500 2xl:px-2.5 2xl:py-1 2xl:text-[12px]">
                       오늘
                     </span>
                   ) : null}
@@ -376,7 +376,7 @@ export function SalesMonthCalendar({
                   <AmountLine label="총금액" value={cell.totalAmount} tone="blue" compact />
                 </div>
 
-                <div className="mt-3 hidden space-y-0.5 sm:block">
+                <div className="mt-3 hidden space-y-0.5 sm:block 2xl:mt-4 2xl:space-y-1">
                   <AmountLine label="총금액" value={cell.totalAmount} tone="blue" />
                   <AmountLine label="앱" value={cell.appAmount} tone="green" />
                   <AmountLine label="카드" value={cell.cardAmount} tone="slate" />
@@ -400,9 +400,9 @@ export function SalesMonthCalendar({
 
 function SummaryStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="border-slate-200 xl:border-r xl:pr-6 xl:last:border-r-0">
-      <div className="text-[13px] font-black text-slate-400 sm:text-[14px]">{label}</div>
-      <div className="mt-2 text-[22px] font-black tracking-[-0.04em] text-slate-800 sm:text-[26px]">
+    <div className="border-slate-200 xl:border-r xl:pr-6 xl:last:border-r-0 2xl:pr-8">
+      <div className="text-[13px] font-black text-slate-400 sm:text-[14px] 2xl:text-[16px]">{label}</div>
+      <div className="mt-2 text-[22px] font-black tracking-[-0.04em] text-slate-800 sm:text-[26px] 2xl:text-[32px]">
         {formatPrice(value)}
       </div>
     </div>
@@ -434,11 +434,15 @@ function AmountLine({
       className={[
         compact
           ? "grid grid-cols-[44px_minmax(0,1fr)] items-baseline gap-1 text-[12px] font-semibold leading-[1.15]"
-          : "grid grid-cols-[40px_minmax(0,1fr)] items-baseline gap-2 text-[13px] font-semibold leading-[1.2]",
+          : "grid grid-cols-[40px_minmax(0,1fr)] items-baseline gap-2 text-[13px] font-semibold leading-[1.2] 2xl:grid-cols-[48px_minmax(0,1fr)] 2xl:gap-2.5 2xl:text-[16px]",
         toneClass,
       ].join(" ")}
     >
-      <span className={`text-right font-black opacity-70 ${compact ? "text-[9px]" : "text-[10px]"}`}>
+      <span
+        className={`text-right font-black opacity-70 ${
+          compact ? "text-[9px]" : "text-[10px] 2xl:text-[12px]"
+        }`}
+      >
         {label}
       </span>
       <span className="text-right">{formatCompactPrice(value)}</span>

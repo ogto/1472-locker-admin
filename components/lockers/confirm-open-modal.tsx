@@ -13,6 +13,8 @@ type Props = {
     reservationDate: string;
     status: string;
   } | null;
+  disabled?: boolean;
+  disableSubmitting?: boolean;
   historyLoading?: boolean;
   historyError?: string;
   historyRows?: Array<{
@@ -24,6 +26,7 @@ type Props = {
   }>;
   onClose: () => void;
   onConfirm: () => void;
+  onToggleDisabled: () => void;
 };
 
 export function ConfirmOpenModal({
@@ -33,11 +36,14 @@ export function ConfirmOpenModal({
   pulseMs,
   submitting,
   userInfo,
+  disabled = false,
+  disableSubmitting = false,
   historyLoading = false,
   historyError = "",
   historyRows = [],
   onClose,
   onConfirm,
+  onToggleDisabled,
 }: Props) {
   if (!open) return null;
 
@@ -67,6 +73,12 @@ export function ConfirmOpenModal({
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-500">열림 시간</span>
             <strong className="text-slate-900">{pulseMs}ms</strong>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-500">사용 상태</span>
+            <strong className={disabled ? "text-rose-600" : "text-emerald-600"}>
+              {disabled ? "사용불가" : "사용가능"}
+            </strong>
           </div>
         </div>
 
@@ -146,7 +158,28 @@ export function ConfirmOpenModal({
           )}
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-6 flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={onToggleDisabled}
+            disabled={disableSubmitting}
+            className={[
+              "w-full rounded-2xl px-4 py-3 text-sm font-black transition disabled:opacity-60",
+              disabled
+                ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border border-rose-200 bg-rose-50 text-rose-600",
+            ].join(" ")}
+          >
+            {disableSubmitting
+              ? disabled
+                ? "사용가능으로 변경 중..."
+                : "사용불가 설정 중..."
+              : disabled
+              ? "사용가능으로 변경"
+              : "사용불가로 설정"}
+          </button>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={onClose}
@@ -162,6 +195,7 @@ export function ConfirmOpenModal({
           >
             {submitting ? "전송 중..." : "열기 실행"}
           </button>
+          </div>
         </div>
         </div>
       </div>
