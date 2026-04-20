@@ -27,7 +27,7 @@ export async function fetchDisabledStorages(): Promise<DisabledStorageItem[]> {
     throw new Error(result?.message || "사용불가 보관함 조회에 실패했습니다.");
   }
 
-  const items = Array.isArray(result?.data) ? result.data : [];
+  const items: unknown[] = Array.isArray(result?.data) ? result.data : [];
 
   return items
     .map((item) => {
