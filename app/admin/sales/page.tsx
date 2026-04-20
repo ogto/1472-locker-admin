@@ -8,8 +8,7 @@ import { StatusBanner } from "@/components/admin/status-banner";
 import { SalesDailyTable } from "@/components/sales/sales-daily-table";
 import { SalesFilters } from "@/components/sales/sales-filters";
 import { SalesManualModal } from "@/components/sales/sales-manual-modal";
-import { SalesMonthChart } from "@/components/sales/sales-month-chart";
-import { SalesPaymentChart } from "@/components/sales/sales-payment-chart";
+import { SalesMonthCalendar } from "@/components/sales/sales-month-calendar";
 import { SalesSummaryCards } from "@/components/sales/sales-summary-cards";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useSales } from "@/hooks/use-sales";
@@ -34,7 +33,7 @@ export default function AdminSalesPage() {
   const auth = useAdminAuth();
 
   const today = useMemo(() => new Date(), []);
-  const [periodType, setPeriodType] = useState<SalesPeriodType>("daily");
+  const [periodType, setPeriodType] = useState<SalesPeriodType>("month");
   const [paymentFilter, setPaymentFilter] = useState<SalesPaymentFilter>("all");
   const [point, setPoint] = useState<PointKey>("bank");
   const [year, setYear] = useState(today.getFullYear());
@@ -53,6 +52,10 @@ export default function AdminSalesPage() {
   const filteredData = useMemo(() => {
     if (!data) return null;
 
+    if (periodType === "month") {
+      return data;
+    }
+
     return {
       ...data,
       monthRows: mapFilteredMonthRows(data.rawMonthItems, paymentFilter),
@@ -65,7 +68,13 @@ export default function AdminSalesPage() {
         paymentFilter,
       ),
     };
-  }, [data, paymentFilter]);
+  }, [data, paymentFilter, periodType]);
+
+  function moveMonth(diff: number) {
+    const next = new Date(year, month - 1 + diff, 1);
+    setYear(next.getFullYear());
+    setMonth(next.getMonth() + 1);
+  }
 
   if (auth.authenticated && auth.role !== "super-admin") {
     return (
@@ -104,22 +113,52 @@ export default function AdminSalesPage() {
       <AdminHeader title="매출관리" onLogout={auth.handleLogout} />
 
       <div className="space-y-4 lg:space-y-6">
-        <SalesFilters
-          periodType={periodType}
-          paymentFilter={paymentFilter}
-          point={point}
-          year={year}
-          month={month}
-          date={date}
-          loading={loading}
-          onChangePeriodType={setPeriodType}
-          onChangePaymentFilter={setPaymentFilter}
-          onChangePoint={setPoint}
-          onChangeYear={setYear}
-          onChangeMonth={setMonth}
-          onChangeDate={setDate}
-          onRefresh={refetch}
-        />
+        <div className="flex justify-end">
+          <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setPeriodType("month")}
+              className={[
+                "rounded-xl px-4 py-2 text-sm font-black transition",
+                periodType === "month"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              월별
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriodType("daily")}
+              className={[
+                "rounded-xl px-4 py-2 text-sm font-black transition",
+                periodType === "daily"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              일별
+            </button>
+          </div>
+        </div>
+
+        {periodType === "daily" ? (
+          <SalesFilters
+            periodType={periodType}
+            paymentFilter={paymentFilter}
+            point={point}
+            year={year}
+            month={month}
+            date={date}
+            loading={loading}
+            onChangePaymentFilter={setPaymentFilter}
+            onChangePoint={setPoint}
+            onChangeYear={setYear}
+            onChangeMonth={setMonth}
+            onChangeDate={setDate}
+            onRefresh={refetch}
+          />
+        ) : null}
 
         {error ? <StatusBanner type="error" text={error} /> : null}
 
@@ -129,23 +168,31 @@ export default function AdminSalesPage() {
           </section>
         ) : (
           <>
-            <SalesSummaryCards
-              periodType={periodType}
-              monthSummary={filteredData.monthSummary}
-              dailySummary={filteredData.dailySummary}
-            />
-
             {periodType === "month" ? (
-              <div className="grid gap-5 xl:grid-cols-2">
-                <SalesMonthChart rows={filteredData.monthRows} />
-                <SalesPaymentChart rows={filteredData.paymentRows} />
-              </div>
-            ) : (
-              <SalesDailyTable
-                rows={filteredData.dailyRows}
-                periodType={periodType}
-                onClickAddManual={() => setManualModalOpen(true)}
+              <SalesMonthCalendar
+                year={year}
+                month={month}
+                point={point}
+                loading={loading}
+                rows={filteredData.rawMonthItems}
+                onPrevMonth={() => moveMonth(-1)}
+                onNextMonth={() => moveMonth(1)}
+                onChangePoint={setPoint}
+                onRefresh={refetch}
               />
+            ) : (
+              <>
+                <SalesSummaryCards
+                  periodType={periodType}
+                  monthSummary={filteredData.monthSummary}
+                  dailySummary={filteredData.dailySummary}
+                />
+                <SalesDailyTable
+                  rows={filteredData.dailyRows}
+                  periodType={periodType}
+                  onClickAddManual={() => setManualModalOpen(true)}
+                />
+              </>
             )}
           </>
         )}

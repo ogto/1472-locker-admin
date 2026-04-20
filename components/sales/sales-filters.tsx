@@ -8,7 +8,6 @@ type Props = {
   month: number;
   date: string;
   loading: boolean;
-  onChangePeriodType: (value: SalesPeriodType) => void;
   onChangePaymentFilter: (value: SalesPaymentFilter) => void;
   onChangePoint: (value: PointKey) => void;
   onChangeYear: (value: number) => void;
@@ -31,7 +30,6 @@ export function SalesFilters({
   month,
   date,
   loading,
-  onChangePeriodType,
   onChangePaymentFilter,
   onChangePoint,
   onChangeYear,
@@ -41,54 +39,29 @@ export function SalesFilters({
 }: Props) {
   return (
     <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-5 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => onChangePeriodType("daily")}
-          className={[
-            "rounded-2xl px-4 py-2 text-sm font-black transition",
-            periodType === "daily"
-              ? "bg-slate-900 text-white"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-          ].join(" ")}
-        >
-          일별
-        </button>
-        <button
-          type="button"
-          onClick={() => onChangePeriodType("month")}
-          className={[
-            "rounded-2xl px-4 py-2 text-sm font-black transition",
-            periodType === "month"
-              ? "bg-slate-900 text-white"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-          ].join(" ")}
-        >
-          월별
-        </button>
-      </div>
-
-      <div className="mb-5 flex flex-wrap gap-2">
-        {[
-          { label: "전체", value: "all" },
-          { label: "앱결제", value: "app" },
-          { label: "카드결제", value: "card" },
-        ].map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChangePaymentFilter(option.value as SalesPaymentFilter)}
-            className={[
-              "rounded-2xl px-4 py-2 text-sm font-black transition",
-              paymentFilter === option.value
-                ? "bg-rose-500 text-white"
-                : "bg-rose-50 text-rose-700 hover:bg-rose-100",
-            ].join(" ")}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      {periodType === "daily" ? (
+        <div className="mb-5 flex flex-wrap gap-2">
+          {[
+            { label: "전체", value: "all" },
+            { label: "앱결제", value: "app" },
+            { label: "카드결제", value: "card" },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onChangePaymentFilter(option.value as SalesPaymentFilter)}
+              className={[
+                "rounded-2xl px-4 py-2 text-sm font-black transition",
+                paymentFilter === option.value
+                  ? "bg-rose-500 text-white"
+                  : "bg-rose-50 text-rose-700 hover:bg-rose-100",
+              ].join(" ")}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div
         className={[
