@@ -26,7 +26,7 @@ type Props = {
   }>;
   onClose: () => void;
   onConfirm: () => void;
-  onToggleDisabled: () => void;
+  onToggleDisabled?: () => void;
 };
 
 export function ConfirmOpenModal({
@@ -159,25 +159,27 @@ export function ConfirmOpenModal({
         </div>
 
         <div className="mt-6 flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={onToggleDisabled}
-            disabled={disableSubmitting}
-            className={[
-              "w-full rounded-2xl px-4 py-3 text-sm font-black transition disabled:opacity-60",
-              disabled
-                ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border border-rose-200 bg-rose-50 text-rose-600",
-            ].join(" ")}
-          >
-            {disableSubmitting
-              ? disabled
-                ? "사용가능으로 변경 중..."
-                : "사용불가 설정 중..."
-              : disabled
-              ? "사용가능으로 변경"
-              : "사용불가로 설정"}
-          </button>
+          {onToggleDisabled ? (
+            <button
+              type="button"
+              onClick={onToggleDisabled}
+              disabled={disableSubmitting}
+              className={[
+                "w-full rounded-2xl px-4 py-3 text-sm font-black transition disabled:opacity-60",
+                disabled
+                  ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border border-rose-200 bg-rose-50 text-rose-600",
+              ].join(" ")}
+            >
+              {disableSubmitting
+                ? disabled
+                  ? "사용가능으로 변경 중..."
+                  : "사용불가 설정 중..."
+                : disabled
+                ? "사용가능으로 변경"
+                : "사용불가로 설정"}
+            </button>
+          ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row">
           <button
