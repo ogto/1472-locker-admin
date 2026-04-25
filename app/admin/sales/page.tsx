@@ -5,6 +5,7 @@ import { LoginCard } from "@/components/auth/login-card";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { StatusBanner } from "@/components/admin/status-banner";
+import { HistoryDetailPanel } from "@/components/history/history-detail-panel";
 import { SalesDailyTable } from "@/components/sales/sales-daily-table";
 import { SalesFilters } from "@/components/sales/sales-filters";
 import { SalesManualModal } from "@/components/sales/sales-manual-modal";
@@ -12,6 +13,7 @@ import { SalesMonthCalendar } from "@/components/sales/sales-month-calendar";
 import { SalesSummaryCards } from "@/components/sales/sales-summary-cards";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useSales } from "@/hooks/use-sales";
+import { fetchReserveHistoryDetail } from "@/lib/history/api";
 import {
   buildFilteredDailySummary,
   buildFilteredMonthSummary,
@@ -19,7 +21,13 @@ import {
   mapFilteredMonthRows,
   mapFilteredPaymentRows,
 } from "@/lib/sales/mapper";
-import type { PointKey, SalesPaymentFilter, SalesPeriodType } from "@/lib/sales/types";
+import type { HistoryDetailItem } from "@/lib/history/types";
+import type {
+  DailySalesViewRow,
+  PointKey,
+  SalesPaymentFilter,
+  SalesPeriodType,
+} from "@/lib/sales/types";
 
 function getTodayDateString() {
   const now = new Date();
@@ -40,6 +48,11 @@ export default function AdminSalesPage() {
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [date, setDate] = useState(getTodayDateString());
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<DailySalesViewRow | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailErrorText, setDetailErrorText] = useState("");
+  const [detailItems, setDetailItems] = useState<HistoryDetailItem[]>([]);
 
   const { data, loading, submitting, error, refetch, submitManualSales } = useSales({
     periodType,
@@ -74,6 +87,34 @@ export default function AdminSalesPage() {
     const next = new Date(year, month - 1 + diff, 1);
     setYear(next.getFullYear());
     setMonth(next.getMonth() + 1);
+  }
+
+  async function handleClickDailyRow(row: DailySalesViewRow) {
+    setSelectedRow(row);
+    setDetailModalOpen(true);
+    setDetailLoading(true);
+    setDetailErrorText("");
+    setDetailItems([]);
+
+    if (row.reserveId == null) {
+      setDetailErrorText("이 결제에는 연결된 이용내역이 없습니다.");
+      setDetailLoading(false);
+      return;
+    }
+
+    try {
+      const result = await fetchReserveHistoryDetail(row.reserveId, row.point);
+      setDetailItems(result);
+      if (result.length === 0) {
+        setDetailErrorText("연결된 이용내역이 없습니다.");
+      }
+    } catch (error) {
+      setDetailErrorText(
+        error instanceof Error ? error.message : "이용내역 상세 조회에 실패했습니다.",
+      );
+    } finally {
+      setDetailLoading(false);
+    }
   }
 
   if (auth.authenticated && auth.role !== "super-admin") {
@@ -195,6 +236,7 @@ export default function AdminSalesPage() {
                   rows={filteredData.dailyRows}
                   periodType={periodType}
                   onClickAddManual={() => setManualModalOpen(true)}
+                  onClickRow={(row) => void handleClickDailyRow(row)}
                 />
               </>
             )}
@@ -211,6 +253,46 @@ export default function AdminSalesPage() {
           await submitManualSales(payload);
         }}
       />
+
+      {detailModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.46)] p-4 backdrop-blur-[3px]"
+          onClick={() => setDetailModalOpen(false)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,247,249,0.96)_100%)] shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:rounded-[32px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-rose-100 px-5 py-4 sm:px-6">
+              <div className="min-w-0">
+                <div className="text-[22px] font-black tracking-[-0.03em] text-slate-900">
+                  결제 연결 이용내역
+                </div>
+                <div className="mt-1 text-sm font-bold text-slate-500">
+                  {selectedRow?.customerName || "-"} · {selectedRow?.customerTel || "-"} · 결제{" "}
+                  {selectedRow?.priceLabel || "-"}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setDetailModalOpen(false)}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-rose-100 bg-white/90 px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-rose-50"
+              >
+                닫기
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+              <HistoryDetailPanel
+                loading={detailLoading}
+                errorText={detailErrorText}
+                items={detailItems}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AdminShell>
   );
 }

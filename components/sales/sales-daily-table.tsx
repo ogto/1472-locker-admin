@@ -7,6 +7,7 @@ type Props = {
   rows: DailySalesViewRow[];
   periodType: SalesPeriodType;
   onClickAddManual?: () => void;
+  onClickRow?: (row: DailySalesViewRow) => void;
 };
 
 function getRowTypeText(row: DailySalesViewRow) {
@@ -48,6 +49,7 @@ export function SalesDailyTable({
   rows,
   periodType,
   onClickAddManual,
+  onClickRow,
 }: Props) {
   return (
     <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -88,6 +90,15 @@ export function SalesDailyTable({
               return (
                 <article
                   key={row.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onClickRow?.(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onClickRow?.(row);
+                    }
+                  }}
                   className="rounded-[24px] bg-slate-50 p-4 shadow-[inset_0_0_0_1px_rgba(226,232,240,0.7)]"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -182,7 +193,11 @@ export function SalesDailyTable({
                   const priceText = getPriceText(row);
 
                   return (
-                    <tr key={row.id} className="bg-slate-50 text-sm text-slate-700">
+                    <tr
+                      key={row.id}
+                      className="cursor-pointer bg-slate-50 text-sm text-slate-700 transition hover:bg-slate-100"
+                      onClick={() => onClickRow?.(row)}
+                    >
                       <td className="whitespace-nowrap rounded-l-2xl px-3 py-3 font-semibold">
                         {row.createdAtLabel || "-"}
                       </td>

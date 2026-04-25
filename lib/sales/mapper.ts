@@ -243,6 +243,7 @@ function buildDailyViewRow(
 
   return {
     id: row.id,
+    reserveId: row.storageId ?? null,
     createdAt: row.createdAt,
     createdAtLabel: formatDateTimeLabel(row.createdAt),
     customerName: payer?.payerName?.trim() || row.mberNm?.trim() || "-",
@@ -311,6 +312,7 @@ export function mapManualSalesRows(rows: DailySalesApiItem[]): ManualSalesViewRo
 
       return {
         id: row.id,
+        reserveId: row.storageId ?? null,
         createdAt: row.createdAt,
         createdAtLabel: formatDateTimeLabel(row.createdAt),
         price: Number(row.price || 0),

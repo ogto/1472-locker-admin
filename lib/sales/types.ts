@@ -79,6 +79,7 @@ export type PaymentChartRow = {
 
 export type DailySalesViewRow = {
   id: number;
+  reserveId: number | null;
   createdAt: string;
   createdAtLabel: string;
   customerName: string;
@@ -154,6 +155,7 @@ export type ManualSalesResponse = {
 
 export type ManualSalesViewRow = {
   id: number;
+  reserveId: number | null;
   createdAt: string;
   createdAtLabel: string;
   price: number;
