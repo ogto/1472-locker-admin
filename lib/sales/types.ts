@@ -27,6 +27,8 @@ export type DailySalesApiItem = {
   price: number;
   storageId?: number | null;
   mberNo?: number | null;
+  mberNm?: string | null;
+  tel?: string | null;
   payType: string | number;
   type: string | number;
   createdAt: string;
@@ -36,6 +38,12 @@ export type DailySalesApiItem = {
   couponPrice?: number | null;
   point?: string | null;
   memo?: string | null;
+};
+
+export type DailySalesDetailItem = {
+  item: DailySalesApiItem;
+  payerName?: string | null;
+  payerTel?: string | null;
 };
 
 export type DailySalesApiResponse = {
@@ -51,6 +59,7 @@ export type DailySalesApiResponse = {
   paymentAmount: number;
   netAmount: number;
   items: DailySalesApiItem[];
+  detailItems?: DailySalesDetailItem[];
 };
 
 export type MonthlyChartRow = {
@@ -72,6 +81,8 @@ export type DailySalesViewRow = {
   id: number;
   createdAt: string;
   createdAtLabel: string;
+  customerName: string;
+  customerTel: string;
   price: number;
   priceLabel: string;
   payTypeCode: string;

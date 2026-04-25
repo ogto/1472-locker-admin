@@ -2,6 +2,7 @@ import { formatPrice } from "@/lib/common";
 import type {
   DailySalesApiItem,
   DailySalesApiResponse,
+  DailySalesDetailItem,
   DailySalesViewRow,
   DailySummary,
   ManualSalesViewRow,
@@ -233,26 +234,57 @@ export function mapFilteredPaymentRows(
   return mapped.filter((row) => row.key === targetKey || row.label === (paymentFilter === "app" ? "앱" : "카드"));
 }
 
-export function mapDailyRows(rows: DailySalesApiItem[]): DailySalesViewRow[] {
+function buildDailyViewRow(
+  row: DailySalesApiItem,
+  payer?: { payerName?: string | null; payerTel?: string | null },
+): DailySalesViewRow {
+  const payTypeCode = extractCode(row.payType);
+  const rowTypeCode = extractCode(row.type);
+
+  return {
+    id: row.id,
+    createdAt: row.createdAt,
+    createdAtLabel: formatDateTimeLabel(row.createdAt),
+    customerName: payer?.payerName?.trim() || row.mberNm?.trim() || "-",
+    customerTel: payer?.payerTel?.trim() || row.tel?.trim() || "-",
+    price: Number(row.price || 0),
+    priceLabel: formatPrice(Number(row.price || 0)),
+    payTypeCode,
+    payTypeLabel: getPaymentTypeLabel(row.payType),
+    rowTypeCode,
+    rowTypeLabel: getRowTypeLabel(row.type),
+    point: row.point || "-",
+    pointLabel: getPointLabel(row.point),
+    memo: row.memo?.trim() || "-",
+  };
+}
+
+export function mapDailyRows(
+  rows: DailySalesApiItem[],
+  detailItems?: DailySalesDetailItem[],
+): DailySalesViewRow[] {
+  const detailMap = new Map<number, DailySalesDetailItem>();
+
+  (detailItems ?? []).forEach((detail) => {
+    const id = Number(detail?.item?.id);
+
+    if (Number.isInteger(id)) {
+      detailMap.set(id, detail);
+    }
+  });
+
   return [...rows]
     .map((row) => {
-      const payTypeCode = extractCode(row.payType);
-      const rowTypeCode = extractCode(row.type);
+      const detail = detailMap.get(Number(row.id));
 
-      return {
-        id: row.id,
-        createdAt: row.createdAt,
-        createdAtLabel: formatDateTimeLabel(row.createdAt),
-        price: Number(row.price || 0),
-        priceLabel: formatPrice(Number(row.price || 0)),
-        payTypeCode,
-        payTypeLabel: getPaymentTypeLabel(row.payType),
-        rowTypeCode,
-        rowTypeLabel: getRowTypeLabel(row.type),
-        point: row.point || "-",
-        pointLabel: getPointLabel(row.point),
-        memo: row.memo?.trim() || "-",
-      };
+      if (detail?.item) {
+        return buildDailyViewRow(detail.item, {
+          payerName: detail.payerName,
+          payerTel: detail.payerTel,
+        });
+      }
+
+      return buildDailyViewRow(row);
     })
     .sort((a, b) => {
       const aDate = parseFlexibleDate(a.createdAt)?.getTime() ?? 0;
@@ -521,7 +553,7 @@ export function mapSalesDashboardData(
   return {
     monthRows: mapMonthRows(monthItems),
     paymentRows,
-    dailyRows: mapDailyRows(dailyData.items ?? []),
+    dailyRows: mapDailyRows(dailyData.items ?? [], dailyData.detailItems ?? []),
     monthSummary: buildMonthSummary(monthItems, paymentRows),
     dailySummary: buildDailySummary(dailyData),
     rawMonthItems: monthItems,

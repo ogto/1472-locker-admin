@@ -113,6 +113,24 @@ export function SalesDailyTable({
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <div className="rounded-2xl bg-white px-3 py-3">
                       <div className="text-[12px] font-bold text-slate-400">
+                        이름
+                      </div>
+                      <div className="mt-1 text-[15px] font-black text-slate-800">
+                        {row.customerName || "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl bg-white px-3 py-3">
+                      <div className="text-[12px] font-bold text-slate-400">
+                        전화번호
+                      </div>
+                      <div className="mt-1 text-[15px] font-black text-slate-800">
+                        {row.customerTel || "-"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl bg-white px-3 py-3">
+                      <div className="text-[12px] font-bold text-slate-400">
                         결제수단
                       </div>
                       <div className="mt-1 text-[15px] font-black text-slate-800">
@@ -147,6 +165,8 @@ export function SalesDailyTable({
               <thead>
                 <tr className="text-left text-sm font-black text-slate-500">
                   <th className="px-3 py-2">일시</th>
+                  <th className="px-3 py-2">이름</th>
+                  <th className="px-3 py-2">전화번호</th>
                   <th className="px-3 py-2">구분</th>
                   <th className="px-3 py-2">결제수단</th>
                   <th className="px-3 py-2">금액</th>
@@ -166,6 +186,12 @@ export function SalesDailyTable({
                       <td className="whitespace-nowrap rounded-l-2xl px-3 py-3 font-semibold">
                         {row.createdAtLabel || "-"}
                       </td>
+
+                      <td className="px-3 py-3 font-semibold text-slate-900">
+                        {row.customerName || "-"}
+                      </td>
+
+                      <td className="px-3 py-3">{row.customerTel || "-"}</td>
 
                       <td className="px-3 py-3">
                         <span
