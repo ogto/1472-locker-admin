@@ -7,6 +7,10 @@ import type {
 } from "./types";
 import { formatChannel } from "../common";
 
+function formatVisitText(visitSeq?: number | null) {
+  return visitSeq && visitSeq > 0 ? `${visitSeq}번째 방문` : "-";
+}
+
 export function mapReserveUserItem(item: ReserveUserItem): DashboardItem {
   return {
     id: item.id,
@@ -27,6 +31,7 @@ export function mapReserveUserItem(item: ReserveUserItem): DashboardItem {
 
     memo: item.memo?.trim() || "-",
     ordId: item.ordId?.trim() || "-",
+    visitText: formatVisitText(item.visitSeq),
 
     raw: item,
   };

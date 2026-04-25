@@ -25,6 +25,9 @@ export type HistoryItem = {
   tossPrivateKey: string;
   type: number | null;
   updateAt: string;
+  visitSeq?: number | null;
+  totalValidVisits?: number | null;
+  visitIncluded?: boolean | null;
 };
 
 export type HistoryDetailItem = {
@@ -54,6 +57,9 @@ export type HistoryDetailItem = {
   tossPrivateKey: string;
   type: number | null;
   updateAt: string;
+  visitSeq?: number | null;
+  totalValidVisits?: number | null;
+  visitIncluded?: boolean | null;
 };
 
 export type HistoryPageResponse = {
@@ -131,6 +137,7 @@ export type HistoryViewItem = {
   statusLabel: string;
   priceText: string;
   reservationDateText: string;
+  visitText: string;
   raw: HistoryItem;
 };
 

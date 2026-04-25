@@ -91,6 +91,9 @@ export function DashboardStorageCard({ item, onClick }: Props) {
             <span className="rounded-full bg-rose-50 px-3 py-1 text-rose-600">
               예약번호 {item.reserveId ?? "-"}
             </span>
+            <span className="rounded-full bg-pink-50 px-3 py-1 text-pink-600">
+              {item.visitText}
+            </span>
           </div>
         </div>
 

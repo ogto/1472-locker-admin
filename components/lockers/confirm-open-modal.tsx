@@ -12,6 +12,7 @@ type Props = {
     channel: string;
     reservationDate: string;
     status: string;
+    visitText?: string;
   } | null;
   disabled?: boolean;
   disableSubmitting?: boolean;
@@ -92,6 +93,7 @@ export function ConfirmOpenModal({
               <Row label="채널" value={userInfo.channel} />
               <Row label="예약일시" value={userInfo.reservationDate} />
               <Row label="상태" value={userInfo.status} />
+              <Row label="방문횟수" value={userInfo.visitText || "-"} />
             </div>
           ) : (
             <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">

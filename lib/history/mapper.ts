@@ -62,6 +62,10 @@ function safeDateText(value?: string) {
   return raw;
 }
 
+function formatVisitText(visitSeq?: number | null) {
+  return visitSeq && visitSeq > 0 ? `${visitSeq}번째 방문` : "-";
+}
+
 export function formatHistoryType(type?: number | null) {
   if (type === 0) return "냉장";
   if (type === 1) return "상온";
@@ -102,6 +106,7 @@ export function mapHistoryItem(item: HistoryItem): HistoryViewItem {
     reservationDateText: item.reservationDay
       ? `${item.reservationDay} ${item.reservationStartTime || ""}`.trim()
       : "-",
+    visitText: formatVisitText(item.visitSeq),
     raw: item,
   };
 }

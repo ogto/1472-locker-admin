@@ -144,9 +144,17 @@ export function DashboardDetailModal({
               <StateBox tone="default" text="상세 데이터가 없습니다." />
             ) : (
               <div className="space-y-5 sm:space-y-6">
-                <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <SummaryBox label="고객명" value={first?.mberNm?.trim() || "-"} />
                   <SummaryBox label="전화번호" value={first?.tel?.trim() || "-"} />
+                  <SummaryBox
+                    label="방문횟수"
+                    value={
+                      first?.visitSeq && first.visitSeq > 0
+                        ? `${first.visitSeq}번째 방문`
+                        : "-"
+                    }
+                  />
                   <SummaryBox
                     label="예약번호"
                     value={String(first?.reserveId ?? "-")}

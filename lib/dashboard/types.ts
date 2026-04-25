@@ -34,6 +34,9 @@ export type ReserveUserItem = {
   type?: number | null;
   updateAt?: string | null;
   pwd?: string | null;
+  visitSeq?: number | null;
+  totalValidVisits?: number | null;
+  visitIncluded?: boolean | null;
 };
 
 export type DashboardItem = {
@@ -55,6 +58,7 @@ export type DashboardItem = {
 
   memo: string;
   ordId: string;
+  visitText: string;
 
   raw: ReserveUserItem;
 };
@@ -86,6 +90,9 @@ export type ReserveUserDetailItem = {
   type?: number | null;
   updateAt?: string | null;
   pwd?: string | null;
+  visitSeq?: number | null;
+  totalValidVisits?: number | null;
+  visitIncluded?: boolean | null;
 };
 
 export type DashboardStorageCounts = {

@@ -128,6 +128,9 @@ export function HistoryTable({
                             <div className="mt-1 text-xs font-semibold text-slate-500">
                               {item.tel}
                             </div>
+                            <div className="mt-1 text-xs font-bold text-pink-500">
+                              {item.visitText}
+                            </div>
                           </div>
                         </td>
 
@@ -204,14 +207,17 @@ export function HistoryTable({
                 className="block w-full text-left"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-base font-black text-slate-900">
-                      {item.customerName}
+                    <div>
+                      <div className="text-base font-black text-slate-900">
+                        {item.customerName}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-slate-500">
+                        #{item.reserveId} · {item.tel}
+                      </div>
+                      <div className="mt-1 text-xs font-bold text-pink-500">
+                        {item.visitText}
+                      </div>
                     </div>
-                    <div className="mt-1 text-sm font-semibold text-slate-500">
-                      #{item.reserveId} · {item.tel}
-                    </div>
-                  </div>
 
                   <Badge
                     text={item.statusLabel}

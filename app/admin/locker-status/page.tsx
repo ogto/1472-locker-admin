@@ -29,6 +29,7 @@ type LockerOccupantInfo = {
   channel: string;
   reservationDate: string;
   status: string;
+  visitText: string;
 };
 
 type LockerHistoryRow = {
@@ -64,6 +65,29 @@ function pickText(record: Record<string, unknown>, keys: string[]) {
   return "";
 }
 
+function pickNumber(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value.trim());
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return null;
+}
+
+function formatVisitText(visitSeq?: number | null) {
+  return visitSeq && visitSeq > 0 ? `${visitSeq}번째 방문` : "-";
+}
+
 function buildReserveUserInfo(item: ReserveUserItem): LockerOccupantInfo {
   return {
     name: item.mberNm?.trim() || "-",
@@ -71,6 +95,7 @@ function buildReserveUserInfo(item: ReserveUserItem): LockerOccupantInfo {
     channel: formatChannel(item.os),
     reservationDate: formatReservationDate(item.reservationDay, item.reservationStartTime),
     status: formatStatus(item.reservationStatus),
+    visitText: formatVisitText(item.visitSeq),
   };
 }
 
@@ -93,6 +118,9 @@ function buildEnableStorageInfo(record: Record<string, unknown>): LockerOccupant
     reservationDate: formatReservationDate(reservationDay, reservationStartTime),
     status: formatStatus(
       pickText(record, ["reservationStatus", "status", "reserveStatus"]) || "-"
+    ),
+    visitText: formatVisitText(
+      pickNumber(record, ["visitSeq", "visitCount", "visitNo", "sequence"])
     ),
   };
 }
