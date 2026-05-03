@@ -16,6 +16,7 @@ import {
   fetchReserveHistoryDetail,
   fetchReserveHistorySummary,
 } from "@/lib/history/api";
+import { postCancelReserve } from "@/lib/dashboard/api";
 import { mapHistoryItem } from "@/lib/history/mapper";
 import type {
   HistoryDetailItem,
@@ -65,6 +66,10 @@ export default function AdminHistoryPage() {
     reservationEndDay: "",
     searchQuery: "",
     reservationStatus: "",
+    reservationTime: "",
+    pickupProduct: "",
+    sortBy: "",
+    sortDir: "",
   });
 
   const [page, setPage] = useState(0);
@@ -82,6 +87,8 @@ export default function AdminHistoryPage() {
   const [detailErrorById, setDetailErrorById] = useState<Record<number, string>>(
     {}
   );
+  const [cancelTarget, setCancelTarget] = useState<HistoryViewItem | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   async function loadHistory(nextPage = page, nextFilters = filters) {
     setLoading(true);
@@ -101,6 +108,10 @@ export default function AdminHistoryPage() {
           reservationEndDay: nextFilters.reservationEndDay || undefined,
           searchQuery: nextFilters.searchQuery.trim() || undefined,
           reservationStatus: nextFilters.reservationStatus || undefined,
+          reservationTime: nextFilters.reservationTime || undefined,
+          pickupProduct: nextFilters.pickupProduct || undefined,
+          sortBy: nextFilters.sortBy || undefined,
+          sortDir: nextFilters.sortDir || undefined,
         }),
         fetchReserveHistorySummary({
           point: nextFilters.point,
@@ -108,6 +119,8 @@ export default function AdminHistoryPage() {
           reservationEndDay: nextFilters.reservationEndDay || undefined,
           searchQuery: nextFilters.searchQuery.trim() || undefined,
           reservationStatus: nextFilters.reservationStatus || undefined,
+          reservationTime: nextFilters.reservationTime || undefined,
+          pickupProduct: nextFilters.pickupProduct || undefined,
         }),
       ]);
 
@@ -171,6 +184,29 @@ export default function AdminHistoryPage() {
       }));
     } finally {
       setDetailLoadingId(null);
+    }
+  }
+
+  async function handleConfirmCancelReserve() {
+    if (!cancelTarget) return;
+
+    try {
+      setCancelLoading(true);
+      setErrorText("");
+
+      await postCancelReserve({
+        point: cancelTarget.raw.point || filters.point || "bank",
+        reserveId: cancelTarget.reserveId,
+      });
+
+      setCancelTarget(null);
+      await loadHistory(page, filters);
+    } catch (error) {
+      setErrorText(
+        error instanceof Error ? error.message : "예약취소에 실패했습니다."
+      );
+    } finally {
+      setCancelLoading(false);
     }
   }
 
@@ -240,6 +276,10 @@ export default function AdminHistoryPage() {
               reservationEndDay: today,
               searchQuery: "",
               reservationStatus: "",
+              reservationTime: "",
+              pickupProduct: "",
+              sortBy: "",
+              sortDir: "",
             };
 
             setFilters(resetValue);
@@ -269,6 +309,7 @@ export default function AdminHistoryPage() {
               detailErrorById={detailErrorById}
               detailById={detailById}
               onToggleDetail={handleToggleDetail}
+              onCancelReserve={setCancelTarget}
             />
 
             <div className="rounded-[28px] bg-white/70 p-4 shadow-sm">
@@ -289,6 +330,71 @@ export default function AdminHistoryPage() {
           </>
         )}
       </div>
+
+      {cancelTarget ? (
+        <CancelReserveConfirmModal
+          loading={cancelLoading}
+          item={cancelTarget}
+          onCancel={() => {
+            if (!cancelLoading) setCancelTarget(null);
+          }}
+          onConfirm={() => void handleConfirmCancelReserve()}
+        />
+      ) : null}
     </AdminShell>
+  );
+}
+
+function CancelReserveConfirmModal({
+  loading,
+  item,
+  onCancel,
+  onConfirm,
+}: {
+  loading: boolean;
+  item: HistoryViewItem;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.48)] p-4 backdrop-blur-[2px]"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-[20px] font-black tracking-[-0.03em] text-slate-900">
+          예약취소
+        </div>
+        <div className="mt-2 text-sm font-bold leading-6 text-slate-600">
+          {item.customerName} 고객의 예약 #{item.reserveId}건을 취소하시겠습니까?
+        </div>
+
+        <div className="mt-5 rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-4 text-sm font-bold text-rose-800">
+          취소 후에는 이용내역 상태가 변경됩니다.
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            닫기
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-rose-100 bg-rose-500 px-4 py-2.5 text-[14px] font-extrabold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {loading ? "취소 중..." : "예약취소"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

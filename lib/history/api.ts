@@ -34,6 +34,22 @@ export async function fetchReserveHistory(
     searchParams.set("reservationStatus", params.reservationStatus);
   }
 
+  if (params.reservationTime) {
+    searchParams.set("reservationTime", params.reservationTime);
+  }
+
+  if (params.pickupProduct) {
+    searchParams.set("pickupProduct", params.pickupProduct);
+  }
+
+  if (params.sortBy) {
+    searchParams.set("sortBy", params.sortBy);
+  }
+
+  if (params.sortDir) {
+    searchParams.set("sortDir", params.sortDir);
+  }
+
   const response = await fetch(`/api/history?${searchParams.toString()}`, {
     method: "GET",
     cache: "no-store",
@@ -71,6 +87,14 @@ export async function fetchReserveHistorySummary(
 
   if (params.reservationStatus) {
     searchParams.set("reservationStatus", params.reservationStatus);
+  }
+
+  if (params.reservationTime) {
+    searchParams.set("reservationTime", params.reservationTime);
+  }
+
+  if (params.pickupProduct) {
+    searchParams.set("pickupProduct", params.pickupProduct);
   }
 
   const response = await fetch(

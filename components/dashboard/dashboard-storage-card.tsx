@@ -3,6 +3,7 @@ import {
   formatPrice,
   formatReservationDate,
   formatStatus,
+  isTwentyFourHourUsage,
 } from "@/lib/common";
 import type { DashboardItem } from "@/lib/dashboard/types";
 
@@ -58,16 +59,17 @@ function getChannelTone(channel: string) {
 export function DashboardStorageCard({ item, onClick }: Props) {
   const statusText = formatStatus(item.reservationStatus);
   const channelText = formatChannel(item.os);
+  const fullDay = isTwentyFourHourUsage(item.reservationTime);
 
   return (
     <button
       type="button"
       onClick={onClick}
       className={[
-        "group w-full overflow-hidden rounded-[30px] border border-rose-100/80 p-5 text-left transition-all duration-200",
-        "bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,247,249,0.96)_100%)]",
-        "shadow-[0_12px_34px_rgba(15,23,42,0.06)]",
-        "hover:-translate-y-1 hover:shadow-[0_18px_42px_rgba(251,113,133,0.15)]",
+        "group w-full overflow-hidden rounded-[30px] border p-5 text-left transition-all duration-200",
+        fullDay
+          ? "border-cyan-200/90 bg-[linear-gradient(180deg,rgba(236,254,255,0.98)_0%,rgba(238,242,255,0.96)_100%)] shadow-[0_12px_34px_rgba(8,145,178,0.12)] hover:-translate-y-1 hover:shadow-[0_18px_42px_rgba(8,145,178,0.2)]"
+          : "border-rose-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,247,249,0.96)_100%)] shadow-[0_12px_34px_rgba(15,23,42,0.06)] hover:-translate-y-1 hover:shadow-[0_18px_42px_rgba(251,113,133,0.15)]",
       ].join(" ")}
     >
       <div className="flex items-start justify-between gap-3">
@@ -85,13 +87,29 @@ export function DashboardStorageCard({ item, onClick }: Props) {
             >
               {channelText}
             </div>
+
+            {fullDay ? (
+              <div className="inline-flex items-center rounded-full border border-cyan-200 bg-cyan-100 px-3 py-1 text-xs font-black text-cyan-800">
+                24H
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-500">
-            <span className="rounded-full bg-rose-50 px-3 py-1 text-rose-600">
+            <span
+              className={[
+                "rounded-full px-3 py-1",
+                fullDay ? "bg-cyan-50 text-cyan-700" : "bg-rose-50 text-rose-600",
+              ].join(" ")}
+            >
               예약번호 {item.reserveId ?? "-"}
             </span>
-            <span className="rounded-full bg-pink-50 px-3 py-1 text-pink-600">
+            <span
+              className={[
+                "rounded-full px-3 py-1",
+                fullDay ? "bg-indigo-50 text-indigo-700" : "bg-pink-50 text-pink-600",
+              ].join(" ")}
+            >
               {item.visitText}
             </span>
           </div>
@@ -108,7 +126,14 @@ export function DashboardStorageCard({ item, onClick }: Props) {
       </div>
 
       <div className="mt-4 grid gap-3">
-        <div className="rounded-2xl bg-gradient-to-r from-rose-50 via-orange-50 to-amber-50 px-4 py-4">
+        <div
+          className={[
+            "rounded-2xl px-4 py-4",
+            fullDay
+              ? "bg-gradient-to-r from-cyan-50 via-sky-50 to-indigo-50"
+              : "bg-gradient-to-r from-rose-50 via-orange-50 to-amber-50",
+          ].join(" ")}
+        >
           <div className="text-[11px] font-extrabold tracking-[0.02em] text-slate-500">
             시작
           </div>
@@ -137,7 +162,12 @@ export function DashboardStorageCard({ item, onClick }: Props) {
           />
         </div>
 
-        <div className="flex items-center justify-between rounded-2xl border border-rose-100 bg-white/90 px-4 py-3">
+        <div
+          className={[
+            "flex items-center justify-between rounded-2xl border bg-white/90 px-4 py-3",
+            fullDay ? "border-cyan-100" : "border-rose-100",
+          ].join(" ")}
+        >
           <div className="text-sm font-extrabold text-slate-700">
             자세히 보기
           </div>

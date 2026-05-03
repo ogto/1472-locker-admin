@@ -1,5 +1,6 @@
 import type React from "react";
 import { HistoryDetailPanel } from "@/components/history/history-detail-panel";
+import { isTwentyFourHourUsage } from "@/lib/common";
 import type { HistoryDetailItem, HistoryViewItem } from "@/lib/history/types";
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
   detailErrorById: Record<number, string>;
   detailById: Record<number, HistoryDetailItem[]>;
   onToggleDetail: (item: HistoryViewItem) => void;
+  onCancelReserve: (item: HistoryViewItem) => void;
 };
 
 function Badge({
@@ -73,6 +75,11 @@ function FragmentRow({
   );
 }
 
+function canCancelReserve(item: HistoryViewItem) {
+  const status = item.raw.reservationStatus?.trim().toUpperCase() || "";
+  return status === "PENDING" || status === "RESERVED";
+}
+
 export function HistoryTable({
   items,
   expandedId,
@@ -80,6 +87,7 @@ export function HistoryTable({
   detailErrorById,
   detailById,
   onToggleDetail,
+  onCancelReserve,
 }: Props) {
   return (
     <>
@@ -100,13 +108,19 @@ export function HistoryTable({
             <tbody>
               {items.map((item) => {
                 const open = expandedId === item.id;
+                const fullDay = isTwentyFourHourUsage(item.raw.reservationTime);
 
                 return (
                   <FragmentRow
                     key={item.id}
                     row={
                       <tr
-                        className="cursor-pointer border-t border-slate-100 transition hover:bg-pink-50/30"
+                        className={[
+                          "cursor-pointer border-t transition",
+                          fullDay
+                            ? "border-cyan-100 bg-cyan-50/45 hover:bg-cyan-50/80"
+                            : "border-slate-100 hover:bg-pink-50/30",
+                        ].join(" ")}
                         onClick={() => onToggleDetail(item)}
                       >
                         <td className="px-5 py-4 align-middle">
@@ -131,11 +145,16 @@ export function HistoryTable({
                             <div className="mt-1 text-xs font-bold text-pink-500">
                               {item.visitText}
                             </div>
+                            {fullDay ? (
+                              <div className="mt-2 inline-flex rounded-full border border-cyan-200 bg-cyan-100 px-2.5 py-1 text-[11px] font-black text-cyan-800">
+                                24H
+                              </div>
+                            ) : null}
                           </div>
                         </td>
 
                         <td className="px-5 py-4 align-middle">
-                          <div className="flex min-h-[52px] items-center">
+                          <div className="flex min-h-[52px] flex-wrap items-center gap-2">
                             <Badge
                               text={item.statusLabel}
                               tone={statusTone(item.statusLabel)}
@@ -156,7 +175,7 @@ export function HistoryTable({
                         </td>
 
                         <td className="px-5 py-4 align-middle">
-                          <div className="flex min-h-[52px] items-center">
+                          <div className="flex min-h-[52px] flex-wrap items-center gap-2">
                             <button
                               type="button"
                               className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-extrabold text-slate-700"
@@ -167,13 +186,32 @@ export function HistoryTable({
                             >
                               {open ? "닫기" : "상세보기"}
                             </button>
+                            {canCancelReserve(item) ? (
+                              <button
+                                type="button"
+                                className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-700 transition hover:bg-rose-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onCancelReserve(item);
+                                }}
+                              >
+                                예약취소
+                              </button>
+                            ) : null}
                           </div>
                         </td>
                       </tr>
                     }
                     detail={
                       open ? (
-                        <tr className="border-t border-slate-100 bg-white">
+                        <tr
+                          className={[
+                            "border-t",
+                            fullDay
+                              ? "border-cyan-100 bg-cyan-50/30"
+                              : "border-slate-100 bg-white",
+                          ].join(" ")}
+                        >
                           <td colSpan={6} className="px-5 pb-5">
                             <HistoryDetailPanel
                               loading={detailLoadingId === item.id}
@@ -195,11 +233,17 @@ export function HistoryTable({
       <section className="space-y-3 xl:hidden">
         {items.map((item) => {
           const open = expandedId === item.id;
+          const fullDay = isTwentyFourHourUsage(item.raw.reservationTime);
 
           return (
             <article
               key={item.id}
-              className="rounded-[28px] border border-white/70 bg-white/85 p-4 shadow-[0_15px_40px_rgba(15,23,42,0.08)]"
+              className={[
+                "rounded-[28px] border p-4 shadow-[0_15px_40px_rgba(15,23,42,0.08)]",
+                fullDay
+                  ? "border-cyan-200/80 bg-[linear-gradient(180deg,rgba(236,254,255,0.96)_0%,rgba(238,242,255,0.92)_100%)]"
+                  : "border-white/70 bg-white/85",
+              ].join(" ")}
             >
               <button
                 type="button"
@@ -217,6 +261,11 @@ export function HistoryTable({
                       <div className="mt-1 text-xs font-bold text-pink-500">
                         {item.visitText}
                       </div>
+                      {fullDay ? (
+                        <div className="mt-2 inline-flex rounded-full border border-cyan-200 bg-cyan-100 px-2.5 py-1 text-[11px] font-black text-cyan-800">
+                          24H
+                        </div>
+                      ) : null}
                     </div>
 
                   <Badge
@@ -225,7 +274,12 @@ export function HistoryTable({
                   />
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-3">
+                <div
+                  className={[
+                    "mt-4 grid grid-cols-2 gap-3 rounded-2xl p-3",
+                    fullDay ? "bg-white/75" : "bg-slate-50",
+                  ].join(" ")}
+                >
                   <div>
                     <div className="text-xs font-black text-slate-400">보관일시</div>
                     <div className="mt-1 text-sm font-black text-slate-900">
@@ -245,6 +299,16 @@ export function HistoryTable({
                   {open ? "상세 접기" : "상세 보기"}
                 </div>
               </button>
+
+              {canCancelReserve(item) ? (
+                <button
+                  type="button"
+                  className="mt-3 h-11 w-full rounded-2xl border border-rose-100 bg-rose-50 text-sm font-extrabold text-rose-700 transition hover:bg-rose-100"
+                  onClick={() => onCancelReserve(item)}
+                >
+                  예약취소
+                </button>
+              ) : null}
 
               {open ? (
                 <div className="mt-4">

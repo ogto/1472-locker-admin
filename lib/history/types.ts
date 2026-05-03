@@ -99,6 +99,10 @@ export type HistorySearchParams = {
   reservationEndDay?: string;
   searchQuery?: string;
   reservationStatus?: string;
+  reservationTime?: string;
+  pickupProduct?: string;
+  sortBy?: string;
+  sortDir?: string;
 };
 
 export type HistorySummary = {
@@ -127,6 +131,10 @@ export type HistoryFilterValue = {
   reservationEndDay: string;
   searchQuery: string;
   reservationStatus: string;
+  reservationTime: string;
+  pickupProduct: string;
+  sortBy: string;
+  sortDir: string;
 };
 
 export type HistoryViewItem = {

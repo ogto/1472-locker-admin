@@ -2,6 +2,10 @@ export function formatPrice(value?: number | null) {
   return `${(value ?? 0).toLocaleString()}원`;
 }
 
+export function isTwentyFourHourUsage(minutes?: number | null) {
+  return (minutes ?? 0) >= 24 * 60;
+}
+
 export function formatReservationDate(day?: string | null, startTime?: string | null) {
   const safeDay = (day || "").trim();
   const safeStartTime = (startTime || "").trim();

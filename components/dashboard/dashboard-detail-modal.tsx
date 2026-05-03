@@ -6,6 +6,7 @@ import {
   formatReservationDate,
   formatStatus,
   formatStorageType,
+  isTwentyFourHourUsage,
 } from "@/lib/common";
 import type { ReserveUserDetailItem } from "@/lib/dashboard/types";
 
@@ -37,6 +38,9 @@ export function DashboardDetailModal({
 
   const first = data[0];
   const grouped = groupDetailByType(data);
+  const hasFullDayUsage = data.some((item) =>
+    isTwentyFourHourUsage(item.reservationTime)
+  );
 
   const pickupTargets = data.filter((item) => {
     const status = item.reservationStatus?.trim() || "";
@@ -89,10 +93,20 @@ export function DashboardDetailModal({
         onClick={handleClose}
       >
         <div
-          className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,247,249,0.96)_100%)] shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:rounded-[32px]"
+          className={[
+            "flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:rounded-[32px]",
+            hasFullDayUsage
+              ? "border-cyan-100/80 bg-[linear-gradient(180deg,rgba(236,254,255,0.98)_0%,rgba(238,242,255,0.96)_100%)]"
+              : "border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,247,249,0.96)_100%)]",
+          ].join(" ")}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex flex-col gap-4 border-b border-rose-100 px-4 py-4 sm:px-6 sm:py-5 md:flex-row md:items-center md:justify-between">
+          <div
+            className={[
+              "flex flex-col gap-4 border-b px-4 py-4 sm:px-6 sm:py-5 md:flex-row md:items-center md:justify-between",
+              hasFullDayUsage ? "border-cyan-100" : "border-rose-100",
+            ].join(" ")}
+          >
             <div className="min-w-0">
               <div className="text-[21px] font-black tracking-[-0.03em] text-slate-900 sm:text-[24px]">
                 예약 상세
@@ -390,7 +404,8 @@ function DetailCard({
   tone: "cold" | "room" | "carrier";
 }) {
   const statusText = formatStatus(item.reservationStatus?.trim() || "-");
-  const cardTone = getCardTone(tone);
+  const fullDay = isTwentyFourHourUsage(item.reservationTime);
+  const cardTone = fullDay ? getFullDayCardTone() : getCardTone(tone);
 
   return (
     <div
@@ -407,6 +422,11 @@ function DetailCard({
           <div className="mt-1 inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-extrabold text-slate-600 shadow-sm">
             {formatStorageType(item.type)}
           </div>
+          {fullDay ? (
+            <div className="mt-2 inline-flex rounded-full border border-cyan-200 bg-cyan-100 px-3 py-1 text-xs font-black text-cyan-800">
+              24H
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -516,6 +536,12 @@ function getCardTone(tone: "cold" | "room" | "carrier") {
 
   return {
     wrap: "border-violet-100 bg-[linear-gradient(180deg,rgba(245,243,255,0.95)_0%,rgba(255,255,255,0.96)_100%)]",
+  };
+}
+
+function getFullDayCardTone() {
+  return {
+    wrap: "border-cyan-200 bg-[linear-gradient(180deg,rgba(236,254,255,0.96)_0%,rgba(238,242,255,0.96)_100%)]",
   };
 }
 

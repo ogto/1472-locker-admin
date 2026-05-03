@@ -1,17 +1,21 @@
-import type { ZoneKey } from "@/lib/dashboard/types";
+import type { DashboardSortOrder, ZoneKey } from "@/lib/dashboard/types";
 
 type Props = {
   filter: ZoneKey;
   keyword: string;
+  sortOrder: DashboardSortOrder;
   onChangeFilter: (value: ZoneKey) => void;
   onChangeKeyword: (value: string) => void;
+  onChangeSortOrder: (value: DashboardSortOrder) => void;
   onRefresh: () => void;
   loading: boolean;
 };
 
 export function DashboardFilterBar({
   keyword,
+  sortOrder,
   onChangeKeyword,
+  onChangeSortOrder,
   onRefresh,
   loading,
 }: Props) {
@@ -19,21 +23,42 @@ export function DashboardFilterBar({
     <section className="overflow-hidden rounded-[30px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(255,247,250,0.96)_100%)] p-4 shadow-[0_16px_50px_rgba(15,23,42,0.06)] backdrop-blur sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row">
         <label className="group relative block flex-1">
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg opacity-70">
-            🔎
-          </span>
-
           <input
             value={keyword}
             onChange={(e) => onChangeKeyword(e.target.value)}
             placeholder="예약번호, 이름, 전화번호, 비밀번호 검색"
             className={[
-              "min-h-[58px] w-full rounded-2xl border bg-white/95 py-3 pl-12 pr-4 text-[16px] font-semibold text-slate-900 outline-none transition",
+              "min-h-[58px] w-full rounded-2xl border bg-white/95 px-4 py-3 text-[16px] font-semibold text-slate-900 outline-none transition",
               "border-rose-100 shadow-sm placeholder:text-slate-400",
               "focus:border-rose-300 focus:shadow-[0_0_0_6px_rgba(251,113,133,0.12)]",
             ].join(" ")}
           />
         </label>
+
+        <div className="grid min-h-[58px] grid-cols-2 rounded-2xl border border-rose-100 bg-white/95 p-1 shadow-sm lg:w-[236px]">
+          {[
+            ["storage-desc", "최신순"],
+            ["storage-asc", "오래순"],
+          ].map(([value, label]) => {
+            const selected = sortOrder === value;
+
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onChangeSortOrder(value as DashboardSortOrder)}
+                className={[
+                  "rounded-[14px] px-3 text-[15px] font-black transition",
+                  selected
+                    ? "bg-rose-400 text-white shadow-[0_8px_18px_rgba(251,113,133,0.24)]"
+                    : "text-slate-500 hover:bg-rose-50 hover:text-slate-900",
+                ].join(" ")}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
 
         <button
           type="button"

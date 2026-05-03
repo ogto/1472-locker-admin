@@ -5,6 +5,7 @@ import {
   formatReservationDate,
   formatStatus,
   formatStorageType,
+  isTwentyFourHourUsage,
 } from "@/lib/common";
 
 type BadgeTone =
@@ -171,9 +172,19 @@ export function HistoryDetailPanel({
     );
   }
 
+  const hasFullDayUsage = items.some((item) =>
+    isTwentyFourHourUsage(item.reservationTime)
+  );
+
   return (
-    <div className="space-y-4 rounded-[24px] bg-slate-50/90 p-4">
+    <div
+      className={[
+        "space-y-4 rounded-[24px] p-4",
+        hasFullDayUsage ? "bg-cyan-50/80" : "bg-slate-50/90",
+      ].join(" ")}
+    >
       {items.map((item) => {
+        const fullDay = isTwentyFourHourUsage(item.reservationTime);
         const typeLabel = formatStorageType(item.type);
         const statusLabel = formatStatus(item.reservationStatus);
         const pickupLabel = formatPickupLabel(item.pickupProduct);
@@ -188,13 +199,19 @@ export function HistoryDetailPanel({
         return (
           <section
             key={item.id}
-            className="rounded-[24px] border border-white/70 bg-white p-4 shadow-sm"
+            className={[
+              "rounded-[24px] border p-4 shadow-sm",
+              fullDay
+                ? "border-cyan-200 bg-[linear-gradient(180deg,rgba(236,254,255,0.96)_0%,rgba(255,255,255,0.98)_100%)]"
+                : "border-white/70 bg-white",
+            ].join(" ")}
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex flex-wrap items-center gap-2 text-base font-black text-slate-900">
                   <span>보관함 {item.storageId ?? "-"}</span>
                   <Badge text={typeLabel} tone={storageTypeTone(typeLabel)} />
+                  {fullDay ? <Badge text="24H" tone="cyan" /> : null}
                 </div>
                 <div className="mt-1 text-sm font-semibold text-slate-500">
                   예약 #{item.reserveId} · 상세 ID {item.id}
@@ -208,7 +225,12 @@ export function HistoryDetailPanel({
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-3 xl:grid-cols-4">
+            <div
+              className={[
+                "mt-4 grid grid-cols-2 gap-3 rounded-2xl p-3 xl:grid-cols-4",
+                fullDay ? "bg-white/75" : "bg-slate-50",
+              ].join(" ")}
+            >
               <div>
                 <div className="text-xs font-black text-slate-400">보관일시</div>
                 <div className="mt-1 text-sm font-black text-slate-900">

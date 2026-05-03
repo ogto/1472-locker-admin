@@ -7,6 +7,8 @@ export type ZoneKey =
   | "room"
   | "carrier";
 
+export type DashboardSortOrder = "storage-desc" | "storage-asc";
+
 export type ReserveUserItem = {
   addPay?: number | null;
   addPayOrdId?: string | null;

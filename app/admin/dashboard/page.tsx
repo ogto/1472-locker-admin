@@ -24,6 +24,7 @@ import {
 import { formatChannel } from "@/lib/common";
 import type {
   DashboardItem,
+  DashboardSortOrder,
   DashboardStorageCounts,
   ReserveUserDetailItem,
   ReserveUserItem,
@@ -41,6 +42,13 @@ function matchesCardFilter(item: DashboardItem, filter: ZoneKey) {
   return true;
 }
 
+function compareStorageDate(a: DashboardItem, b: DashboardItem) {
+  const aDate = `${a.reservationDay} ${a.reservationStartTime}`;
+  const bDate = `${b.reservationDay} ${b.reservationStartTime}`;
+
+  return aDate.localeCompare(bDate);
+}
+
 export default function AdminDashboardPage() {
   const auth = useAdminAuth();
 
@@ -54,6 +62,8 @@ export default function AdminDashboardPage() {
 
   const [filter, setFilter] = useState<ZoneKey>("all");
   const [keyword, setKeyword] = useState("");
+  const [sortOrder, setSortOrder] =
+    useState<DashboardSortOrder>("storage-desc");
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState("");
 
@@ -103,7 +113,10 @@ export default function AdminDashboardPage() {
     setDetailData([]);
 
     try {
-      const result = await fetchReserveUserDetail(item.id, "bank");
+      const result = await fetchReserveUserDetail(
+        item.id,
+        item.raw.point || "bank"
+      );
       setDetailData(result);
     } catch (error) {
       setDetailErrorText(
@@ -147,7 +160,10 @@ export default function AdminDashboardPage() {
       });
 
       if (selected) {
-        const refreshedDetail = await fetchReserveUserDetail(selected.id, "bank");
+        const refreshedDetail = await fetchReserveUserDetail(
+          selected.id,
+          selected.raw.point || "bank"
+        );
         setDetailData(refreshedDetail);
       }
 
@@ -206,15 +222,7 @@ export default function AdminDashboardPage() {
   }
 
   const items = useMemo<DashboardItem[]>(() => {
-    const mapped = rows.map(mapReserveUserItem);
-
-    mapped.sort((a, b) => {
-      const aDate = `${a.reservationDay} ${a.reservationStartTime}`;
-      const bDate = `${b.reservationDay} ${b.reservationStartTime}`;
-      return bDate.localeCompare(aDate);
-    });
-
-    return mapped;
+    return rows.map(mapReserveUserItem);
   }, [rows]);
 
   const summary = useMemo(
@@ -225,9 +233,8 @@ export default function AdminDashboardPage() {
   const filteredItems = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
 
-    return items.filter((item) => {
+    const filtered = items.filter((item) => {
       const matchFilter = matchesCardFilter(item, filter);
-
       const matchKeyword =
         normalizedKeyword.length === 0
           ? true
@@ -238,9 +245,18 @@ export default function AdminDashboardPage() {
               item.password,
             ].some((value) => value.toLowerCase().includes(normalizedKeyword));
 
-      return matchFilter && matchKeyword;
+      return (
+        matchFilter &&
+        matchKeyword
+      );
     });
-  }, [items, filter, keyword]);
+
+    return filtered.sort((a, b) =>
+      sortOrder === "storage-asc"
+        ? compareStorageDate(a, b)
+        : compareStorageDate(b, a)
+    );
+  }, [items, filter, keyword, sortOrder]);
 
   if (auth.booting) {
     return (
@@ -278,8 +294,10 @@ export default function AdminDashboardPage() {
         <DashboardFilterBar
           filter={filter}
           keyword={keyword}
+          sortOrder={sortOrder}
           onChangeFilter={setFilter}
           onChangeKeyword={setKeyword}
+          onChangeSortOrder={setSortOrder}
           onRefresh={loadDashboard}
           loading={loading}
         />

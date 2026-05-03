@@ -18,8 +18,26 @@ const statusOptions = [
   { value: "", label: "전체 상태" },
   { value: "PENDING", label: "예약" },
   { value: "COMPLETED", label: "보관중" },
+  { value: "READY", label: "찾기대기" },
   { value: "PICKUP", label: "픽업완료" },
   { value: "CANCEL", label: "취소" },
+];
+
+const timeOptions = [
+  { value: "", label: "전체 시간" },
+  { value: "240", label: "4시간" },
+  { value: "1440", label: "24시간" },
+];
+
+const baseballPickupOptions = [
+  { value: "", label: "전체" },
+  { value: "true", label: "야구장 픽업" },
+];
+
+const sortOptions = [
+  { value: "", label: "기본 정렬" },
+  { value: "storageDateTime:desc", label: "보관 최신순" },
+  { value: "storageDateTime:asc", label: "보관 오래순" },
 ];
 
 export function HistoryFilterBar({
@@ -39,6 +57,19 @@ export function HistoryFilterBar({
     });
   }
 
+  function updateSort(nextValue: string) {
+    const [sortBy = "", sortDir = ""] = nextValue.split(":");
+
+    onChange({
+      ...value,
+      sortBy,
+      sortDir,
+    });
+  }
+
+  const sortValue =
+    value.sortBy && value.sortDir ? `${value.sortBy}:${value.sortDir}` : "";
+
   return (
     <section className="rounded-[32px] border border-white/70 bg-white/80 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:p-5">
       <div className="flex flex-col gap-4">
@@ -48,21 +79,13 @@ export function HistoryFilterBar({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-extrabold text-slate-700">지점</span>
-            <select
-              value={value.point}
-              onChange={(e) => updateField("point", e.target.value)}
-              className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition focus:border-pink-300 focus:ring-4 focus:ring-pink-100"
-            >
-              {pointOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <SelectField
+            label="지점"
+            value={value.point}
+            options={pointOptions}
+            onChange={(nextValue) => updateField("point", nextValue)}
+          />
 
           <label className="flex flex-col gap-2">
             <span className="text-sm font-extrabold text-slate-700">시작일</span>
@@ -86,22 +109,35 @@ export function HistoryFilterBar({
             />
           </label>
 
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-extrabold text-slate-700">상태</span>
-            <select
-              value={value.reservationStatus}
-              onChange={(e) => updateField("reservationStatus", e.target.value)}
-              className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition focus:border-pink-300 focus:ring-4 focus:ring-pink-100"
-            >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SelectField
+            label="상태"
+            value={value.reservationStatus}
+            options={statusOptions}
+            onChange={(nextValue) => updateField("reservationStatus", nextValue)}
+          />
 
-          <label className="flex flex-col gap-2 md:col-span-2 xl:col-span-5">
+          <SelectField
+            label="이용시간"
+            value={value.reservationTime}
+            options={timeOptions}
+            onChange={(nextValue) => updateField("reservationTime", nextValue)}
+          />
+
+          <SelectField
+            label="야구장 픽업"
+            value={value.pickupProduct}
+            options={baseballPickupOptions}
+            onChange={(nextValue) => updateField("pickupProduct", nextValue)}
+          />
+
+          <SelectField
+            label="정렬"
+            value={sortValue}
+            options={sortOptions}
+            onChange={updateSort}
+          />
+
+          <label className="flex flex-col gap-2 md:col-span-2 xl:col-span-1">
             <span className="text-sm font-extrabold text-slate-700">
               검색어
             </span>
@@ -134,10 +170,39 @@ export function HistoryFilterBar({
             disabled={loading}
             className="h-12 rounded-2xl bg-gradient-to-r from-pink-400 to-rose-400 px-5 text-sm font-extrabold text-white shadow-lg shadow-pink-200 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "조회 중..." : "조회하기"}
+            {loading ? "조회 중.." : "조회하기"}
           </button>
         </div>
       </div>
     </section>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="text-sm font-extrabold text-slate-700">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition focus:border-pink-300 focus:ring-4 focus:ring-pink-100"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

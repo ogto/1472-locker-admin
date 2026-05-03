@@ -13,6 +13,10 @@ export async function GET(request: NextRequest) {
     const reservationEndDay = searchParams.get("reservationEndDay") || "";
     const searchQuery = searchParams.get("searchQuery") || "";
     const reservationStatus = searchParams.get("reservationStatus") || "";
+    const reservationTime = searchParams.get("reservationTime") || "";
+    const pickupProduct = searchParams.get("pickupProduct") || "";
+    const sortBy = searchParams.get("sortBy") || "";
+    const sortDir = searchParams.get("sortDir") || "";
 
     const upstreamParams = new URLSearchParams();
     upstreamParams.set("page", page);
@@ -33,6 +37,22 @@ export async function GET(request: NextRequest) {
 
     if (reservationStatus) {
       upstreamParams.set("reservationStatus", reservationStatus);
+    }
+
+    if (reservationTime) {
+      upstreamParams.set("reservationTime", reservationTime);
+    }
+
+    if (pickupProduct) {
+      upstreamParams.set("pickupProduct", pickupProduct);
+    }
+
+    if (sortBy) {
+      upstreamParams.set("sortBy", sortBy);
+    }
+
+    if (sortDir) {
+      upstreamParams.set("sortDir", sortDir);
     }
 
     const response = await fetch(
