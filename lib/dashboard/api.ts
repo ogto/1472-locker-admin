@@ -1,5 +1,6 @@
 import type {
   CancelReserveRequest,
+  OpenLockerRequest,
   PickupRequest,
   ReserveUserDetailItem,
   ReserveUserResponse,
@@ -109,6 +110,26 @@ export async function postCancelReserve({
 
   if (!res.ok || !data?.ok) {
     throw new Error(data?.message || "보관 취소 실패");
+  }
+
+  return data;
+}
+
+export async function postOpenLocker(request: OpenLockerRequest) {
+  const res = await fetch("/api/lock-command", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "same-origin",
+    cache: "no-store",
+    body: JSON.stringify(request),
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok || !data?.ok) {
+    throw new Error(data?.message || data?.detail || "보관함 열기에 실패했습니다.");
   }
 
   return data;

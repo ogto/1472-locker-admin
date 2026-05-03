@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { groupDetailByType } from "@/lib/dashboard/mapper";
 import {
   formatReservationDate,
@@ -14,11 +15,14 @@ type Props = {
   open: boolean;
   loading: boolean;
   errorText: string;
+  successText: string;
   data: ReserveUserDetailItem[];
   pickupLoading: boolean;
   cancelLoading: boolean;
+  openLockerLoadingId: number | null;
   onPickup: () => Promise<void> | void;
   onCancelReserve: () => Promise<void> | void;
+  onOpenLocker: (item: ReserveUserDetailItem) => Promise<void> | void;
   onClose: () => void;
 };
 
@@ -26,15 +30,21 @@ export function DashboardDetailModal({
   open,
   loading,
   errorText,
+  successText,
   data,
   pickupLoading,
   cancelLoading,
+  openLockerLoadingId,
   onPickup,
   onCancelReserve,
+  onOpenLocker,
   onClose,
 }: Props) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pickupConfirmOpen, setPickupConfirmOpen] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [openTarget, setOpenTarget] = useState<ReserveUserDetailItem | null>(
+    null
+  );
 
   const first = data[0];
   const grouped = groupDetailByType(data);
@@ -43,19 +53,19 @@ export function DashboardDetailModal({
   );
 
   const pickupTargets = data.filter((item) => {
-    const status = item.reservationStatus?.trim() || "";
+    const status = item.reservationStatus?.trim().toUpperCase() || "";
 
     return (
       item.id != null &&
       item.reserveId != null &&
-      item.point === "bank" &&
-      item.pickupProduct === true &&
-      status === "COMPLETED"
+      status !== "PICKUP" &&
+      status !== "CANCEL" &&
+      status !== "CANCELED"
     );
   });
 
   const canPickup = pickupTargets.length > 0;
-  const cancelTargets = data.filter((item) => {
+  const canCancel = data.some((item) => {
     const status = item.reservationStatus?.trim().toUpperCase() || "";
 
     return (
@@ -66,11 +76,17 @@ export function DashboardDetailModal({
       status !== "CANCELED"
     );
   });
-  const canCancel = cancelTargets.length > 0;
+
+  const handleClose = () => {
+    setPickupConfirmOpen(false);
+    setCancelConfirmOpen(false);
+    setOpenTarget(null);
+    onClose();
+  };
 
   const handleConfirmPickup = async () => {
     await onPickup();
-    setConfirmOpen(false);
+    setPickupConfirmOpen(false);
   };
 
   const handleConfirmCancel = async () => {
@@ -78,10 +94,11 @@ export function DashboardDetailModal({
     setCancelConfirmOpen(false);
   };
 
-  const handleClose = () => {
-    setConfirmOpen(false);
-    setCancelConfirmOpen(false);
-    onClose();
+  const handleConfirmOpenLocker = async () => {
+    if (!openTarget) return;
+
+    await onOpenLocker(openTarget);
+    setOpenTarget(null);
   };
 
   if (!open) return null;
@@ -89,7 +106,7 @@ export function DashboardDetailModal({
   return (
     <>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.46)] p-3 sm:p-4 backdrop-blur-[3px]"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.46)] p-3 backdrop-blur-[3px] sm:p-4"
         onClick={handleClose}
       >
         <div
@@ -112,7 +129,7 @@ export function DashboardDetailModal({
                 예약 상세
               </div>
               <div className="mt-1 text-[13px] font-bold text-slate-500 sm:text-sm">
-                예약 정보와 보관 내역을 확인할 수 있어요
+                예약 정보와 보관함 이용 내역을 확인할 수 있습니다.
               </div>
             </div>
 
@@ -122,18 +139,18 @@ export function DashboardDetailModal({
                   type="button"
                   onClick={() => setCancelConfirmOpen(true)}
                   disabled={cancelLoading}
-                  className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-rose-100 bg-rose-50 px-4 py-2.5 text-[14px] font-extrabold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[120px] sm:w-auto"
+                  className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-rose-100 bg-rose-50 px-4 py-2.5 text-[14px] font-extrabold text-rose-700 shadow-sm transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[120px]"
                 >
-                  {cancelLoading ? "처리중..." : "보관 취소"}
+                  {cancelLoading ? "처리중..." : "예약취소"}
                 </button>
               ) : null}
 
               {canPickup ? (
                 <button
                   type="button"
-                  onClick={() => setConfirmOpen(true)}
+                  onClick={() => setPickupConfirmOpen(true)}
                   disabled={pickupLoading}
-                  className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-[14px] font-extrabold text-emerald-700 shadow-sm transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[120px] sm:w-auto"
+                  className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-[14px] font-extrabold text-emerald-700 shadow-sm transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[120px]"
                 >
                   {pickupLoading ? "처리중..." : "픽업 완료"}
                 </button>
@@ -142,7 +159,7 @@ export function DashboardDetailModal({
               <button
                 type="button"
                 onClick={handleClose}
-                className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-rose-100 bg-white/90 px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-rose-50 sm:min-w-[96px] sm:w-auto"
+                className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-rose-100 bg-white/90 px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-rose-50 sm:w-auto sm:min-w-[96px]"
               >
                 닫기
               </button>
@@ -152,12 +169,13 @@ export function DashboardDetailModal({
           <div className="overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
             {loading ? (
               <StateBox tone="default" text="상세 정보를 불러오는 중입니다." />
-            ) : errorText ? (
-              <StateBox tone="error" text={errorText} />
             ) : data.length === 0 ? (
               <StateBox tone="default" text="상세 데이터가 없습니다." />
             ) : (
               <div className="space-y-5 sm:space-y-6">
+                {errorText ? <StateBox tone="error" text={errorText} /> : null}
+                {successText ? <StateBox tone="ok" text={successText} /> : null}
+
                 <section className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <SummaryBox label="고객명" value={first?.mberNm?.trim() || "-"} />
                   <SummaryBox label="전화번호" value={first?.tel?.trim() || "-"} />
@@ -175,23 +193,41 @@ export function DashboardDetailModal({
                   />
                 </section>
 
-                <TypeSection title="냉장" items={grouped.cold} tone="cold" />
-                <TypeSection title="상온" items={grouped.room} tone="room" />
-                <TypeSection title="캐리어" items={grouped.carrier} tone="carrier" />
+                <TypeSection
+                  title="냉장"
+                  items={grouped.cold}
+                  tone="cold"
+                  openLockerLoadingId={openLockerLoadingId}
+                  onOpenLocker={setOpenTarget}
+                />
+                <TypeSection
+                  title="상온"
+                  items={grouped.room}
+                  tone="room"
+                  openLockerLoadingId={openLockerLoadingId}
+                  onOpenLocker={setOpenTarget}
+                />
+                <TypeSection
+                  title="캐리어"
+                  items={grouped.carrier}
+                  tone="carrier"
+                  openLockerLoadingId={openLockerLoadingId}
+                  onOpenLocker={setOpenTarget}
+                />
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {confirmOpen ? (
+      {pickupConfirmOpen ? (
         <ConfirmPickupModal
           loading={pickupLoading}
           count={pickupTargets.length}
           customerName={first?.mberNm?.trim() || "-"}
           onConfirm={handleConfirmPickup}
           onCancel={() => {
-            if (!pickupLoading) setConfirmOpen(false);
+            if (!pickupLoading) setPickupConfirmOpen(false);
           }}
         />
       ) : null}
@@ -204,6 +240,17 @@ export function DashboardDetailModal({
           onConfirm={handleConfirmCancel}
           onCancel={() => {
             if (!cancelLoading) setCancelConfirmOpen(false);
+          }}
+        />
+      ) : null}
+
+      {openTarget ? (
+        <ConfirmOpenLockerModal
+          loading={openLockerLoadingId === openTarget.storageId}
+          storageId={openTarget.storageId ?? null}
+          onConfirm={handleConfirmOpenLocker}
+          onCancel={() => {
+            if (!openLockerLoadingId) setOpenTarget(null);
           }}
         />
       ) : null}
@@ -225,57 +272,27 @@ function ConfirmPickupModal({
   onCancel: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(15,23,42,0.52)] p-4 backdrop-blur-[2px]"
-      onClick={onCancel}
-    >
-      <div
-        className="w-full max-w-md rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-amber-50 text-xl">
-            ⚠️
-          </div>
-          <div className="min-w-0">
-            <div className="text-[20px] font-black tracking-[-0.03em] text-slate-900">
-              픽업 완료 처리
-            </div>
-            <div className="mt-1 text-[13px] font-bold text-slate-500">
-              실행 후 목록과 상태가 바로 갱신됩니다
-            </div>
-          </div>
-        </div>
+    <ConfirmModalFrame onCancel={onCancel}>
+      <ConfirmHeader title="픽업 완료 처리" description="실행 후 목록과 상태가 바로 갱신됩니다." />
 
-        <div className="mt-5 rounded-[22px] border border-amber-100 bg-amber-50/70 px-4 py-4">
-          <div className="text-[14px] font-bold leading-6 text-slate-700">
-            <span className="font-black text-slate-900">{customerName}</span> 고객의
-            픽업 대상 <span className="font-black text-slate-900">{count}건</span>을
-            정말 픽업 완료 처리할까요?
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={loading}
-            className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[96px] sm:w-auto"
-          >
-            취소
-          </button>
-
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={loading}
-            className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-emerald-100 bg-emerald-500 px-4 py-2.5 text-[14px] font-extrabold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[132px] sm:w-auto"
-          >
-            {loading ? "처리중..." : "확인 후 완료"}
-          </button>
+      <div className="mt-5 rounded-[22px] border border-amber-100 bg-amber-50/70 px-4 py-4">
+        <div className="text-[14px] font-bold leading-6 text-slate-700">
+          <span className="font-black text-slate-900">{customerName}</span> 고객의
+          픽업 대상 <span className="font-black text-slate-900">{count}건</span>을
+          픽업 완료 처리할까요?
         </div>
       </div>
-    </div>
+
+      <ConfirmActions
+        loading={loading}
+        cancelText="취소"
+        confirmText="확인 후 완료"
+        loadingText="처리중..."
+        confirmClassName="border-emerald-100 bg-emerald-500 text-white"
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />
+    </ConfirmModalFrame>
   );
 }
 
@@ -293,6 +310,78 @@ function ConfirmCancelModal({
   onCancel: () => void;
 }) {
   return (
+    <ConfirmModalFrame onCancel={onCancel}>
+      <ConfirmHeader title="예약취소" description="취소 후 목록과 상태가 바로 갱신됩니다." />
+
+      <div className="mt-5 rounded-[22px] border border-rose-100 bg-rose-50/70 px-4 py-4">
+        <div className="text-[14px] font-bold leading-6 text-slate-700">
+          <span className="font-black text-slate-900">{customerName}</span> 고객의
+          예약
+          <span className="mx-1 font-black text-slate-900">
+            #{reserveId ?? "-"}
+          </span>
+          건을 정말 취소할까요?
+        </div>
+      </div>
+
+      <ConfirmActions
+        loading={loading}
+        cancelText="닫기"
+        confirmText="확인"
+        loadingText="처리중..."
+        confirmClassName="border-rose-100 bg-rose-500 text-white"
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />
+    </ConfirmModalFrame>
+  );
+}
+
+function ConfirmOpenLockerModal({
+  loading,
+  storageId,
+  onConfirm,
+  onCancel,
+}: {
+  loading: boolean;
+  storageId: number | null;
+  onConfirm: () => Promise<void> | void;
+  onCancel: () => void;
+}) {
+  return (
+    <ConfirmModalFrame onCancel={onCancel}>
+      <ConfirmHeader title="보관함 열기" description="선택한 보관함에 열기 명령을 보냅니다." />
+
+      <div className="mt-5 rounded-[22px] border border-sky-100 bg-sky-50/70 px-4 py-4">
+        <div className="text-[14px] font-bold leading-6 text-slate-700">
+          <span className="font-black text-slate-900">
+            {storageId == null ? "-" : `${storageId}번`}
+          </span>
+          보관함을 정말 열까요?
+        </div>
+      </div>
+
+      <ConfirmActions
+        loading={loading}
+        cancelText="취소"
+        confirmText="열기 실행"
+        loadingText="전송 중..."
+        confirmClassName="border-sky-100 bg-sky-500 text-white"
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />
+    </ConfirmModalFrame>
+  );
+}
+
+function ConfirmModalFrame({
+  children,
+  onCancel,
+}: {
+  children: ReactNode;
+  onCancel: () => void;
+}) {
+  return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(15,23,42,0.52)] p-4 backdrop-blur-[2px]"
       onClick={onCancel}
@@ -301,51 +390,75 @@ function ConfirmCancelModal({
         className="w-full max-w-md rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-rose-50 text-xl">
-            ⚠️
-          </div>
-          <div className="min-w-0">
-            <div className="text-[20px] font-black tracking-[-0.03em] text-slate-900">
-              보관 취소
-            </div>
-            <div className="mt-1 text-[13px] font-bold text-slate-500">
-              취소 후 목록과 상태가 바로 갱신됩니다
-            </div>
-          </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmHeader({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-amber-50 text-[18px] font-black text-amber-600">
+        !
+      </div>
+      <div className="min-w-0">
+        <div className="text-[20px] font-black tracking-[-0.03em] text-slate-900">
+          {title}
         </div>
-
-        <div className="mt-5 rounded-[22px] border border-rose-100 bg-rose-50/70 px-4 py-4">
-          <div className="text-[14px] font-bold leading-6 text-slate-700">
-            <span className="font-black text-slate-900">{customerName}</span> 고객의
-            보관
-            <span className="mx-1 font-black text-slate-900">
-              #{reserveId ?? "-"}
-            </span>
-            건을 정말 취소할까요?
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={loading}
-            className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[96px] sm:w-auto"
-          >
-            닫기
-          </button>
-
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={loading}
-            className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-rose-100 bg-rose-500 px-4 py-2.5 text-[14px] font-extrabold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[132px] sm:w-auto"
-          >
-            {loading ? "처리중..." : "확인"}
-          </button>
+        <div className="mt-1 text-[13px] font-bold text-slate-500">
+          {description}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ConfirmActions({
+  loading,
+  cancelText,
+  confirmText,
+  loadingText,
+  confirmClassName,
+  onCancel,
+  onConfirm,
+}: {
+  loading: boolean;
+  cancelText: string;
+  confirmText: string;
+  loadingText: string;
+  confirmClassName: string;
+  onCancel: () => void;
+  onConfirm: () => Promise<void> | void;
+}) {
+  return (
+    <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={loading}
+        className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[96px]"
+      >
+        {cancelText}
+      </button>
+
+      <button
+        type="button"
+        onClick={onConfirm}
+        disabled={loading}
+        className={[
+          "inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl px-4 py-2.5 text-[14px] font-extrabold shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[132px]",
+          confirmClassName,
+        ].join(" ")}
+      >
+        {loading ? loadingText : confirmText}
+      </button>
     </div>
   );
 }
@@ -354,10 +467,14 @@ function TypeSection({
   title,
   items,
   tone,
+  openLockerLoadingId,
+  onOpenLocker,
 }: {
   title: string;
   items: ReserveUserDetailItem[];
   tone: "cold" | "room" | "carrier";
+  openLockerLoadingId: number | null;
+  onOpenLocker: (item: ReserveUserDetailItem) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -389,6 +506,8 @@ function TypeSection({
             key={`${item.id}-${item.storageId ?? "none"}`}
             item={item}
             tone={tone}
+            openLoading={openLockerLoadingId === item.storageId}
+            onOpenLocker={() => onOpenLocker(item)}
           />
         ))}
       </div>
@@ -399,13 +518,18 @@ function TypeSection({
 function DetailCard({
   item,
   tone,
+  openLoading,
+  onOpenLocker,
 }: {
   item: ReserveUserDetailItem;
   tone: "cold" | "room" | "carrier";
+  openLoading: boolean;
+  onOpenLocker: () => void;
 }) {
   const statusText = formatStatus(item.reservationStatus?.trim() || "-");
   const fullDay = isTwentyFourHourUsage(item.reservationTime);
   const cardTone = fullDay ? getFullDayCardTone() : getCardTone(tone);
+  const canOpen = Number.isInteger(Number(item.storageId));
 
   return (
     <div
@@ -429,13 +553,24 @@ function DetailCard({
           ) : null}
         </div>
 
-        <div
-          className={[
-            "shrink-0 rounded-full px-3 py-2 text-xs font-black",
-            getStatusTone(statusText),
-          ].join(" ")}
-        >
-          {statusText}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <div
+            className={[
+              "rounded-full px-3 py-2 text-xs font-black",
+              getStatusTone(statusText),
+            ].join(" ")}
+          >
+            {statusText}
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenLocker}
+            disabled={!canOpen || openLoading}
+            className="inline-flex min-h-[34px] items-center justify-center whitespace-nowrap rounded-xl border border-sky-100 bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700 shadow-sm transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {openLoading ? "전송 중..." : "열기"}
+          </button>
         </div>
       </div>
 
@@ -484,14 +619,16 @@ function StateBox({
   tone,
 }: {
   text: string;
-  tone: "default" | "error";
+  tone: "default" | "error" | "ok";
 }) {
   return (
     <div
       className={[
-        "rounded-[24px] px-4 py-12 text-center text-[15px] font-bold",
+        "rounded-[24px] px-4 py-4 text-center text-[15px] font-bold",
         tone === "error"
           ? "bg-rose-50 text-rose-600"
+          : tone === "ok"
+          ? "bg-emerald-50 text-emerald-700"
           : "bg-slate-50 text-slate-600",
       ].join(" ")}
     >

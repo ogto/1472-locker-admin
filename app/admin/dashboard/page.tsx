@@ -15,6 +15,7 @@ import {
   fetchReserveUser,
   fetchReserveUserDetail,
   postCancelReserve,
+  postOpenLocker,
   postPickup,
 } from "@/lib/dashboard/api";
 import {
@@ -22,6 +23,7 @@ import {
   mapReserveUserItem,
 } from "@/lib/dashboard/mapper";
 import { formatChannel } from "@/lib/common";
+import { DEFAULT_PULSE_MS } from "@/lib/lockers/constants";
 import type {
   DashboardItem,
   DashboardSortOrder,
@@ -72,8 +74,12 @@ export default function AdminDashboardPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailErrorText, setDetailErrorText] = useState("");
   const [detailData, setDetailData] = useState<ReserveUserDetailItem[]>([]);
+  const [detailSuccessText, setDetailSuccessText] = useState("");
   const [pickupLoading, setPickupLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [openLockerLoadingId, setOpenLockerLoadingId] = useState<number | null>(
+    null
+  );
 
   useEffect(() => {
     if (!auth.booting && auth.authenticated) {
@@ -110,6 +116,7 @@ export default function AdminDashboardPage() {
     setDetailOpen(true);
     setDetailLoading(true);
     setDetailErrorText("");
+    setDetailSuccessText("");
     setDetailData([]);
 
     try {
@@ -129,29 +136,31 @@ export default function AdminDashboardPage() {
 
   async function handlePickup() {
     const pickupTargets = detailData.filter((item) => {
-      const status = item.reservationStatus?.trim() || "";
+      const status = item.reservationStatus?.trim().toUpperCase() || "";
 
       return (
         item.id != null &&
         item.reserveId != null &&
-        item.point === "bank" &&
-        item.pickupProduct === true &&
-        status === "COMPLETED"
+        status !== "PICKUP" &&
+        status !== "CANCEL" &&
+        status !== "CANCELED"
       );
     });
 
     if (!pickupTargets.length) {
-      setDetailErrorText("픽업 처리할 대상이 없습니다.");
+      setDetailErrorText("픽업완료 처리할 수 있는 보관 건이 없습니다.");
+      setDetailSuccessText("");
       return;
     }
 
     const reserveId = pickupTargets[0].reserveId as number;
-    const point = pickupTargets[0].point || "bank";
+    const point = pickupTargets[0].point || selected?.raw.point || "bank";
     const historyIds = pickupTargets.map((item) => item.id);
 
     try {
       setPickupLoading(true);
       setDetailErrorText("");
+      setDetailSuccessText("");
 
       await postPickup({
         historyIds,
@@ -170,10 +179,12 @@ export default function AdminDashboardPage() {
       const refreshedList = await fetchReserveUser();
       setRows(refreshedList.items);
       setCounts(refreshedList.counts);
+      setDetailSuccessText("픽업완료 처리했습니다.");
     } catch (error) {
       setDetailErrorText(
-        error instanceof Error ? error.message : "픽업 처리에 실패했습니다."
+        error instanceof Error ? error.message : "픽업완료 처리에 실패했습니다."
       );
+      setDetailSuccessText("");
     } finally {
       setPickupLoading(false);
     }
@@ -218,6 +229,38 @@ export default function AdminDashboardPage() {
       );
     } finally {
       setCancelLoading(false);
+    }
+  }
+
+  async function handleOpenLocker(item: ReserveUserDetailItem) {
+    const storageId = Number(item.storageId);
+
+    if (!Number.isInteger(storageId) || storageId < 1) {
+      setDetailErrorText("보관함 번호를 확인할 수 없습니다.");
+      setDetailSuccessText("");
+      return;
+    }
+
+    try {
+      setOpenLockerLoadingId(storageId);
+      setDetailErrorText("");
+      setDetailSuccessText("");
+
+      await postOpenLocker({
+        point: item.point || selected?.raw.point || "bank",
+        storageId,
+        pulseMs: DEFAULT_PULSE_MS,
+        requestedBy: "admin-web-dashboard",
+        requestNote: `대시보드 상세 모달에서 수동 열기 (${storageId}번)`,
+      });
+
+      setDetailSuccessText(`${storageId}번 보관함 열기 명령을 보냈습니다.`);
+    } catch (error) {
+      setDetailErrorText(
+        error instanceof Error ? error.message : "보관함 열기에 실패했습니다."
+      );
+    } finally {
+      setOpenLockerLoadingId(null);
     }
   }
 
@@ -331,16 +374,20 @@ export default function AdminDashboardPage() {
         open={detailOpen}
         loading={detailLoading}
         errorText={detailErrorText}
+        successText={detailSuccessText}
         data={detailData}
         pickupLoading={pickupLoading}
         cancelLoading={cancelLoading}
+        openLockerLoadingId={openLockerLoadingId}
         onPickup={() => void handlePickup()}
         onCancelReserve={() => void handleCancelReserve()}
+        onOpenLocker={(item) => void handleOpenLocker(item)}
         onClose={() => {
           setDetailOpen(false);
           setSelected(null);
           setDetailData([]);
           setDetailErrorText("");
+          setDetailSuccessText("");
         }}
       />
     </AdminShell>

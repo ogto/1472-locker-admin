@@ -129,3 +129,11 @@ export type CancelReserveRequest = {
   point: string;
   reserveId: number;
 };
+
+export type OpenLockerRequest = {
+  point: string;
+  storageId: number;
+  pulseMs: number;
+  requestedBy: string;
+  requestNote: string;
+};
