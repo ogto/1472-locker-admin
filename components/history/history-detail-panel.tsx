@@ -2,7 +2,6 @@ import type { HistoryDetailItem } from "@/lib/history/types";
 import {
   formatChannel,
   formatPrice,
-  formatReservationDate,
   formatStatus,
   formatStorageType,
   isTwentyFourHourUsage,
@@ -143,6 +142,18 @@ function formatPickupLabel(pickupProduct?: boolean | null) {
   return pickupProduct ? "야구장픽업" : "일반보관";
 }
 
+function formatReservationDateTime(day?: string | null, time?: string | null) {
+  if (!day) return "-";
+
+  const merged = `${day} ${time || "00:00"}`.trim();
+
+  if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/.test(merged)) {
+    return `${merged}:00`.replace(/-/g, ".").replace(" ", " ");
+  }
+
+  return formatDateTime(merged);
+}
+
 export function HistoryDetailPanel({
   loading,
   errorText,
@@ -189,7 +200,7 @@ export function HistoryDetailPanel({
         const statusLabel = formatStatus(item.reservationStatus);
         const pickupLabel = formatPickupLabel(item.pickupProduct);
         const osLabel = formatChannel(item.os);
-        const reservationDateText = formatReservationDate(
+        const reservationDateText = formatReservationDateTime(
           item.reservationDay,
           item.reservationStartTime
         );
