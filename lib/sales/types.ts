@@ -144,6 +144,7 @@ export type ManualSalesRequest = {
   price: number;
   payType: 1 | 2;
   point: PointKey;
+  salesDate?: string;
   memo: string;
 };
 

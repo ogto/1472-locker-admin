@@ -3,6 +3,43 @@ import { NextRequest, NextResponse } from "next/server";
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ?? "https://cloud.1472.ai:18443/api";
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const point = searchParams.get("point") || "bank";
+
+    if (!startDate || !endDate) {
+      return NextResponse.json(
+        { message: "startDate와 endDate는 필수입니다." },
+        { status: 400 },
+      );
+    }
+
+    const response = await fetch(
+      `${API_BASE}/v4/sales-info/manual?startDate=${encodeURIComponent(
+        startDate,
+      )}&endDate=${encodeURIComponent(endDate)}&point=${encodeURIComponent(point)}`,
+      {
+        method: "GET",
+        cache: "no-store",
+      },
+    );
+
+    const data = await response.json();
+
+    return NextResponse.json(data, {
+      status: response.status,
+    });
+  } catch {
+    return NextResponse.json(
+      { message: "수동 매출 조회 API 호출 중 오류가 발생했습니다." },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

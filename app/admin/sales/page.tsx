@@ -244,15 +244,17 @@ export default function AdminSalesPage() {
         )}
       </div>
 
-      <SalesManualModal
-        open={manualModalOpen}
-        point={point}
-        loading={submitting}
-        onClose={() => setManualModalOpen(false)}
-        onSubmit={async (payload) => {
-          await submitManualSales(payload);
-        }}
-      />
+      {manualModalOpen ? (
+        <SalesManualModal
+          open={manualModalOpen}
+          point={point}
+          loading={submitting}
+          onClose={() => setManualModalOpen(false)}
+          onSubmit={async (payload) => {
+            await submitManualSales(payload);
+          }}
+        />
+      ) : null}
 
       {detailModalOpen ? (
         <div

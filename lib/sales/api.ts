@@ -1,5 +1,6 @@
 import type {
   DailySalesApiResponse,
+  DailySalesApiItem,
   ManualSalesRequest,
   ManualSalesResponse,
   MonthSalesApiItem,
@@ -14,6 +15,12 @@ type GetMonthSalesParams = {
 
 type GetDailySalesParams = {
   date: string;
+  point: PointKey;
+};
+
+type GetManualSalesParams = {
+  startDate: string;
+  endDate: string;
   point: PointKey;
 };
 
@@ -74,6 +81,30 @@ export async function getDailySales(params: GetDailySalesParams) {
   }
 
   return (data ?? null) as DailySalesApiResponse;
+}
+
+export async function getManualSales(params: GetManualSalesParams) {
+  const searchParams = new URLSearchParams({
+    startDate: params.startDate,
+    endDate: params.endDate,
+    point: params.point,
+  });
+
+  const response = await fetch(`/api/sales/manual?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const data = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(
+      (data as { message?: string } | null)?.message ||
+        "수동 매출 데이터를 불러오지 못했습니다.",
+    );
+  }
+
+  return (Array.isArray(data) ? data : []) as DailySalesApiItem[];
 }
 
 export async function createManualSales(params: ManualSalesRequest) {

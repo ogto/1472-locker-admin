@@ -71,6 +71,35 @@ function parseFlexibleDate(value?: string | null) {
     return new Date(year, month - 1, day, hour, minute, second);
   }
 
+  const normalized = String(value).trim();
+  const looseMatch = normalized.match(
+    /^(\d{4})\D?(\d{1,2})\D?(\d{1,2})(?:\D+(\d{1,2})(?:\D?(\d{1,2})(?:\D?(\d{1,2}))?)?)?$/,
+  );
+
+  if (looseMatch) {
+    const year = Number(looseMatch[1]);
+    const month = Number(looseMatch[2]);
+    const day = Number(looseMatch[3]);
+    const hour = Number(looseMatch[4] ?? 0);
+    const minute = Number(looseMatch[5] ?? 0);
+    const second = Number(looseMatch[6] ?? 0);
+
+    if (
+      month >= 1 &&
+      month <= 12 &&
+      day >= 1 &&
+      day <= 31 &&
+      hour >= 0 &&
+      hour <= 23 &&
+      minute >= 0 &&
+      minute <= 59 &&
+      second >= 0 &&
+      second <= 59
+    ) {
+      return new Date(year, month - 1, day, hour, minute, second);
+    }
+  }
+
   const digits = String(value).replace(/[^\d]/g, "");
   if (digits.length >= 14) {
     const year = Number(digits.slice(0, 4));
@@ -80,6 +109,90 @@ function parseFlexibleDate(value?: string | null) {
     const minute = Number(digits.slice(10, 12));
     const second = Number(digits.slice(12, 14));
     return new Date(year, month - 1, day, hour, minute, second);
+  }
+
+  if (digits.length >= 8 && digits.length <= 13) {
+    const year = Number(digits.slice(0, 4));
+    const rest = digits.slice(4);
+    const patterns = [
+      [2, 2, 2, 2, 2],
+      [1, 2, 2, 2, 2],
+      [2, 1, 2, 2, 2],
+      [1, 1, 2, 2, 2],
+      [2, 2, 1, 2, 2],
+      [1, 2, 1, 2, 2],
+      [2, 1, 1, 2, 2],
+      [1, 1, 1, 2, 2],
+      [2, 2, 2, 1, 2],
+      [1, 2, 2, 1, 2],
+      [2, 1, 2, 1, 2],
+      [1, 1, 2, 1, 2],
+      [2, 2, 1, 1, 2],
+      [1, 2, 1, 1, 2],
+      [2, 1, 1, 1, 2],
+      [1, 1, 1, 1, 2],
+      [2, 2, 2, 2, 1],
+      [1, 2, 2, 2, 1],
+      [2, 1, 2, 2, 1],
+      [1, 1, 2, 2, 1],
+      [2, 2, 1, 2, 1],
+      [1, 2, 1, 2, 1],
+      [2, 1, 1, 2, 1],
+      [1, 1, 1, 2, 1],
+      [2, 2, 2, 1, 1],
+      [1, 2, 2, 1, 1],
+      [2, 1, 2, 1, 1],
+      [1, 1, 2, 1, 1],
+      [2, 2, 1, 1, 1],
+      [1, 2, 1, 1, 1],
+      [2, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1],
+      [2, 2, 2, 2],
+      [1, 2, 2, 2],
+      [2, 1, 2, 2],
+      [1, 1, 2, 2],
+      [2, 2, 1, 2],
+      [1, 2, 1, 2],
+      [2, 1, 1, 2],
+      [1, 1, 1, 2],
+      [2, 2, 2, 1],
+      [1, 2, 2, 1],
+      [2, 1, 2, 1],
+      [1, 1, 2, 1],
+      [2, 2, 1, 1],
+      [1, 2, 1, 1],
+      [2, 1, 1, 1],
+      [1, 1, 1, 1],
+    ];
+
+    for (const pattern of patterns) {
+      const totalLength = pattern.reduce((sum, current) => sum + current, 0);
+      if (totalLength !== rest.length) continue;
+
+      let cursor = 0;
+      const parts = pattern.map((length) => {
+        const part = Number(rest.slice(cursor, cursor + length));
+        cursor += length;
+        return part;
+      });
+
+      const [month, day, hour, minute, second = 0] = parts;
+
+      if (
+        month >= 1 &&
+        month <= 12 &&
+        day >= 1 &&
+        day <= 31 &&
+        hour >= 0 &&
+        hour <= 23 &&
+        minute >= 0 &&
+        minute <= 59 &&
+        second >= 0 &&
+        second <= 59
+      ) {
+        return new Date(year, month - 1, day, hour, minute, second);
+      }
+    }
   }
 
   return null;

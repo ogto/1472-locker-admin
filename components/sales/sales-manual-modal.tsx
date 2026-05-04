@@ -6,6 +6,7 @@ import type { ManualSalesRequest, PointKey } from "@/lib/sales/types";
 type Props = {
   open: boolean;
   point: PointKey;
+  initialDate?: string;
   loading?: boolean;
   onClose: () => void;
   onSubmit: (payload: ManualSalesRequest) => Promise<void>;
@@ -19,22 +20,17 @@ function toNumber(value: string) {
 export function SalesManualModal({
   open,
   point,
+  initialDate,
   loading = false,
   onClose,
   onSubmit,
 }: Props) {
   const [price, setPrice] = useState("");
   const [payType, setPayType] = useState<"1" | "2">("1");
+  const [salesDate, setSalesDate] = useState(initialDate || "");
   const [memo, setMemo] = useState("");
   const [localError, setLocalError] = useState("");
   const [submittingText, setSubmittingText] = useState("");
-
-  useEffect(() => {
-    if (!open) {
-      setLocalError("");
-      setSubmittingText("");
-    }
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -50,8 +46,8 @@ export function SalesManualModal({
   }, [open, loading, onClose]);
 
   const disabled = useMemo(() => {
-    return loading || !price.trim() || !memo.trim();
-  }, [loading, price, memo]);
+    return loading || !price.trim() || !memo.trim() || !salesDate.trim();
+  }, [loading, memo, price, salesDate]);
 
   if (!open) return null;
 
@@ -76,12 +72,18 @@ export function SalesManualModal({
       return;
     }
 
+    if (!salesDate.trim()) {
+      setLocalError("등록 날짜를 선택해줘.");
+      return;
+    }
+
     try {
       setSubmittingText("등록 중...");
       await onSubmit({
         price: amount,
         payType: Number(payType) as 1 | 2,
         point,
+        salesDate: salesDate.trim(),
         memo: memo.trim(),
       });
 
@@ -150,6 +152,16 @@ export function SalesManualModal({
                 <option value="1">카드</option>
                 <option value="2">현금</option>
               </select>
+            </label>
+
+            <label className="block space-y-2">
+              <div className="text-[15px] font-black text-slate-800">등록 날짜</div>
+              <input
+                type="date"
+                value={salesDate}
+                onChange={(e) => setSalesDate(e.target.value)}
+                className="w-full rounded-[22px] border border-slate-200 px-4 py-4 text-[18px] font-bold outline-none transition focus:border-slate-400"
+              />
             </label>
 
             <label className="block space-y-2">
