@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchPhotoCardPaymentOrder } from "@/lib/photo-card-payments/api";
 import { PHOTO_CARD_DEFAULT_AMOUNT, PHOTO_CARD_DEFAULT_ORDER_NAME } from "@/lib/photo-card-payments/config";
 
-const TOSS_TEST_SECRET_KEY =
+const TOSS_SECRET_KEY =
+  process.env.PHOTO_CARD_TOSS_SECRET_KEY?.trim() ||
   process.env.PHOTO_CARD_TOSS_TEST_SECRET_KEY?.trim() ||
+  process.env.HEALTH_BOX_TOSS_SECRET_KEY?.trim() ||
   process.env.HEALTH_BOX_TOSS_TEST_SECRET_KEY?.trim() ||
   "test_gsk_Z61JOxRQVE2oX5jJx6LwrW0X9bAq";
 
@@ -22,17 +24,13 @@ function buildPendingOrder(orderId: string) {
 }
 
 async function fetchTossPaymentOrder(orderId: string) {
-  if (!TOSS_TEST_SECRET_KEY.startsWith("test_")) {
-    return null;
-  }
-
   const response = await fetch(
     `https://api.tosspayments.com/v1/payments/orders/${encodeURIComponent(orderId)}`,
     {
       method: "GET",
       cache: "no-store",
       headers: {
-        Authorization: encodeAuthorization(TOSS_TEST_SECRET_KEY),
+        Authorization: encodeAuthorization(TOSS_SECRET_KEY),
         Accept: "application/json",
       },
     },
