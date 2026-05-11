@@ -26,7 +26,7 @@ function receiptUrl(payment: Record<string, unknown>) {
 }
 
 async function confirmWithCloud(paymentCond: { amount: number; orderId: string; paymentKey: string }) {
-  const response = await fetch(CLOUD_API_BASE + "/payments/confirm", {
+  const response = await fetch(CLOUD_API_BASE + "/payments/test/confirm", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
