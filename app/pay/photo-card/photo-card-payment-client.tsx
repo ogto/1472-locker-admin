@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { formatWon } from "@/lib/photo-card-payments/config";
@@ -98,7 +98,7 @@ export function PhotoCardPaymentClient({ clientKey, initialOrder }: Props) {
       setError("");
 
       if (!clientKey) {
-        setError("Toss 테스트 클라이언트 키가 없습니다.");
+        setError("결제 클라이언트 키가 없습니다.");
         return;
       }
 
@@ -189,26 +189,16 @@ export function PhotoCardPaymentClient({ clientKey, initialOrder }: Props) {
   return (
     <main className="min-h-svh bg-[#f8f6f1] px-4 py-5 text-[#231812]">
       <section className="mx-auto flex min-h-[calc(100svh-40px)] w-full max-w-[520px] flex-col">
-        <div className="mb-5">
-          <p className="text-sm font-bold text-[#8a7667]">PHOTO CARD PAYMENT</p>
-          <h1 className="mt-1 text-2xl font-black">포토카드 결제</h1>
+        <div className="mb-5 text-center">
+          <h1 className="text-2xl font-black">결제하기</h1>
+          <p className="mt-2 text-sm font-bold text-[#8a7667]">
+            결제를 완료하면 키오스크 화면이 자동으로 넘어갑니다.
+          </p>
         </div>
 
-        <div className="mb-4 rounded-lg border border-[#e2d8cc] bg-white p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-bold text-[#8a7667]">상품명</p>
-              <h2 className="mt-1 text-lg font-black">{order.orderName}</h2>
-            </div>
-            <CreditCard className="mt-1 h-6 w-6 text-[#241912]" aria-hidden="true" />
-          </div>
-          <div className="mt-4 flex items-end justify-between border-t border-[#eee7dd] pt-4">
-            <span className="text-sm font-bold text-[#8a7667]">결제 금액</span>
-            <strong className="text-3xl font-black">{formatWon(order.amount)}</strong>
-          </div>
-          <p className="mt-3 break-all text-xs font-semibold text-[#9b8d82]">
-            {order.orderId}
-          </p>
+        <div className="mb-4 rounded-lg border border-[#e2d8cc] bg-white p-5 text-center">
+          <p className="text-sm font-bold text-[#8a7667]">결제 금액</p>
+          <strong className="mt-2 block text-4xl font-black">{formatWon(order.amount)}</strong>
         </div>
 
         <div className="mb-4 rounded-lg border border-[#e2d8cc] bg-white p-2">
