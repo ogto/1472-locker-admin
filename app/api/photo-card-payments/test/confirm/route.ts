@@ -5,28 +5,8 @@ const CLOUD_API_BASE =
   process.env.NEXT_PUBLIC_API_BASE?.trim().replace(/\/+$/, "") ||
   "https://cloud.1472.ai:18443/api";
 
-const TOSS_SECRET_KEY =
-  process.env.PHOTO_CARD_TOSS_SECRET_KEY?.trim() ||
-  process.env.PHOTO_CARD_TOSS_TEST_SECRET_KEY?.trim() ||
-  process.env.HEALTH_BOX_TOSS_SECRET_KEY?.trim() ||
-  process.env.HEALTH_BOX_TOSS_TEST_SECRET_KEY?.trim() ||
-  "test_gsk_Z61JOxRQVE2oX5jJx6LwrW0X9bAq";
-
-function encodeAuthorization(secretKey: string) {
-  return "Basic " + Buffer.from(secretKey + ":", "utf8").toString("base64");
-}
-
-function receiptUrl(payment: Record<string, unknown>) {
-  const receipt =
-    payment.receipt && typeof payment.receipt === "object"
-      ? (payment.receipt as Record<string, unknown>)
-      : null;
-
-  return String(receipt?.url || "").trim();
-}
-
 async function confirmWithCloud(paymentCond: { amount: number; orderId: string; paymentKey: string }) {
-  const response = await fetch(CLOUD_API_BASE + "/payments/test/confirm", {
+  const response = await fetch(CLOUD_API_BASE + "/payments/photo-card/test/confirm", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -52,25 +32,6 @@ async function confirmWithCloud(paymentCond: { amount: number; orderId: string; 
   return payload;
 }
 
-async function confirmWithToss(paymentCond: { amount: number; orderId: string; paymentKey: string }) {
-  const response = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
-    method: "POST",
-    headers: {
-      Authorization: encodeAuthorization(TOSS_SECRET_KEY),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(paymentCond),
-    cache: "no-store",
-  });
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-
-  if (!response.ok) {
-    throw new Error(String(payload?.message || "결제 승인에 실패했습니다."));
-  }
-
-  return payload;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
@@ -87,18 +48,8 @@ export async function POST(request: NextRequest) {
 
     const paymentCond = { amount, orderId, paymentKey };
 
-    try {
-      const payment = await confirmWithCloud(paymentCond);
-      return NextResponse.json({ ok: true, payment });
-    } catch (cloudError) {
-      const payment = await confirmWithToss(paymentCond);
-      return NextResponse.json({
-        ok: true,
-        payment,
-        receiptUrl: receiptUrl(payment),
-        warning: cloudError instanceof Error ? cloudError.message : String(cloudError),
-      });
-    }
+    const payment = await confirmWithCloud(paymentCond);
+    return NextResponse.json({ ok: true, payment });
   } catch (error) {
     return NextResponse.json(
       {

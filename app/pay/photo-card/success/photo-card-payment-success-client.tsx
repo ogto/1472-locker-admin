@@ -7,6 +7,11 @@ import { useEffect, useState } from "react";
 type Status = "error" | "loading" | "success";
 
 function receiptUrl(payment: Record<string, unknown>) {
+  const directReceiptUrl = String(payment.receiptUrl || "").trim();
+  if (directReceiptUrl) {
+    return directReceiptUrl;
+  }
+
   const receipt =
     payment.receipt && typeof payment.receipt === "object"
       ? (payment.receipt as Record<string, unknown>)

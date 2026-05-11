@@ -56,16 +56,20 @@ export function PhotoCardPaymentClient({ clientKey, initialOrder }: Props) {
   useEffect(() => {
     let canceled = false;
 
-    async function refreshOrder() {
+    async function createAndRefreshOrder() {
       if (!initialOrder.orderId) {
         return;
       }
 
       try {
-        const response = await fetch(
-          `/api/photo-card-payments/${encodeURIComponent(initialOrder.orderId)}`,
-          { cache: "no-store" },
-        );
+        const response = await fetch("/api/photo-card-payments", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(initialOrder),
+          cache: "no-store",
+        });
         const data = (await response.json().catch(() => ({}))) as {
           ok?: boolean;
           order?: PhotoCardPaymentOrder;
@@ -79,7 +83,7 @@ export function PhotoCardPaymentClient({ clientKey, initialOrder }: Props) {
       }
     }
 
-    void refreshOrder();
+    void createAndRefreshOrder();
 
     return () => {
       canceled = true;
