@@ -4,6 +4,29 @@ export const dynamic = "force-dynamic";
 
 const IMAGE_PARAM_NAMES = ["image", "imageUrl", "url", "src"];
 
+function getFilename(imageUrl: string) {
+  try {
+    const pathname = new URL(imageUrl).pathname;
+    const filename = decodeURIComponent(
+      pathname.split("/").filter(Boolean).pop() ?? "",
+    );
+
+    if (filename) {
+      return filename.includes(".") ? filename : `${filename}.png`;
+    }
+  } catch {}
+
+  return "photo-card.png";
+}
+
+function getContentDisposition(filename: string) {
+  const fallbackName = filename.replace(/[^\w.-]/g, "_") || "photo-card.png";
+
+  return `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(
+    filename,
+  )}`;
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -74,6 +97,10 @@ async function getPostedImageUrl(request: NextRequest) {
 
 function renderPage(imageUrl: string) {
   const escapedImageUrl = escapeHtml(imageUrl);
+  const downloadUrl = imageUrl
+    ? `/photo-card?download=1&image=${encodeURIComponent(imageUrl)}`
+    : "";
+  const downloadFilename = imageUrl ? getFilename(imageUrl) : "photo-card.png";
 
   return `<!doctype html>
 <html lang="ko">
@@ -172,41 +199,31 @@ function renderPage(imageUrl: string) {
       }
     </main>
     <div class="bar">
-      <button id="save-button" type="button" ${escapedImageUrl ? "" : "disabled"}>
+      <button id="save-button" type="button" ${downloadUrl ? "" : "disabled"}>
         저장하기
       </button>
     </div>
     <script>
-      const imageUrl = ${JSON.stringify(imageUrl)};
+      const downloadUrl = ${JSON.stringify(downloadUrl)};
+      const downloadFilename = ${JSON.stringify(downloadFilename)};
       const saveButton = document.getElementById("save-button");
 
-      function getFilename(url) {
-        try {
-          const pathname = new URL(url).pathname;
-          const name = pathname.split("/").filter(Boolean).pop() || "photo-card.png";
-          return name.includes(".") ? name : name + ".png";
-        } catch {
-          return "photo-card.png";
-        }
-      }
-
       async function saveImage() {
-        if (!imageUrl) return;
+        if (!downloadUrl) return;
 
         saveButton.disabled = true;
 
         try {
-          const response = await fetch(imageUrl, { mode: "cors", credentials: "omit" });
+          const response = await fetch(downloadUrl);
 
           if (!response.ok) {
             throw new Error("Image download failed");
           }
 
           const blob = await response.blob();
-          const filename = getFilename(imageUrl);
 
           if (navigator.canShare && navigator.share) {
-            const file = new File([blob], filename, { type: blob.type || "image/png" });
+            const file = new File([blob], downloadFilename, { type: blob.type || "image/png" });
 
             if (navigator.canShare({ files: [file] })) {
               await navigator.share({ files: [file] });
@@ -217,19 +234,13 @@ function renderPage(imageUrl: string) {
           const objectUrl = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = objectUrl;
-          link.download = filename;
+          link.download = downloadFilename;
           document.body.appendChild(link);
           link.click();
           link.remove();
           window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
         } catch {
-          const link = document.createElement("a");
-          link.href = imageUrl;
-          link.target = "_blank";
-          link.rel = "noopener";
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
+          window.location.href = downloadUrl;
         } finally {
           saveButton.disabled = false;
         }
@@ -241,8 +252,44 @@ function renderPage(imageUrl: string) {
 </html>`;
 }
 
-export function GET(request: NextRequest) {
+async function downloadImage(imageUrl: string) {
+  const upstream = await fetch(imageUrl, {
+    cache: "no-store",
+    headers: {
+      accept: "image/*,*/*;q=0.8",
+    },
+  });
+
+  if (!upstream.ok || !upstream.body) {
+    return new Response("Image download failed", { status: 502 });
+  }
+
+  const contentType = upstream.headers.get("content-type") ?? "application/octet-stream";
+  const contentLength = upstream.headers.get("content-length");
+  const filename = getFilename(imageUrl);
+  const headers = new Headers({
+    "content-type": contentType,
+    "content-disposition": getContentDisposition(filename),
+    "cache-control": "no-store",
+  });
+
+  if (contentLength) {
+    headers.set("content-length", contentLength);
+  }
+
+  return new Response(upstream.body, { headers });
+}
+
+export async function GET(request: NextRequest) {
   const imageUrl = findImageUrl(request.nextUrl.searchParams);
+
+  if (request.nextUrl.searchParams.get("download") === "1") {
+    if (!imageUrl) {
+      return new Response("Missing image URL", { status: 400 });
+    }
+
+    return downloadImage(imageUrl);
+  }
 
   return new Response(renderPage(imageUrl), {
     headers: {
