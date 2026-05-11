@@ -191,14 +191,16 @@ export function PhotoCardPaymentClient({ clientKey, initialOrder }: Props) {
       <section className="mx-auto flex min-h-[calc(100svh-40px)] w-full max-w-[520px] flex-col">
         <div className="mb-5 text-center">
           <h1 className="text-2xl font-black">결제하기</h1>
-          <p className="mt-2 text-sm font-bold text-[#8a7667]">
-            결제를 완료하면 키오스크 화면이 자동으로 넘어갑니다.
-          </p>
         </div>
 
-        <div className="mb-4 rounded-lg border border-[#e2d8cc] bg-white p-5 text-center">
-          <p className="text-sm font-bold text-[#8a7667]">결제 금액</p>
-          <strong className="mt-2 block text-4xl font-black">{formatWon(order.amount)}</strong>
+        <div className="mb-4 rounded-lg border border-[#e2d8cc] bg-white p-5">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-bold text-[#8a7667]">결제 상품</p>
+              <strong className="mt-1 block text-lg font-black">{order.orderName}</strong>
+            </div>
+            <strong className="shrink-0 text-2xl font-black">{formatWon(order.amount)}</strong>
+          </div>
         </div>
 
         <div className="mb-4 rounded-lg border border-[#e2d8cc] bg-white p-2">
