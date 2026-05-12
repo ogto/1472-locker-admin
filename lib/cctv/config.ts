@@ -1,7 +1,7 @@
 import type { CctvCamera } from "./types";
 
 const CCTV_BASE_URL =
-  "https://stud-fin-grew-reel.trycloudflare.com";
+  "https://definition-communities-argument-deutsch.trycloudflare.com";
 
 export const CCTV_CAMERAS: CctvCamera[] = [
   {
