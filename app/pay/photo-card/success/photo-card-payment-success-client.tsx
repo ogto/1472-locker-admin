@@ -23,7 +23,7 @@ export function PhotoCardPaymentSuccessClient() {
       }
 
       try {
-        const response = await fetch("/api/photo-card-payments/test/confirm", {
+        const response = await fetch("/api/photo-card-payments/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ paymentKey, orderId, amount }),
