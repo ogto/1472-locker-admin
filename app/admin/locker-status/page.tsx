@@ -8,7 +8,7 @@ import { StatusBanner } from "@/components/admin/status-banner";
 import { ConfirmOpenModal } from "@/components/lockers/confirm-open-modal";
 import { LockerStatusSection } from "@/components/locker-status/locker-status-section";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { fetchReserveUser } from "@/lib/dashboard/api";
+import { fetchReserveUser, postPickup } from "@/lib/dashboard/api";
 import { fetchTodayHistoryByStorage } from "@/lib/history/api";
 import {
   disableStorage,
@@ -38,6 +38,12 @@ type LockerHistoryRow = {
   tel: string;
   timeRange: string;
   status: string;
+};
+
+type PickupTarget = {
+  id: number;
+  point: string;
+  reserveId: number;
 };
 
 function extractStorageId(value: unknown): number | null {
@@ -169,6 +175,55 @@ function buildOccupiedMap(
   return map;
 }
 
+function isPickupAvailableStatus(statusValue?: string | null) {
+  const status = statusValue?.trim().toUpperCase() || "";
+
+  return status !== "PICKUP" && status !== "CANCEL" && status !== "CANCELED";
+}
+
+function buildPickupTargets(
+  selectedLockerId: number | null,
+  reserveUsers: ReserveUserItem[],
+  selectedHistoryItems: HistoryItem[]
+): PickupTarget[] {
+  if (selectedLockerId == null) return [];
+
+  const targetMap = new Map<number, PickupTarget>();
+
+  for (const item of reserveUsers) {
+    const storageId = Number(item.storageId);
+
+    if (
+      storageId === selectedLockerId &&
+      item.id != null &&
+      item.reserveId != null &&
+      isPickupAvailableStatus(item.reservationStatus)
+    ) {
+      targetMap.set(item.id, {
+        id: item.id,
+        point: item.point || DEFAULT_POINT,
+        reserveId: item.reserveId,
+      });
+    }
+  }
+
+  for (const item of selectedHistoryItems) {
+    if (
+      item.id != null &&
+      item.reserveId != null &&
+      isPickupAvailableStatus(item.reservationStatus)
+    ) {
+      targetMap.set(item.id, {
+        id: item.id,
+        point: item.point || DEFAULT_POINT,
+        reserveId: item.reserveId,
+      });
+    }
+  }
+
+  return Array.from(targetMap.values());
+}
+
 export default function AdminLockerStatusPage() {
   const auth = useAdminAuth();
   const [reserveUsers, setReserveUsers] = useState<ReserveUserItem[]>([]);
@@ -181,9 +236,11 @@ export default function AdminLockerStatusPage() {
   const [selectedLockerId, setSelectedLockerId] = useState<number | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [disabledSubmitLoading, setDisabledSubmitLoading] = useState(false);
+  const [pickupSubmitLoading, setPickupSubmitLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historyRows, setHistoryRows] = useState<LockerHistoryRow[]>([]);
+  const [selectedHistoryItems, setSelectedHistoryItems] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
     if (!auth.booting && auth.authenticated) {
@@ -250,6 +307,7 @@ export default function AdminLockerStatusPage() {
     setErrorText("");
     setSuccessText("");
     setHistoryRows([]);
+    setSelectedHistoryItems([]);
     setHistoryError("");
     void loadLockerHistory(lockerNumber);
   }
@@ -306,6 +364,7 @@ export default function AdminLockerStatusPage() {
 
     try {
       const collected = await fetchTodayHistoryByStorage(DEFAULT_POINT, lockerNumber);
+      setSelectedHistoryItems(collected);
 
       const mappedRows = collected.map((item) => ({
           id: item.id,
@@ -342,6 +401,7 @@ export default function AdminLockerStatusPage() {
       );
     } catch (error) {
       setHistoryRows([]);
+      setSelectedHistoryItems([]);
       setHistoryError(
         error instanceof Error ? error.message : "히스토리 조회에 실패했습니다."
       );
@@ -427,6 +487,59 @@ export default function AdminLockerStatusPage() {
     }
   }
 
+  async function handlePickupCurrentUser() {
+    const pickupTargets = buildPickupTargets(
+      selectedLockerId,
+      reserveUsers,
+      selectedHistoryItems
+    );
+
+    if (selectedLockerId == null || !pickupTargets.length) {
+      setErrorText("픽업완료 처리할 현재 이용자가 없습니다.");
+      return;
+    }
+
+    const reserveId = pickupTargets[0].reserveId;
+
+    if (reserveId == null) {
+      setErrorText("픽업완료 처리할 예약번호가 없습니다.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      pickupTargets.length > 1
+        ? `${selectedLockerId}번 보관함의 보관 건 ${pickupTargets.length}건만 픽업완료 처리할까요?`
+        : `${selectedLockerId}번 보관함만 픽업완료 처리할까요?`
+    );
+
+    if (!confirmed) return;
+
+    setPickupSubmitLoading(true);
+    setErrorText("");
+    setSuccessText("");
+
+    try {
+      await postPickup({
+        historyIds: pickupTargets.map((item) => item.id),
+        point: pickupTargets[0].point || DEFAULT_POINT,
+        reserveId,
+      });
+
+      setSuccessText(`${selectedLockerId}번 보관함만 픽업완료 처리했습니다.`);
+      setConfirmOpen(false);
+      setHistoryRows([]);
+      setSelectedHistoryItems([]);
+      setHistoryError("");
+      await loadLockerStatus();
+    } catch (error) {
+      setErrorText(
+        error instanceof Error ? error.message : "픽업완료 처리에 실패했습니다."
+      );
+    } finally {
+      setPickupSubmitLoading(false);
+    }
+  }
+
   const occupiedMap = useMemo(
     () => buildOccupiedMap(enableStorageItems, reserveUsers),
     [enableStorageItems, reserveUsers]
@@ -443,6 +556,9 @@ export default function AdminLockerStatusPage() {
     if (selectedLockerId == null) return false;
     return disabledStorageSet.has(selectedLockerId);
   }, [disabledStorageSet, selectedLockerId]);
+  const selectedPickupTargets = useMemo(() => {
+    return buildPickupTargets(selectedLockerId, reserveUsers, selectedHistoryItems);
+  }, [reserveUsers, selectedHistoryItems, selectedLockerId]);
   const coldOccupiedCount = useMemo(
     () => COLD_LOCKERS.filter((lockerNumber) => occupiedMap.has(lockerNumber)).length,
     [occupiedMap]
@@ -530,16 +646,21 @@ export default function AdminLockerStatusPage() {
         userInfo={selectedUserInfo}
         disabled={selectedLockerDisabled}
         disableSubmitting={disabledSubmitLoading}
+        pickupSubmitting={pickupSubmitLoading}
+        canPickupCurrentUser={selectedPickupTargets.length > 0}
+        pickupTargetCount={selectedPickupTargets.length}
         historyLoading={historyLoading}
         historyError={historyError}
         historyRows={historyRows}
         onClose={() => {
           setConfirmOpen(false);
           setHistoryRows([]);
+          setSelectedHistoryItems([]);
           setHistoryError("");
         }}
         onConfirm={() => void handleConfirmOpen()}
         onToggleDisabled={() => void handleToggleDisabled()}
+        onPickupCurrentUser={() => void handlePickupCurrentUser()}
       />
     </AdminShell>
   );

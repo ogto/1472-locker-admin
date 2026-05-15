@@ -16,6 +16,9 @@ type Props = {
   } | null;
   disabled?: boolean;
   disableSubmitting?: boolean;
+  pickupSubmitting?: boolean;
+  canPickupCurrentUser?: boolean;
+  pickupTargetCount?: number;
   historyLoading?: boolean;
   historyError?: string;
   historyRows?: Array<{
@@ -28,6 +31,7 @@ type Props = {
   onClose: () => void;
   onConfirm: () => void;
   onToggleDisabled?: () => void;
+  onPickupCurrentUser?: () => void;
 };
 
 export function ConfirmOpenModal({
@@ -39,12 +43,16 @@ export function ConfirmOpenModal({
   userInfo,
   disabled = false,
   disableSubmitting = false,
+  pickupSubmitting = false,
+  canPickupCurrentUser = false,
+  pickupTargetCount = 0,
   historyLoading = false,
   historyError = "",
   historyRows = [],
   onClose,
   onConfirm,
   onToggleDisabled,
+  onPickupCurrentUser,
 }: Props) {
   if (!open) return null;
 
@@ -180,6 +188,23 @@ export function ConfirmOpenModal({
                 : disabled
                 ? "사용가능으로 변경"
                 : "사용불가로 설정"}
+            </button>
+          ) : null}
+
+          {onPickupCurrentUser ? (
+            <button
+              type="button"
+              onClick={onPickupCurrentUser}
+              disabled={!canPickupCurrentUser || pickupSubmitting}
+              className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pickupSubmitting
+                ? "픽업완료 처리 중..."
+                : canPickupCurrentUser
+                ? pickupTargetCount > 1
+                  ? `해당 보관함만 픽업완료 (${pickupTargetCount}건)`
+                  : "해당 보관함만 픽업완료"
+                : "픽업완료 대상 없음"}
             </button>
           ) : null}
 
