@@ -91,6 +91,29 @@ function pickNumber(record: Record<string, unknown>, keys: string[]) {
   return null;
 }
 
+function readRecord(value: unknown) {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function pickHistoryId(record: Record<string, unknown>) {
+  return pickNumber(record, [
+    "id",
+    "historyId",
+    "reserveHistoryId",
+    "breadStorageHistoryId",
+    "storageHistoryId",
+  ]);
+}
+
+function pickReserveId(record: Record<string, unknown>) {
+  return pickNumber(record, [
+    "reserveId",
+    "reservationId",
+    "reservationNo",
+    "reserveNo",
+  ]);
+}
+
 function formatVisitText(visitSeq?: number | null) {
   return visitSeq && visitSeq > 0 ? `${visitSeq}번째 방문` : "-";
 }
@@ -202,32 +225,41 @@ function buildPickupTargets(
   const targetMap = new Map<number, PickupTarget>();
 
   for (const item of reserveUsers) {
-    const storageId = Number(item.storageId);
+    const record = readRecord(item);
+    const storageId =
+      pickNumber(record, ["storageId", "storageNo", "storageNumber"]) ??
+      Number(item.storageId);
+    const historyId = pickHistoryId(record);
+    const reserveId = pickReserveId(record);
 
     if (
       storageId === selectedLockerId &&
-      item.id != null &&
-      item.reserveId != null &&
+      historyId != null &&
+      reserveId != null &&
       isPickupAvailableStatus(item.reservationStatus)
     ) {
-      targetMap.set(item.id, {
-        id: item.id,
+      targetMap.set(historyId, {
+        id: historyId,
         point: item.point || DEFAULT_POINT,
-        reserveId: item.reserveId,
+        reserveId,
       });
     }
   }
 
   for (const item of selectedHistoryItems) {
+    const record = readRecord(item);
+    const historyId = pickHistoryId(record);
+    const reserveId = pickReserveId(record);
+
     if (
-      item.id != null &&
-      item.reserveId != null &&
+      historyId != null &&
+      reserveId != null &&
       isPickupAvailableStatus(item.reservationStatus)
     ) {
-      targetMap.set(item.id, {
-        id: item.id,
+      targetMap.set(historyId, {
+        id: historyId,
         point: item.point || DEFAULT_POINT,
-        reserveId: item.reserveId,
+        reserveId,
       });
     }
   }
@@ -393,7 +425,9 @@ export default function AdminLockerStatusPage() {
               (row) =>
                 row.tel === currentUser.tel &&
                 row.name === currentUser.name &&
-                (row.status === "이용중" || row.status === "보관중")
+                (row.status === "이용중" ||
+                  row.status === "보관중" ||
+                  row.status === "찾기대기")
             );
 
       setHistoryRows(
@@ -405,7 +439,7 @@ export default function AdminLockerStatusPage() {
                 name: currentUser.name,
                 tel: currentUser.tel,
                 timeRange: buildCurrentUserTimeRange(currentUser.reservationDate),
-                status: "이용중",
+                status: currentUser.status || "이용중",
               },
               ...mappedRows,
             ]
