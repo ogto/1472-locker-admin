@@ -45,6 +45,8 @@ type PickupTarget = {
   id: number;
   point: string;
   reserveId: number;
+  addPay: number;
+  addPayTof: boolean | null;
 };
 
 function extractStorageId(value: unknown): number | null {
@@ -85,6 +87,24 @@ function pickNumber(record: Record<string, unknown>, keys: string[]) {
       if (Number.isFinite(parsed)) {
         return parsed;
       }
+    }
+  }
+
+  return null;
+}
+
+function pickBoolean(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === "true") return true;
+      if (normalized === "false") return false;
     }
   }
 
@@ -215,6 +235,27 @@ function isPickupAvailableStatus(statusValue?: string | null) {
   return status !== "PICKUP" && status !== "CANCEL" && status !== "CANCELED";
 }
 
+function buildPickupTarget(record: Record<string, unknown>, point?: string | null) {
+  const historyId = pickHistoryId(record);
+  const reserveId = pickReserveId(record);
+
+  if (historyId == null || reserveId == null) {
+    return null;
+  }
+
+  return {
+    id: historyId,
+    point: point || pickText(record, ["point"]) || DEFAULT_POINT,
+    reserveId,
+    addPay: pickNumber(record, ["addPay", "additionalPay", "extraPay"]) ?? 0,
+    addPayTof: pickBoolean(record, ["addPayTof", "additionalPayTof"]),
+  };
+}
+
+function hasUnpaidAddPay(target: PickupTarget) {
+  return target.addPay > 0 && target.addPayTof === false;
+}
+
 function buildPickupTargets(
   selectedLockerId: number | null,
   reserveUsers: ReserveUserItem[],
@@ -230,20 +271,14 @@ function buildPickupTargets(
     const storageId =
       pickNumber(record, ["storageId", "storageNo", "storageNumber"]) ??
       Number(item.storageId);
-    const historyId = pickHistoryId(record);
-    const reserveId = pickReserveId(record);
+    const target = buildPickupTarget(record, item.point || DEFAULT_POINT);
 
     if (
       storageId === selectedLockerId &&
-      historyId != null &&
-      reserveId != null &&
+      target != null &&
       isPickupAvailableStatus(item.reservationStatus)
     ) {
-      targetMap.set(historyId, {
-        id: historyId,
-        point: item.point || DEFAULT_POINT,
-        reserveId,
-      });
+      targetMap.set(target.id, target);
     }
   }
 
@@ -257,41 +292,28 @@ function buildPickupTargets(
         record.lockerNo ??
         record.no
     );
-    const historyId = pickHistoryId(record);
-    const reserveId = pickReserveId(record);
     const status =
       pickText(record, ["reservationStatus", "status", "reserveStatus"]) || null;
-    const point = pickText(record, ["point"]) || DEFAULT_POINT;
+    const target = buildPickupTarget(record);
 
     if (
       storageId === selectedLockerId &&
-      historyId != null &&
-      reserveId != null &&
+      target != null &&
       isPickupAvailableStatus(status)
     ) {
-      targetMap.set(historyId, {
-        id: historyId,
-        point,
-        reserveId,
-      });
+      targetMap.set(target.id, target);
     }
   }
 
   for (const item of selectedHistoryItems) {
     const record = readRecord(item);
-    const historyId = pickHistoryId(record);
-    const reserveId = pickReserveId(record);
+    const target = buildPickupTarget(record, item.point || DEFAULT_POINT);
 
     if (
-      historyId != null &&
-      reserveId != null &&
+      target != null &&
       isPickupAvailableStatus(item.reservationStatus)
     ) {
-      targetMap.set(historyId, {
-        id: historyId,
-        point: item.point || DEFAULT_POINT,
-        reserveId,
-      });
+      targetMap.set(target.id, target);
     }
   }
 
@@ -577,6 +599,14 @@ export default function AdminLockerStatusPage() {
     }
 
     const reserveId = pickupTargets[0].reserveId;
+    const unpaidTarget = pickupTargets.find(hasUnpaidAddPay);
+
+    if (unpaidTarget) {
+      setErrorText(
+        `추가금 ${unpaidTarget.addPay.toLocaleString("ko-KR")}원 결제 후 픽업완료 처리할 수 있습니다.`
+      );
+      return;
+    }
 
     if (reserveId == null) {
       setErrorText("픽업완료 처리할 예약번호가 없습니다.");
@@ -641,6 +671,15 @@ export default function AdminLockerStatusPage() {
       selectedHistoryItems
     );
   }, [enableStorageItems, reserveUsers, selectedHistoryItems, selectedLockerId]);
+  const selectedUnpaidPickupTarget = useMemo(
+    () => selectedPickupTargets.find(hasUnpaidAddPay) ?? null,
+    [selectedPickupTargets]
+  );
+  const pickupBlockedReason = selectedUnpaidPickupTarget
+    ? `추가금 ${selectedUnpaidPickupTarget.addPay.toLocaleString(
+        "ko-KR"
+      )}원 결제 필요`
+    : "";
   const coldOccupiedCount = useMemo(
     () => COLD_LOCKERS.filter((lockerNumber) => occupiedMap.has(lockerNumber)).length,
     [occupiedMap]
@@ -729,8 +768,11 @@ export default function AdminLockerStatusPage() {
         disabled={selectedLockerDisabled}
         disableSubmitting={disabledSubmitLoading}
         pickupSubmitting={pickupSubmitLoading}
-        canPickupCurrentUser={selectedPickupTargets.length > 0}
+        canPickupCurrentUser={
+          selectedPickupTargets.length > 0 && !selectedUnpaidPickupTarget
+        }
         pickupTargetCount={selectedPickupTargets.length}
+        pickupBlockedReason={pickupBlockedReason}
         historyLoading={historyLoading}
         historyError={historyError}
         historyRows={historyRows}

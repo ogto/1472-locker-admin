@@ -19,6 +19,7 @@ type Props = {
   pickupSubmitting?: boolean;
   canPickupCurrentUser?: boolean;
   pickupTargetCount?: number;
+  pickupBlockedReason?: string;
   historyLoading?: boolean;
   historyError?: string;
   historyRows?: Array<{
@@ -46,6 +47,7 @@ export function ConfirmOpenModal({
   pickupSubmitting = false,
   canPickupCurrentUser = false,
   pickupTargetCount = 0,
+  pickupBlockedReason = "",
   historyLoading = false,
   historyError = "",
   historyRows = [],
@@ -204,7 +206,7 @@ export function ConfirmOpenModal({
                 ? pickupTargetCount > 1
                   ? `해당 보관함만 픽업완료 (${pickupTargetCount}건)`
                   : "해당 보관함만 픽업완료"
-                : "픽업완료 대상 없음"}
+                : pickupBlockedReason || "픽업완료 대상 없음"}
             </button>
           ) : null}
 

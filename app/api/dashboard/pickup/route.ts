@@ -55,6 +55,22 @@ export async function POST(req: NextRequest) {
       parsedData = rawText;
     }
 
+    const emptyPickupResult =
+      response.ok && Array.isArray(parsedData) && parsedData.length === 0;
+
+    if (emptyPickupResult) {
+      return NextResponse.json(
+        {
+          ok: false,
+          status: 409,
+          data: parsedData,
+          message:
+            "픽업완료 처리된 보관함이 없습니다. 추가금 결제가 필요하거나 이미 처리된 상태일 수 있습니다.",
+        },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       {
         ok: response.ok,
