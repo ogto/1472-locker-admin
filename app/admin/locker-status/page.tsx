@@ -28,6 +28,7 @@ type LockerOccupantInfo = {
   tel: string;
   channel: string;
   reservationDate: string;
+  statusCode: string;
   status: string;
   visitText: string;
 };
@@ -94,12 +95,19 @@ function formatVisitText(visitSeq?: number | null) {
   return visitSeq && visitSeq > 0 ? `${visitSeq}번째 방문` : "-";
 }
 
+function normalizeStatusCode(status?: string | null) {
+  return (status || "").trim().toUpperCase();
+}
+
 function buildReserveUserInfo(item: ReserveUserItem): LockerOccupantInfo {
+  const statusCode = normalizeStatusCode(item.reservationStatus);
+
   return {
     name: item.mberNm?.trim() || "-",
     tel: item.tel?.trim() || "-",
     channel: formatChannel(item.os),
     reservationDate: formatReservationDate(item.reservationDay, item.reservationStartTime),
+    statusCode,
     status: formatStatus(item.reservationStatus),
     visitText: formatVisitText(item.visitSeq),
   };
@@ -113,6 +121,9 @@ function buildEnableStorageInfo(record: Record<string, unknown>): LockerOccupant
     "startTime",
     "time",
   ]);
+  const statusCode = normalizeStatusCode(
+    pickText(record, ["reservationStatus", "status", "reserveStatus"]) || "-"
+  );
 
   return {
     name: pickText(record, ["mberNm", "memberName", "userName", "name"]) || "-",
@@ -122,9 +133,8 @@ function buildEnableStorageInfo(record: Record<string, unknown>): LockerOccupant
         pickText(record, ["os", "channel", "platform", "requestChannel"]) || "-"
       ) || "-",
     reservationDate: formatReservationDate(reservationDay, reservationStartTime),
-    status: formatStatus(
-      pickText(record, ["reservationStatus", "status", "reserveStatus"]) || "-"
-    ),
+    statusCode,
+    status: formatStatus(statusCode),
     visitText: formatVisitText(
       pickNumber(record, ["visitSeq", "visitCount", "visitNo", "sequence"])
     ),
@@ -146,6 +156,7 @@ function buildOccupiedMap(
     }
 
     reserveUserMap.set(storageId, buildReserveUserInfo(item));
+    map.set(storageId, reserveUserMap.get(storageId) ?? null);
   }
 
   for (const item of enableStorageItems) {
