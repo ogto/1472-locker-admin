@@ -123,6 +123,7 @@ export type PickupRequest = {
   historyIds: number[];
   point: string;
   reserveId: number;
+  force?: boolean;
 };
 
 export type CancelReserveRequest = {

@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
     const historyIds = searchParams.getAll("historyIds");
     const point = searchParams.get("point") ?? "bank";
     const reserveId = searchParams.get("reserveId");
+    const force = searchParams.get("force");
 
     if (!historyIds.length || !reserveId) {
       return NextResponse.json(
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
     historyIds.forEach((id) => upstream.searchParams.append("historyIds", id));
     upstream.searchParams.set("point", point);
     upstream.searchParams.set("reserveId", reserveId);
+    if (force === "true") {
+      upstream.searchParams.set("force", "true");
+    }
 
     const response = await fetch(upstream.toString(), {
       method: "POST",

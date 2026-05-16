@@ -68,6 +68,7 @@ export async function postPickup({
   historyIds,
   point,
   reserveId,
+  force,
 }: PickupRequest) {
   const params = new URLSearchParams();
 
@@ -76,6 +77,9 @@ export async function postPickup({
   });
   params.append("point", point);
   params.append("reserveId", String(reserveId));
+  if (force) {
+    params.append("force", "true");
+  }
 
   const res = await fetch(`/api/dashboard/pickup?${params.toString()}`, {
     method: "POST",

@@ -599,14 +599,6 @@ export default function AdminLockerStatusPage() {
     }
 
     const reserveId = pickupTargets[0].reserveId;
-    const unpaidTarget = pickupTargets.find(hasUnpaidAddPay);
-
-    if (unpaidTarget) {
-      setErrorText(
-        `추가금 ${unpaidTarget.addPay.toLocaleString("ko-KR")}원 결제 후 픽업완료 처리할 수 있습니다.`
-      );
-      return;
-    }
 
     if (reserveId == null) {
       setErrorText("픽업완료 처리할 예약번호가 없습니다.");
@@ -630,6 +622,7 @@ export default function AdminLockerStatusPage() {
         historyIds: pickupTargets.map((item) => item.id),
         point: pickupTargets[0].point || DEFAULT_POINT,
         reserveId,
+        force: true,
       });
 
       setSuccessText(`${selectedLockerId}번 보관함만 픽업완료 처리했습니다.`);
@@ -671,15 +664,6 @@ export default function AdminLockerStatusPage() {
       selectedHistoryItems
     );
   }, [enableStorageItems, reserveUsers, selectedHistoryItems, selectedLockerId]);
-  const selectedUnpaidPickupTarget = useMemo(
-    () => selectedPickupTargets.find(hasUnpaidAddPay) ?? null,
-    [selectedPickupTargets]
-  );
-  const pickupBlockedReason = selectedUnpaidPickupTarget
-    ? `추가금 ${selectedUnpaidPickupTarget.addPay.toLocaleString(
-        "ko-KR"
-      )}원 결제 필요`
-    : "";
   const coldOccupiedCount = useMemo(
     () => COLD_LOCKERS.filter((lockerNumber) => occupiedMap.has(lockerNumber)).length,
     [occupiedMap]
@@ -768,11 +752,8 @@ export default function AdminLockerStatusPage() {
         disabled={selectedLockerDisabled}
         disableSubmitting={disabledSubmitLoading}
         pickupSubmitting={pickupSubmitLoading}
-        canPickupCurrentUser={
-          selectedPickupTargets.length > 0 && !selectedUnpaidPickupTarget
-        }
+        canPickupCurrentUser={selectedPickupTargets.length > 0}
         pickupTargetCount={selectedPickupTargets.length}
-        pickupBlockedReason={pickupBlockedReason}
         historyLoading={historyLoading}
         historyError={historyError}
         historyRows={historyRows}
