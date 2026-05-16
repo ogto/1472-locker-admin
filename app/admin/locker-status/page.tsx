@@ -218,6 +218,7 @@ function isPickupAvailableStatus(statusValue?: string | null) {
 function buildPickupTargets(
   selectedLockerId: number | null,
   reserveUsers: ReserveUserItem[],
+  enableStorageItems: unknown[],
   selectedHistoryItems: HistoryItem[]
 ): PickupTarget[] {
   if (selectedLockerId == null) return [];
@@ -241,6 +242,36 @@ function buildPickupTargets(
       targetMap.set(historyId, {
         id: historyId,
         point: item.point || DEFAULT_POINT,
+        reserveId,
+      });
+    }
+  }
+
+  for (const item of enableStorageItems) {
+    const record = readRecord(item);
+    const storageId = extractStorageId(
+      record.storageId ??
+        record.storageNo ??
+        record.storageNumber ??
+        record.lockerId ??
+        record.lockerNo ??
+        record.no
+    );
+    const historyId = pickHistoryId(record);
+    const reserveId = pickReserveId(record);
+    const status =
+      pickText(record, ["reservationStatus", "status", "reserveStatus"]) || null;
+    const point = pickText(record, ["point"]) || DEFAULT_POINT;
+
+    if (
+      storageId === selectedLockerId &&
+      historyId != null &&
+      reserveId != null &&
+      isPickupAvailableStatus(status)
+    ) {
+      targetMap.set(historyId, {
+        id: historyId,
+        point,
         reserveId,
       });
     }
@@ -536,6 +567,7 @@ export default function AdminLockerStatusPage() {
     const pickupTargets = buildPickupTargets(
       selectedLockerId,
       reserveUsers,
+      enableStorageItems,
       selectedHistoryItems
     );
 
@@ -602,8 +634,13 @@ export default function AdminLockerStatusPage() {
     return disabledStorageSet.has(selectedLockerId);
   }, [disabledStorageSet, selectedLockerId]);
   const selectedPickupTargets = useMemo(() => {
-    return buildPickupTargets(selectedLockerId, reserveUsers, selectedHistoryItems);
-  }, [reserveUsers, selectedHistoryItems, selectedLockerId]);
+    return buildPickupTargets(
+      selectedLockerId,
+      reserveUsers,
+      enableStorageItems,
+      selectedHistoryItems
+    );
+  }, [enableStorageItems, reserveUsers, selectedHistoryItems, selectedLockerId]);
   const coldOccupiedCount = useMemo(
     () => COLD_LOCKERS.filter((lockerNumber) => occupiedMap.has(lockerNumber)).length,
     [occupiedMap]
