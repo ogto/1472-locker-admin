@@ -158,7 +158,7 @@ export function DashboardStorageCard({ item, onClick }: Props) {
           />
           <InfoBlock
             label="결제금액"
-            value={formatPrice(item.price + item.addPay)}
+            value={formatPrice(item.price)}
           />
         </div>
 

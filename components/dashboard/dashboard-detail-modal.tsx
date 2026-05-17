@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { groupDetailByType } from "@/lib/dashboard/mapper";
 import {
+  formatPrice,
   formatReservationDate,
   formatStatus,
   formatStorageType,
@@ -48,6 +49,7 @@ export function DashboardDetailModal({
 
   const first = data[0];
   const grouped = groupDetailByType(data);
+  const paidAmount = data.reduce((sum, item) => sum + safeAmount(item.price), 0);
   const hasFullDayUsage = data.some((item) =>
     isTwentyFourHourUsage(item.reservationTime)
   );
@@ -191,6 +193,10 @@ export function DashboardDetailModal({
                     label="예약번호"
                     value={String(first?.reserveId ?? "-")}
                   />
+                </section>
+
+                <section className="grid grid-cols-1 gap-3 md:grid-cols-1">
+                  <SummaryBox label="결제금액" value={formatPrice(paidAmount)} />
                 </section>
 
                 <TypeSection
@@ -583,9 +589,14 @@ function DetailCard({
           )}
         />
         <Field label="이용시간" value={`${item.reservationTime ?? 0}분`} />
+        <Field label="결제금액" value={formatPrice(item.price)} />
       </div>
     </div>
   );
+}
+
+function safeAmount(value?: number | null) {
+  return Number.isFinite(Number(value)) ? Number(value) : 0;
 }
 
 function SummaryBox({ label, value }: { label: string; value: string }) {
