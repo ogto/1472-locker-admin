@@ -37,6 +37,67 @@ function getTodayDateString() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function parseDateLike(value: unknown) {
+  if (Array.isArray(value) && value.length >= 5) {
+    const [year, month, day, hour, minute, second = 0] = value;
+    const parsed = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    );
+
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  return null;
+}
+
+function filterDetailsForSalesRow(
+  row: DailySalesViewRow,
+  items: HistoryDetailItem[],
+) {
+  if (row.rowTypeCode !== "1") {
+    return items;
+  }
+
+  const salesTime = parseDateLike(row.createdAt);
+  if (!salesTime) {
+    return items;
+  }
+
+  const matchedItems = items.filter((item) => {
+    const updateTime = parseDateLike(item.updateAt);
+    if (!updateTime) return false;
+
+    return Math.abs(updateTime.getTime() - salesTime.getTime()) <= 120_000;
+  });
+
+  return matchedItems.length > 0 ? matchedItems : items;
+}
+
+function applySalesRowAmountToDetails(
+  row: DailySalesViewRow,
+  items: HistoryDetailItem[],
+) {
+  if (row.rowTypeCode !== "1" || items.length === 0) {
+    return items;
+  }
+
+  if (items.length === 1) {
+    return [{ ...items[0], addPay: row.price }];
+  }
+
+  return items;
+}
+
 export default function AdminSalesPage() {
   const auth = useAdminAuth();
 
@@ -104,8 +165,10 @@ export default function AdminSalesPage() {
 
     try {
       const result = await fetchReserveHistoryDetail(row.reserveId, row.point);
-      setDetailItems(result);
-      if (result.length === 0) {
+      const filteredResult = filterDetailsForSalesRow(row, result);
+      const displayResult = applySalesRowAmountToDetails(row, filteredResult);
+      setDetailItems(displayResult);
+      if (displayResult.length === 0) {
         setDetailErrorText("연결된 이용내역이 없습니다.");
       }
     } catch (error) {

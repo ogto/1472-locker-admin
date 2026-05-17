@@ -14,8 +14,8 @@ export type LockerMapping = {
 function buildDeviceRanges(): DeviceRange[] {
   const ranges: DeviceRange[] = [];
 
-  // 1 ~ 37번 ESP: 각 8개씩
-  for (let deviceNo = 1; deviceNo <= 37; deviceNo += 1) {
+  // 1 ~ 17번 ESP: 각 8개씩
+  for (let deviceNo = 1; deviceNo <= 17; deviceNo += 1) {
     const start = (deviceNo - 1) * 8 + 1;
     const end = start + 7;
 
@@ -26,10 +26,32 @@ function buildDeviceRanges(): DeviceRange[] {
     });
   }
 
-  // 38번 ESP: 예외적으로 297 ~ 300만 사용
+  // 18번 ESP: 예외적으로 6개만 사용
+  ranges.push({
+    deviceNo: 18,
+    start: 137,
+    end: Math.min(142, MAX_LOCKERS),
+  });
+
+  // 19 ~ 37번 ESP: 18번에서 빠진 2칸 때문에 143번부터 이어서 각 8개씩
+  let coldStart = 143;
+
+  for (let deviceNo = 19; deviceNo <= 37; deviceNo += 1) {
+    const end = Math.min(coldStart + 7, MAX_LOCKERS);
+
+    ranges.push({
+      deviceNo,
+      start: coldStart,
+      end,
+    });
+
+    coldStart = end + 1;
+  }
+
+  // 38번 ESP: 예외적으로 295 ~ 300만 사용
   ranges.push({
     deviceNo: 38,
-    start: 297,
+    start: 295,
     end: Math.min(300, MAX_LOCKERS),
   });
 

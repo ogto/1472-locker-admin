@@ -154,6 +154,10 @@ function formatReservationDateTime(day?: string | null, time?: string | null) {
   return formatDateTime(merged);
 }
 
+function isRunningStatus(status?: string | null) {
+  return status === "COMPLETED" || status === "READY";
+}
+
 export function HistoryDetailPanel({
   loading,
   errorText,
@@ -204,7 +208,9 @@ export function HistoryDetailPanel({
           item.reservationDay,
           item.reservationStartTime
         );
-        const updateAtText = formatDateTime(item.updateAt);
+        const running = isRunningStatus(item.reservationStatus);
+        const endTimeText = running ? "-" : formatDateTime(item.updateAt);
+        const addPayLabel = running ? "현재 추가요금" : "추가요금";
         const pointLabel = formatPoint(item.point);
 
         return (
@@ -250,9 +256,11 @@ export function HistoryDetailPanel({
               </div>
 
               <div>
-                <div className="text-xs font-black text-slate-400">종료시간</div>
+                <div className="text-xs font-black text-slate-400">
+                  종료시간
+                </div>
                 <div className="mt-1 text-sm font-black text-slate-900">
-                  {updateAtText}
+                  {endTimeText}
                 </div>
               </div>
 
@@ -264,7 +272,9 @@ export function HistoryDetailPanel({
               </div>
 
               <div>
-                <div className="text-xs font-black text-slate-400">추가요금</div>
+                <div className="text-xs font-black text-slate-400">
+                  {addPayLabel}
+                </div>
                 <div className="mt-1 text-sm font-black text-slate-900">
                   {formatPrice(item.addPay)}
                 </div>
