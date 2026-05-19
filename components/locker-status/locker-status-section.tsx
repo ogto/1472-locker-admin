@@ -7,6 +7,7 @@ type LockerOccupantInfo = {
   reservationDate: string;
   statusCode?: string;
   status: string;
+  pickupProduct?: boolean;
 };
 
 type LockerStatusSectionProps = {
@@ -25,6 +26,7 @@ function buildCellTone(
   disabled: boolean,
   occupied: boolean,
   ready: boolean,
+  pickupProduct: boolean,
   tone: "cold" | "room"
 ) {
   if (disabled) {
@@ -37,6 +39,10 @@ function buildCellTone(
 
   if (ready) {
     return "border-orange-400 bg-orange-100 text-orange-950 shadow-[0_10px_25px_rgba(249,115,22,0.2)] ring-2 ring-orange-200";
+  }
+
+  if (pickupProduct) {
+    return "border-pink-300 bg-pink-100 text-pink-900 shadow-[0_10px_25px_rgba(236,72,153,0.16)] ring-2 ring-pink-100";
   }
 
   if (tone === "cold") {
@@ -82,6 +88,7 @@ export function LockerStatusSection({
       <div className="mt-5 flex flex-wrap gap-3 text-xs font-bold">
         <LegendChip label="사용중" tone={tone} />
         <LegendChip label="픽업준비" tone="ready" />
+        <LegendChip label="야구장픽업" tone="pickup" />
         <LegendChip label="사용불가" tone="disabled" />
         <LegendChip label="비어있음" tone="empty" />
       </div>
@@ -92,10 +99,13 @@ export function LockerStatusSection({
           const disabled = disabledSet.has(lockerNumber);
           const occupied = Boolean(item);
           const ready = item?.statusCode?.trim().toUpperCase() === "READY";
+          const pickupProduct = Boolean(item?.pickupProduct);
           const statusText = disabled
             ? "사용불가"
             : ready
             ? "픽업준비"
+            : pickupProduct
+            ? "야구장픽업"
             : occupied
             ? "사용중"
             : "비어있음";
@@ -107,6 +117,7 @@ export function LockerStatusSection({
                 `연락처: ${item.tel || "-"}`,
                 `채널: ${item.channel || "-"}`,
                 `예약일시: ${item.reservationDate || "-"}`,
+                `구분: ${item.pickupProduct ? "야구장픽업" : "일반보관"}`,
               ].join("\n")
             : `${lockerNumber}번 비어있음`;
 
@@ -119,7 +130,7 @@ export function LockerStatusSection({
               className={[
                 "rounded-2xl border px-2 py-3 text-center transition hover:-translate-y-0.5",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300",
-                buildCellTone(disabled, occupied, ready, tone),
+                buildCellTone(disabled, occupied, ready, pickupProduct, tone),
               ].join(" ")}
             >
               <div className="text-[11px] font-black tracking-tight sm:text-xs">
@@ -167,7 +178,7 @@ function LegendChip({
   tone,
 }: {
   label: string;
-  tone: "cold" | "room" | "empty" | "disabled" | "ready";
+  tone: "cold" | "room" | "empty" | "disabled" | "ready" | "pickup";
 }) {
   const className =
     tone === "cold"
@@ -176,6 +187,8 @@ function LegendChip({
       ? "border-amber-200 bg-amber-50 text-amber-700"
       : tone === "ready"
       ? "border-orange-300 bg-orange-50 text-orange-800"
+      : tone === "pickup"
+      ? "border-pink-300 bg-pink-50 text-pink-800"
       : tone === "disabled"
       ? "border-rose-200 bg-rose-50 text-rose-700"
       : "border-slate-200 bg-slate-50 text-slate-500";

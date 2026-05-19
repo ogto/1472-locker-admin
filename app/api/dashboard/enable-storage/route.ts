@@ -17,14 +17,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const point = "bank";
-    const type = 1;
+    const { searchParams } = new URL(req.url);
+    const point = searchParams.get("point") || "bank";
+    const pickupProduct = searchParams.get("pickupProduct") || "";
 
-    const url = `https://cloud.1472.ai:18443/api/v4/bread-storage/enable-storage?point=${encodeURIComponent(
-      point
-    )}`;
+    if (point !== "bank") {
+      return NextResponse.json(
+        { ok: false, message: "지원하지 않는 지점입니다.", data: [] },
+        { status: 400 }
+      );
+    }
 
-    const response = await fetch(url, {
+    const upstream = new URL(
+      "https://cloud.1472.ai:18443/api/v4/bread-storage/enable-storage"
+    );
+    upstream.searchParams.set("point", point);
+
+    if (pickupProduct) {
+      upstream.searchParams.set("pickupProduct", pickupProduct);
+    }
+
+    const response = await fetch(upstream.toString(), {
       method: "POST",
       headers: {
         Accept: "application/json, text/plain, */*",

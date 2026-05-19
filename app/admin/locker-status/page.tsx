@@ -17,11 +17,22 @@ import {
 } from "@/lib/lockers/api";
 import type { HistoryItem } from "@/lib/history/types";
 import type { ReserveUserItem } from "@/lib/dashboard/types";
-import { DEFAULT_POINT, DEFAULT_PULSE_MS } from "@/lib/lockers/constants";
-import { formatChannel, formatReservationDate, formatStatus } from "@/lib/common";
+import {
+  DEFAULT_POINT,
+  DEFAULT_PULSE_MS,
+  MAX_DEVICE_NO,
+} from "@/lib/lockers/constants";
+import { DEVICE_RANGES } from "@/lib/lockers/mapping";
+import {
+  formatChannel,
+  formatReservationDate,
+  formatStatus,
+} from "@/lib/common";
 
 const COLD_LOCKERS = Array.from({ length: 300 }, (_, index) => index + 1);
 const ROOM_LOCKERS = Array.from({ length: 100 }, (_, index) => index + 301);
+const STATUS_MAX_LOCKER = 400;
+const ESP_OPEN_DELAY_MS = 150;
 
 type LockerOccupantInfo = {
   name: string;
@@ -31,6 +42,7 @@ type LockerOccupantInfo = {
   statusCode: string;
   status: string;
   visitText: string;
+  pickupProduct: boolean;
 };
 
 type LockerHistoryRow = {
@@ -47,6 +59,12 @@ type PickupTarget = {
   reserveId: number;
   addPay: number;
   addPayTof: boolean | null;
+};
+
+type EspOpenResult = {
+  storageId: number;
+  ok: boolean;
+  message: string;
 };
 
 function extractStorageId(value: unknown): number | null {
@@ -153,6 +171,7 @@ function buildReserveUserInfo(item: ReserveUserItem): LockerOccupantInfo {
     statusCode,
     status: formatStatus(item.reservationStatus),
     visitText: formatVisitText(item.visitSeq),
+    pickupProduct: item.pickupProduct === true,
   };
 }
 
@@ -181,6 +200,7 @@ function buildEnableStorageInfo(record: Record<string, unknown>): LockerOccupant
     visitText: formatVisitText(
       pickNumber(record, ["visitSeq", "visitCount", "visitNo", "sequence"])
     ),
+    pickupProduct: pickBoolean(record, ["pickupProduct"]) === true,
   };
 }
 
@@ -220,9 +240,17 @@ function buildOccupiedMap(
       continue;
     }
 
+    const reserveInfo = reserveUserMap.get(storageId);
+    const enableInfo = record ? buildEnableStorageInfo(record) : null;
+
     map.set(
       storageId,
-      reserveUserMap.get(storageId) ?? (record ? buildEnableStorageInfo(record) : null)
+      reserveInfo && enableInfo
+        ? {
+            ...reserveInfo,
+            pickupProduct: reserveInfo.pickupProduct || enableInfo.pickupProduct,
+          }
+        : reserveInfo ?? enableInfo
     );
   }
 
@@ -254,6 +282,27 @@ function buildPickupTarget(record: Record<string, unknown>, point?: string | nul
 
 function hasUnpaidAddPay(target: PickupTarget) {
   return target.addPay > 0 && target.addPayTof === false;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function parseEspNo(value: string) {
+  const parsed = Number(value.trim());
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
+function findStatusDeviceRange(deviceNo: number | null) {
+  if (deviceNo == null) return null;
+
+  const range = DEVICE_RANGES.find((item) => item.deviceNo === deviceNo);
+  if (!range || range.start > STATUS_MAX_LOCKER) return null;
+
+  return {
+    ...range,
+    end: Math.min(range.end, STATUS_MAX_LOCKER),
+  };
 }
 
 function buildPickupTargets(
@@ -337,6 +386,10 @@ export default function AdminLockerStatusPage() {
   const [historyError, setHistoryError] = useState("");
   const [historyRows, setHistoryRows] = useState<LockerHistoryRow[]>([]);
   const [selectedHistoryItems, setSelectedHistoryItems] = useState<HistoryItem[]>([]);
+  const [espInput, setEspInput] = useState("");
+  const [confirmEspOpen, setConfirmEspOpen] = useState(false);
+  const [espSubmitLoading, setEspSubmitLoading] = useState(false);
+  const [espOpenResults, setEspOpenResults] = useState<EspOpenResult[]>([]);
 
   useEffect(() => {
     if (!auth.booting && auth.authenticated) {
@@ -349,9 +402,13 @@ export default function AdminLockerStatusPage() {
     setErrorText("");
 
     try {
-      const [enableStorageResult, reserveUserResult, disabledStorageResult] =
+      const [
+        enableStorageResult,
+        reserveUserResult,
+        disabledStorageResult,
+      ] =
         await Promise.allSettled([
-        fetch("/api/dashboard/enable-storage", {
+        fetch("/api/dashboard/enable-storage?point=bank", {
           method: "POST",
           credentials: "same-origin",
           cache: "no-store",
@@ -385,6 +442,7 @@ export default function AdminLockerStatusPage() {
       } else {
         setDisabledStorageIds([]);
       }
+
     } catch (error) {
       setReserveUsers([]);
       setEnableStorageItems([]);
@@ -640,6 +698,92 @@ export default function AdminLockerStatusPage() {
     }
   }
 
+  function handleEspOpenClick() {
+    const deviceNo = parseEspNo(espInput);
+    const range = findStatusDeviceRange(deviceNo);
+
+    setErrorText("");
+    setSuccessText("");
+    setEspOpenResults([]);
+
+    if (deviceNo == null || deviceNo < 1 || deviceNo > MAX_DEVICE_NO || !range) {
+      setErrorText(`ESP 번호는 1부터 ${MAX_DEVICE_NO}까지 입력할 수 있습니다.`);
+      return;
+    }
+
+    setConfirmEspOpen(true);
+  }
+
+  async function handleConfirmEspOpen() {
+    const deviceNo = parseEspNo(espInput);
+    const range = findStatusDeviceRange(deviceNo);
+
+    if (deviceNo == null || !range) return;
+
+    const storageIds = Array.from(
+      { length: range.end - range.start + 1 },
+      (_, index) => range.start + index
+    );
+    const results: EspOpenResult[] = [];
+
+    setEspSubmitLoading(true);
+    setErrorText("");
+    setSuccessText("");
+    setEspOpenResults([]);
+
+    try {
+      for (const storageId of storageIds) {
+        try {
+          const res = await fetch("/api/lock-command", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+              point: DEFAULT_POINT,
+              storageId,
+              pulseMs: DEFAULT_PULSE_MS,
+              requestedBy: "admin-web-locker-status",
+              requestNote: `보관함 관리 화면에서 ESP ${deviceNo}번 전체 오픈 (${storageId}번)`,
+            }),
+          });
+
+          const data = await res.json().catch(() => null);
+
+          if (!res.ok || !data?.ok) {
+            throw new Error(data?.message || data?.detail || "열기 실패");
+          }
+
+          results.push({ storageId, ok: true, message: "성공" });
+        } catch (error) {
+          results.push({
+            storageId,
+            ok: false,
+            message: error instanceof Error ? error.message : "열기 실패",
+          });
+        }
+
+        setEspOpenResults([...results]);
+
+        if (storageId !== storageIds[storageIds.length - 1]) {
+          await sleep(ESP_OPEN_DELAY_MS);
+        }
+      }
+
+      const successCount = results.filter((item) => item.ok).length;
+      const failCount = results.length - successCount;
+
+      setSuccessText(
+        `ESP ${deviceNo}번 보관함 ${successCount}개 열기 요청을 완료했습니다.${
+          failCount > 0 ? ` 실패 ${failCount}개가 있습니다.` : ""
+        }`
+      );
+    } finally {
+      setEspSubmitLoading(false);
+    }
+  }
+
   const occupiedMap = useMemo(
     () => buildOccupiedMap(enableStorageItems, reserveUsers),
     [enableStorageItems, reserveUsers]
@@ -672,7 +816,18 @@ export default function AdminLockerStatusPage() {
     () => ROOM_LOCKERS.filter((lockerNumber) => occupiedMap.has(lockerNumber)).length,
     [occupiedMap]
   );
+  const selectedEspRange = useMemo(
+    () => findStatusDeviceRange(parseEspNo(espInput)),
+    [espInput]
+  );
+  const selectedEspStorageIds = useMemo(() => {
+    if (!selectedEspRange) return [];
 
+    return Array.from(
+      { length: selectedEspRange.end - selectedEspRange.start + 1 },
+      (_, index) => selectedEspRange.start + index
+    );
+  }, [selectedEspRange]);
   if (auth.booting) {
     return (
       <div className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top,#ffe4f1_0%,#fff4fa_35%,#f8fbff_100%)] px-4">
@@ -703,6 +858,43 @@ export default function AdminLockerStatusPage() {
       />
 
       <div className="space-y-4 lg:space-y-6">
+        <div className="flex flex-col gap-3 rounded-[28px] border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="text-sm font-black text-slate-900">ESP 단위 열기</div>
+            <div className="mt-1 text-xs font-bold text-slate-500">
+              ESP 번호에 매핑된 보관함을 150ms 간격으로 순차 오픈합니다.
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label className="sr-only" htmlFor="esp-open-input">
+              ESP 번호
+            </label>
+            <input
+              id="esp-open-input"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={MAX_DEVICE_NO}
+              value={espInput}
+              onChange={(event) => {
+                setEspInput(event.target.value.replace(/[^\d]/g, ""));
+                setEspOpenResults([]);
+              }}
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-900 outline-none transition focus:border-rose-200 focus:shadow-[0_0_0_6px_rgba(251,207,232,0.35)] sm:w-32"
+              placeholder="ESP 번호"
+            />
+            <button
+              type="button"
+              onClick={handleEspOpenClick}
+              disabled={espSubmitLoading}
+              className="h-11 rounded-2xl bg-rose-500 px-4 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-rose-600 disabled:cursor-wait disabled:opacity-60"
+            >
+              ESP 전체 열기
+            </button>
+          </div>
+        </div>
+
         <div className="flex justify-end">
           <button
             type="button"
@@ -767,6 +959,81 @@ export default function AdminLockerStatusPage() {
         onToggleDisabled={() => void handleToggleDisabled()}
         onPickupCurrentUser={() => void handlePickupCurrentUser()}
       />
+
+      {confirmEspOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.46)] p-4 backdrop-blur-[3px]"
+          onClick={() => {
+            if (!espSubmitLoading) setConfirmEspOpen(false);
+          }}
+        >
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="text-[22px] font-black tracking-[-0.03em] text-slate-900">
+                ESP 전체 열기
+              </div>
+              <div className="mt-1 text-sm font-bold text-slate-500">
+                ESP {parseEspNo(espInput) ?? "-"}번의 보관함{" "}
+                {selectedEspRange
+                  ? `${selectedEspRange.start}~${selectedEspRange.end}번`
+                  : "-"}{" "}
+                {selectedEspStorageIds.length}개를 순차로 엽니다.
+              </div>
+            </div>
+
+            <div className="space-y-4 px-5 py-4 sm:px-6">
+              <div className="rounded-3xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+                한 번 실행하면 해당 ESP에 연결된 보관함이 모두 열립니다.
+              </div>
+
+              {espOpenResults.length > 0 ? (
+                <div className="max-h-56 overflow-y-auto rounded-3xl border border-slate-100">
+                  {espOpenResults.map((result) => (
+                    <div
+                      key={result.storageId}
+                      className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5 text-sm last:border-b-0"
+                    >
+                      <span className="font-black text-slate-800">
+                        {result.storageId}번
+                      </span>
+                      <span
+                        className={[
+                          "text-right font-bold",
+                          result.ok ? "text-emerald-600" : "text-rose-600",
+                        ].join(" ")}
+                      >
+                        {result.ok ? "성공" : result.message}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setConfirmEspOpen(false)}
+                  disabled={espSubmitLoading}
+                  className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+                >
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmEspOpen()}
+                  disabled={espSubmitLoading || selectedEspStorageIds.length === 0}
+                  className="h-11 rounded-2xl bg-slate-900 px-5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {espSubmitLoading ? "순차 열기 중..." : "실행"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AdminShell>
   );
 }
