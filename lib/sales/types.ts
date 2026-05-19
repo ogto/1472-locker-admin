@@ -20,6 +20,19 @@ export type MonthSalesApiItem = {
   paymentAmount?: number;
   cancelAmount?: number;
   netAmount?: number;
+  prepaidThisMonthAmount?: number;
+  prepaidNextMonthAmount?: number;
+};
+
+export type SalesPrepaidSummary = {
+  baseDate: string;
+  point: PointKey;
+  thisMonthStartDate: string;
+  thisMonthEndDate: string;
+  nextMonthStartDate: string;
+  nextMonthEndDate: string;
+  prepaidThisMonthAmount: number;
+  prepaidNextMonthAmount: number;
 };
 
 export type DailySalesApiItem = {
@@ -136,6 +149,7 @@ export type SalesDashboardData = {
   dailyRows: DailySalesViewRow[];
   monthSummary: MonthSummary;
   dailySummary: DailySummary;
+  prepaidSummary: SalesPrepaidSummary | null;
   rawMonthItems: MonthSalesApiItem[];
   rawDailyData: DailySalesApiResponse;
 };

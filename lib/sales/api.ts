@@ -5,6 +5,7 @@ import type {
   ManualSalesResponse,
   MonthSalesApiItem,
   PointKey,
+  SalesPrepaidSummary,
 } from "./types";
 
 type GetMonthSalesParams = {
@@ -81,6 +82,26 @@ export async function getDailySales(params: GetDailySalesParams) {
   }
 
   return (data ?? null) as DailySalesApiResponse;
+}
+
+export async function getPrepaidSummary(point: PointKey) {
+  const searchParams = new URLSearchParams({ point });
+
+  const response = await fetch(`/api/sales/prepaid-summary?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const data = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(
+      (data as { message?: string } | null)?.message ||
+        "선결제 데이터를 불러오지 못했습니다.",
+    );
+  }
+
+  return (data ?? null) as SalesPrepaidSummary;
 }
 
 export async function getManualSales(params: GetManualSalesParams) {

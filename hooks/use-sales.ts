@@ -1,8 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createManualSales, getDailySales, getMonthSales } from "@/lib/sales/api";
-import { mapSalesDashboardData } from "@/lib/sales/mapper";
+import {
+  createManualSales,
+  getDailySales,
+  getMonthSales,
+  getPrepaidSummary,
+} from "@/lib/sales/api";
+import {
+  buildPrepaidSummaryFromMonthRows,
+  mapSalesDashboardData,
+} from "@/lib/sales/mapper";
 import type {
   DailySalesApiResponse,
   ManualSalesRequest,
@@ -51,15 +59,26 @@ export function useSales(params: Params) {
           month: params.month,
           point: params.point,
         });
+        let prepaidSummary =
+          buildPrepaidSummaryFromMonthRows(monthItems, params.point) ?? null;
 
-        setData(mapSalesDashboardData(monthItems, EMPTY_DAILY_DATA));
+        if (params.point === "bank") {
+          try {
+            prepaidSummary = await getPrepaidSummary(params.point);
+          } catch {
+            prepaidSummary =
+              buildPrepaidSummaryFromMonthRows(monthItems, params.point) ?? null;
+          }
+        }
+
+        setData(mapSalesDashboardData(monthItems, EMPTY_DAILY_DATA, prepaidSummary));
       } else {
         const dailyData = await getDailySales({
           date: params.date,
           point: params.point,
         });
 
-        setData(mapSalesDashboardData([], dailyData));
+        setData(mapSalesDashboardData([], dailyData, null));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "매출 데이터를 불러오지 못했습니다.");

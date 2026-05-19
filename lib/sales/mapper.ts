@@ -13,6 +13,7 @@ import type {
   PointKey,
   SalesPaymentFilter,
   SalesDashboardData,
+  SalesPrepaidSummary,
 } from "./types";
 
 export const POINT_LABEL: Record<PointKey, string> = {
@@ -659,9 +660,36 @@ export function buildDailySummary(daily: DailySalesApiResponse): DailySummary {
   };
 }
 
+export function buildPrepaidSummaryFromMonthRows(
+  monthItems: MonthSalesApiItem[],
+  point: PointKey,
+): SalesPrepaidSummary | null {
+  if (point !== "bank") return null;
+
+  const row = monthItems.find(
+    (item) =>
+      item.prepaidThisMonthAmount !== undefined ||
+      item.prepaidNextMonthAmount !== undefined,
+  );
+
+  if (!row) return null;
+
+  return {
+    baseDate: "",
+    point,
+    thisMonthStartDate: "",
+    thisMonthEndDate: "",
+    nextMonthStartDate: "",
+    nextMonthEndDate: "",
+    prepaidThisMonthAmount: Number(row.prepaidThisMonthAmount || 0),
+    prepaidNextMonthAmount: Number(row.prepaidNextMonthAmount || 0),
+  };
+}
+
 export function mapSalesDashboardData(
   monthItems: MonthSalesApiItem[],
   dailyData: DailySalesApiResponse,
+  prepaidSummary: SalesPrepaidSummary | null = null,
 ): SalesDashboardData {
   const paymentRows = mapPaymentRows(monthItems);
 
@@ -671,6 +699,7 @@ export function mapSalesDashboardData(
     dailyRows: mapDailyRows(dailyData.items ?? [], dailyData.detailItems ?? []),
     monthSummary: buildMonthSummary(monthItems, paymentRows),
     dailySummary: buildDailySummary(dailyData),
+    prepaidSummary,
     rawMonthItems: monthItems,
     rawDailyData: dailyData,
   };

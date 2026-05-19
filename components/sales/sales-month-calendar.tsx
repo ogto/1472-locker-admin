@@ -2,7 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { formatPrice } from "@/lib/common";
-import type { MonthSalesApiItem, PointKey } from "@/lib/sales/types";
+import type {
+  MonthSalesApiItem,
+  PointKey,
+  SalesPrepaidSummary,
+} from "@/lib/sales/types";
 
 type Props = {
   year: number;
@@ -10,6 +14,7 @@ type Props = {
   point: PointKey;
   loading: boolean;
   rows: MonthSalesApiItem[];
+  prepaidSummary: SalesPrepaidSummary | null;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onChangePoint: (value: PointKey) => void;
@@ -136,6 +141,7 @@ export function SalesMonthCalendar({
   point,
   loading,
   rows,
+  prepaidSummary,
   onPrevMonth,
   onNextMonth,
   onChangePoint,
@@ -262,11 +268,28 @@ export function SalesMonthCalendar({
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 border-b border-slate-200 pb-6 xl:grid-cols-4 2xl:gap-5 2xl:pb-8">
+        <div
+          className={[
+            "mt-6 grid grid-cols-2 gap-3 border-b border-slate-200 pb-6 2xl:gap-5 2xl:pb-8",
+            point === "bank" ? "xl:grid-cols-6" : "xl:grid-cols-4",
+          ].join(" ")}
+        >
           <SummaryStat label={`${month}월 총금액`} value={summary.total} />
           <SummaryStat label="앱" value={summary.app} />
           <SummaryStat label="카드" value={summary.card} />
           <SummaryStat label="현금" value={summary.cash} />
+          {point === "bank" ? (
+            <>
+              <SummaryStat
+                label="이번달 선결제"
+                value={prepaidSummary?.prepaidThisMonthAmount ?? 0}
+              />
+              <SummaryStat
+                label="다음달 선결제"
+                value={prepaidSummary?.prepaidNextMonthAmount ?? 0}
+              />
+            </>
+          ) : null}
         </div>
 
         <div className="mt-5">
@@ -453,7 +476,7 @@ function SummaryStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="border-slate-200 xl:border-r xl:pr-6 xl:last:border-r-0 2xl:pr-8">
       <div className="text-[13px] font-black text-slate-400 sm:text-[14px] 2xl:text-[16px]">{label}</div>
-      <div className="mt-2 text-[22px] font-black tracking-[-0.04em] text-slate-800 sm:text-[26px] 2xl:text-[32px]">
+      <div className="mt-2 whitespace-nowrap text-[20px] font-black tracking-[-0.04em] text-slate-800 sm:text-[23px] 2xl:text-[28px]">
         {formatPrice(value)}
       </div>
     </div>

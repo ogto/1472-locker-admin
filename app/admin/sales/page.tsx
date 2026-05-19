@@ -283,6 +283,7 @@ export default function AdminSalesPage() {
                 point={point}
                 loading={loading}
                 rows={filteredData.rawMonthItems}
+                prepaidSummary={filteredData.prepaidSummary}
                 onPrevMonth={() => moveMonth(-1)}
                 onNextMonth={() => moveMonth(1)}
                 onChangePoint={setPoint}
