@@ -89,6 +89,8 @@ export function formatHistoryStatus(status: string) {
   if (!status) return "-";
   if (status === "PENDING") return "예약";
   if (status === "COMPLETED") return "보관중";
+  if (status === "COLLECTED") return "회수완료";
+  if (status === "DEPARTED") return "배송출발";
   if (status === "READY") return "찾기대기";
   if (status === "PICKUP") return "픽업완료";
   if (status === "CANCEL" || status === "CANCELED") return "취소";

@@ -45,6 +45,10 @@ export function formatStatus(status?: string | null) {
   switch (normalized) {
     case "COMPLETED":
       return "보관중";
+    case "COLLECTED":
+      return "회수완료";
+    case "DEPARTED":
+      return "배송출발";
     case "RESERVED":
       return "예약";
     case "PENDING":
