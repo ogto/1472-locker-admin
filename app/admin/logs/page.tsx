@@ -270,6 +270,7 @@ export default function AdminLogsPage() {
   );
   const [modalErrorText, setModalErrorText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [openingHistoryId, setOpeningHistoryId] = useState<number | null>(null);
 
   async function loadPickupStatus(targetDay = todayText || getTodayText()) {
     setLoading(true);
@@ -378,6 +379,48 @@ export default function AdminLogsPage() {
 
   async function handlePickup(group: PickupGroup) {
     await updatePickupStatus(group, "PICKUP");
+  }
+
+  async function handleOpenLocker(item: HistoryItem) {
+    if (!item.storageId) {
+      setModalErrorText("보관함 번호가 없어 문을 열 수 없습니다.");
+      return;
+    }
+
+    setOpeningHistoryId(item.id);
+    setModalErrorText("");
+
+    try {
+      const response = await fetch("/api/lock-command", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+        cache: "no-store",
+        body: JSON.stringify({
+          point: PICKUP_POINT,
+          storageId: item.storageId,
+          pulseMs: 500,
+          requestedBy: "admin-web-baseball-pickup",
+          requestNote: `야구장픽업 회수 문열기 (${item.storageId}번, history #${item.id})`,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(
+          result?.message || result?.detail || "보관함 문열기에 실패했습니다."
+        );
+      }
+    } catch (error) {
+      setModalErrorText(
+        error instanceof Error ? error.message : "보관함 문열기에 실패했습니다."
+      );
+    } finally {
+      setOpeningHistoryId(null);
+    }
   }
 
   async function updatePickupStatus(
@@ -518,6 +561,7 @@ export default function AdminLogsPage() {
         <PickupCollectModal
           group={selectedGroup}
           loadingHistoryId={collectingHistoryId}
+          openingHistoryId={openingHistoryId}
           errorText={modalErrorText}
           onClose={() => {
             if (collectingHistoryId == null) {
@@ -526,6 +570,7 @@ export default function AdminLogsPage() {
             }
           }}
           onCollect={(historyId) => void handleCollectHistory(selectedGroup, historyId)}
+          onOpenLocker={(item) => void handleOpenLocker(item)}
           onDepart={() => void handleDepart(selectedGroup)}
           onPickup={() => void handlePickup(selectedGroup)}
         />
@@ -665,17 +710,21 @@ function PickupMap({
 function PickupCollectModal({
   group,
   loadingHistoryId,
+  openingHistoryId,
   errorText,
   onClose,
   onCollect,
+  onOpenLocker,
   onDepart,
   onPickup,
 }: {
   group: PickupGroup;
   loadingHistoryId: number | null;
+  openingHistoryId: number | null;
   errorText: string;
   onClose: () => void;
   onCollect: (historyId: number) => void;
+  onOpenLocker: (item: HistoryItem) => void;
   onDepart: () => void;
   onPickup: () => void;
 }) {
@@ -693,14 +742,15 @@ function PickupCollectModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.48)] p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.48)] p-3 backdrop-blur-[2px] sm:p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:p-6"
+        className="flex max-h-[calc(100dvh-24px)] w-full max-w-2xl flex-col rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:max-h-[calc(100dvh-32px)] sm:p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="shrink-0">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-[24px] font-black tracking-tight text-slate-950">
               {group.customerName}
@@ -717,21 +767,23 @@ function PickupCollectModal({
           >
             {group.statusLabel}
           </span>
+          </div>
+
+          {errorText ? (
+            <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+              {errorText}
+            </div>
+          ) : null}
         </div>
 
-        {errorText ? (
-          <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
-            {errorText}
-          </div>
-        ) : null}
-
-        <div className="mt-5 space-y-3">
+        <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
           {activeItems.map((item) => {
             const status = (item.reservationStatus || "").trim().toUpperCase();
             const collected = status === "COLLECTED";
             const locked =
               status === "DEPARTED" || status === "PICKUP" || status === "CANCELED";
             const loading = loadingHistoryId === item.id;
+            const opening = openingHistoryId === item.id;
 
             return (
               <div
@@ -757,30 +809,40 @@ function PickupCollectModal({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => onCollect(item.id)}
-                  disabled={collected || locked || loadingHistoryId != null}
-                  className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
-                >
-                  {loading
-                    ? "처리 중..."
-                    : collected
-                    ? "회수완료됨"
-                    : locked
-                    ? "처리불가"
-                    : "회수완료"}
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => onOpenLocker(item)}
+                    disabled={!item.storageId || openingHistoryId != null || loadingHistoryId != null}
+                    className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+                    {opening ? "요청 중..." : "문열기"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onCollect(item.id)}
+                    disabled={collected || locked || loadingHistoryId != null || openingHistoryId != null}
+                    className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                  >
+                    {loading
+                      ? "처리 중..."
+                      : collected
+                      ? "회수완료됨"
+                      : locked
+                      ? "처리불가"
+                      : "회수완료"}
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
 
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-5 flex shrink-0 flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={() => setPickupConfirmOpen(true)}
-            disabled={!canPickup || loadingHistoryId != null}
+            disabled={!canPickup || loadingHistoryId != null || openingHistoryId != null}
             className="inline-flex h-11 items-center justify-center rounded-2xl bg-emerald-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             {loadingHistoryId === 0 ? "처리 중..." : "픽업완료"}
@@ -788,7 +850,7 @@ function PickupCollectModal({
           <button
             type="button"
             onClick={onDepart}
-            disabled={!canDepart || loadingHistoryId != null}
+            disabled={!canDepart || loadingHistoryId != null || openingHistoryId != null}
             className="inline-flex h-11 items-center justify-center rounded-2xl bg-violet-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             {loadingHistoryId === 0 ? "처리 중..." : "배송출발"}
@@ -796,7 +858,7 @@ function PickupCollectModal({
           <button
             type="button"
             onClick={onClose}
-            disabled={loadingHistoryId != null}
+            disabled={loadingHistoryId != null || openingHistoryId != null}
             className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             닫기
