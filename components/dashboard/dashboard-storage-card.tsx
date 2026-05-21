@@ -51,6 +51,10 @@ function getStatusTone(status: string) {
 }
 
 function getChannelTone(channel: string) {
+  if (channel === "야구장픽업") {
+    return "bg-pink-50 text-pink-700 border border-pink-100";
+  }
+
   return channel === "키오스크"
     ? "bg-violet-50 text-violet-700 border border-violet-100"
     : "bg-sky-50 text-sky-700 border border-sky-100";
@@ -58,7 +62,8 @@ function getChannelTone(channel: string) {
 
 export function DashboardStorageCard({ item, onClick }: Props) {
   const statusText = formatStatus(item.reservationStatus);
-  const channelText = formatChannel(item.os);
+  const isBaseballPickup = item.raw.pickupProduct === true;
+  const channelText = isBaseballPickup ? "야구장픽업" : formatChannel(item.os);
   const fullDay = isTwentyFourHourUsage(item.reservationTime);
 
   return (
@@ -147,7 +152,7 @@ export function DashboardStorageCard({ item, onClick }: Props) {
 
         <div className="grid grid-cols-2 gap-3">
           <InfoBlock label="이용시간" value={`${item.reservationTime}분`} />
-          <InfoBlock label="채널" value={channelText} />
+          <InfoBlock label={isBaseballPickup ? "구분" : "채널"} value={channelText} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

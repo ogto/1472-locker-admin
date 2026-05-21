@@ -809,12 +809,12 @@ function PickupCollectModal({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="grid grid-cols-2 gap-2 sm:flex">
                   <button
                     type="button"
                     onClick={() => onOpenLocker(item)}
                     disabled={!item.storageId || openingHistoryId != null || loadingHistoryId != null}
-                    className="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                    className="inline-flex h-11 min-w-0 items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 text-sm font-extrabold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 sm:px-4"
                   >
                     {opening ? "요청 중..." : "문열기"}
                   </button>
@@ -822,7 +822,7 @@ function PickupCollectModal({
                     type="button"
                     onClick={() => onCollect(item.id)}
                     disabled={collected || locked || loadingHistoryId != null || openingHistoryId != null}
-                    className="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                    className="inline-flex h-11 min-w-0 items-center justify-center rounded-2xl bg-slate-900 px-3 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 sm:px-4"
                   >
                     {loading
                       ? "처리 중..."
