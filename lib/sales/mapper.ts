@@ -371,6 +371,9 @@ function buildDailyViewRow(
     point: row.point || "-",
     pointLabel: getPointLabel(row.point),
     memo: row.memo?.trim() || "-",
+    ordId: row.ordId?.trim() || "",
+    tossPaymentKey: row.tossPaymentKey?.trim() || "",
+    memberNo: row.mberNo ?? null,
   };
 }
 

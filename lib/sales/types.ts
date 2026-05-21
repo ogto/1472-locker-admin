@@ -106,6 +106,9 @@ export type DailySalesViewRow = {
   point: string;
   pointLabel: string;
   memo: string;
+  ordId: string;
+  tossPaymentKey: string;
+  memberNo: number | null;
 };
 
 export type MonthSummary = {

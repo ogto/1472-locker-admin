@@ -45,12 +45,87 @@ function getBadgeClass(code: string) {
   return "bg-emerald-100 text-emerald-600";
 }
 
+function getRowTime(row: DailySalesViewRow) {
+  const date = new Date(row.createdAt);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function getFallbackCancelKey(row: DailySalesViewRow) {
+  return [
+    row.memberNo ?? "",
+    row.customerTel.replace(/[^\d]/g, ""),
+    row.customerName.trim(),
+    row.price,
+    row.payTypeCode,
+    row.point,
+  ].join("|");
+}
+
+function buildCanceledPaymentIdSet(rows: DailySalesViewRow[]) {
+  const paymentsByOrdId = new Map<string, DailySalesViewRow[]>();
+  const paymentsByPaymentKey = new Map<string, DailySalesViewRow[]>();
+  const paymentsByFallback = new Map<string, DailySalesViewRow[]>();
+  const canceledIds = new Set<number>();
+
+  const paymentRows = [...rows]
+    .filter((row) => row.rowTypeCode !== "2")
+    .sort((a, b) => getRowTime(a) - getRowTime(b));
+
+  for (const row of paymentRows) {
+    if (row.ordId) {
+      const list = paymentsByOrdId.get(row.ordId) ?? [];
+      list.push(row);
+      paymentsByOrdId.set(row.ordId, list);
+    }
+
+    if (row.tossPaymentKey) {
+      const list = paymentsByPaymentKey.get(row.tossPaymentKey) ?? [];
+      list.push(row);
+      paymentsByPaymentKey.set(row.tossPaymentKey, list);
+    }
+
+    const fallbackKey = getFallbackCancelKey(row);
+    const fallbackList = paymentsByFallback.get(fallbackKey) ?? [];
+    fallbackList.push(row);
+    paymentsByFallback.set(fallbackKey, fallbackList);
+  }
+
+  const cancelRows = [...rows]
+    .filter((row) => row.rowTypeCode === "2")
+    .sort((a, b) => getRowTime(a) - getRowTime(b));
+
+  for (const cancelRow of cancelRows) {
+    const candidates = [
+      ...(cancelRow.ordId ? paymentsByOrdId.get(cancelRow.ordId) ?? [] : []),
+      ...(cancelRow.tossPaymentKey
+        ? paymentsByPaymentKey.get(cancelRow.tossPaymentKey) ?? []
+        : []),
+      ...(paymentsByFallback.get(getFallbackCancelKey(cancelRow)) ?? []),
+    ];
+
+    const cancelTime = getRowTime(cancelRow);
+    const matched = candidates
+      .filter((row) => !canceledIds.has(row.id))
+      .filter((row) => !cancelTime || getRowTime(row) <= cancelTime)
+      .sort((a, b) => getRowTime(b) - getRowTime(a))[0];
+
+    if (matched) {
+      canceledIds.add(matched.id);
+    }
+  }
+
+  return canceledIds;
+}
+
 export function SalesDailyTable({
   rows,
   periodType,
   onClickAddManual,
   onClickRow,
 }: Props) {
+  const canceledPaymentIds = buildCanceledPaymentIdSet(rows);
+  const visibleRows = rows.filter((row) => row.rowTypeCode !== "2");
+
   return (
     <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -74,7 +149,7 @@ export function SalesDailyTable({
         ) : null}
       </div>
 
-      {rows.length === 0 ? (
+      {visibleRows.length === 0 ? (
         <div className="rounded-[24px] border border-dashed border-slate-200 px-4 py-12 text-center text-[15px] font-semibold text-slate-400">
           데이터가 없습니다.
         </div>
@@ -82,10 +157,11 @@ export function SalesDailyTable({
         <>
           {/* 모바일 카드형 */}
           <div className="space-y-3 sm:hidden">
-            {rows.map((row) => {
+            {visibleRows.map((row) => {
               const rowTypeText = getRowTypeText(row);
               const payTypeText = getPayTypeText(row);
               const priceText = getPriceText(row);
+              const isCanceledPayment = canceledPaymentIds.has(row.id);
 
               return (
                 <article
@@ -99,11 +175,23 @@ export function SalesDailyTable({
                       onClickRow?.(row);
                     }
                   }}
-                  className="rounded-[24px] bg-slate-50 p-4 shadow-[inset_0_0_0_1px_rgba(226,232,240,0.7)]"
+                  className={[
+                    "rounded-[24px] p-4 shadow-[inset_0_0_0_1px_rgba(226,232,240,0.7)]",
+                    isCanceledPayment
+                      ? "bg-rose-50/60 text-slate-400"
+                      : "bg-slate-50",
+                  ].join(" ")}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-[17px] font-black text-slate-900">
+                      <div
+                        className={[
+                          "text-[17px] font-black",
+                          isCanceledPayment
+                            ? "text-slate-400 line-through decoration-rose-500 decoration-2"
+                            : "text-slate-900",
+                        ].join(" ")}
+                      >
                         {priceText}
                       </div>
                       <div className="mt-1 text-[14px] font-semibold text-slate-500">
@@ -114,10 +202,12 @@ export function SalesDailyTable({
                     <span
                       className={[
                         "inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[13px] font-black",
-                        getBadgeClass(row.rowTypeCode),
+                        isCanceledPayment
+                          ? "bg-rose-100 text-rose-600"
+                          : getBadgeClass(row.rowTypeCode),
                       ].join(" ")}
                     >
-                      {rowTypeText}
+                      {isCanceledPayment ? "취소됨" : rowTypeText}
                     </span>
                   </div>
 
@@ -126,7 +216,14 @@ export function SalesDailyTable({
                       <div className="text-[12px] font-bold text-slate-400">
                         이름
                       </div>
-                      <div className="mt-1 text-[15px] font-black text-slate-800">
+                      <div
+                        className={[
+                          "mt-1 text-[15px] font-black",
+                          isCanceledPayment
+                            ? "text-slate-400 line-through decoration-rose-500 decoration-2"
+                            : "text-slate-800",
+                        ].join(" ")}
+                      >
                         {row.customerName || "-"}
                       </div>
                     </div>
@@ -187,22 +284,35 @@ export function SalesDailyTable({
               </thead>
 
               <tbody>
-                {rows.map((row) => {
+                {visibleRows.map((row) => {
                   const rowTypeText = getRowTypeText(row);
                   const payTypeText = getPayTypeText(row);
                   const priceText = getPriceText(row);
+                  const isCanceledPayment = canceledPaymentIds.has(row.id);
 
                   return (
                     <tr
                       key={row.id}
-                      className="cursor-pointer bg-slate-50 text-sm text-slate-700 transition hover:bg-slate-100"
+                      className={[
+                        "cursor-pointer text-sm transition",
+                        isCanceledPayment
+                          ? "bg-rose-50/60 text-slate-400 hover:bg-rose-50"
+                          : "bg-slate-50 text-slate-700 hover:bg-slate-100",
+                      ].join(" ")}
                       onClick={() => onClickRow?.(row)}
                     >
                       <td className="whitespace-nowrap rounded-l-2xl px-3 py-3 font-semibold">
                         {row.createdAtLabel || "-"}
                       </td>
 
-                      <td className="px-3 py-3 font-semibold text-slate-900">
+                      <td
+                        className={[
+                          "px-3 py-3 font-semibold",
+                          isCanceledPayment
+                            ? "text-slate-400 line-through decoration-rose-500 decoration-2"
+                            : "text-slate-900",
+                        ].join(" ")}
+                      >
                         {row.customerName || "-"}
                       </td>
 
@@ -212,16 +322,25 @@ export function SalesDailyTable({
                         <span
                           className={[
                             "inline-flex min-w-[58px] items-center justify-center rounded-full px-3 py-1 text-xs font-black",
-                            getBadgeClass(row.rowTypeCode),
+                            isCanceledPayment
+                              ? "bg-rose-100 text-rose-600"
+                              : getBadgeClass(row.rowTypeCode),
                           ].join(" ")}
                         >
-                          {rowTypeText}
+                          {isCanceledPayment ? "취소됨" : rowTypeText}
                         </span>
                       </td>
 
                       <td className="px-3 py-3 font-semibold">{payTypeText}</td>
 
-                      <td className="px-3 py-3 font-black text-slate-900">
+                      <td
+                        className={[
+                          "px-3 py-3 font-black",
+                          isCanceledPayment
+                            ? "text-slate-400 line-through decoration-rose-500 decoration-2"
+                            : "text-slate-900",
+                        ].join(" ")}
+                      >
                         {priceText}
                       </td>
 
