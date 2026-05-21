@@ -158,6 +158,17 @@ function isRunningStatus(status?: string | null) {
   return status === "COMPLETED" || status === "READY";
 }
 
+function isCanceledStatus(status?: string | null) {
+  const normalized = status?.trim().toUpperCase() || "";
+  return normalized === "CANCEL" || normalized === "CANCELED";
+}
+
+function canceledTextClass(canceled: boolean) {
+  return canceled
+    ? "text-slate-400 line-through decoration-rose-500 decoration-2"
+    : "text-slate-900";
+}
+
 export function HistoryDetailPanel({
   loading,
   errorText,
@@ -204,11 +215,12 @@ export function HistoryDetailPanel({
         const statusLabel = formatStatus(item.reservationStatus);
         const pickupLabel = formatPickupLabel(item.pickupProduct);
         const osLabel = formatChannel(item.os);
+        const canceled = isCanceledStatus(item.reservationStatus);
         const reservationDateText = formatReservationDateTime(
           item.reservationDay,
           item.reservationStartTime
         );
-        const running = isRunningStatus(item.reservationStatus);
+        const running = !canceled && isRunningStatus(item.reservationStatus);
         const endTimeText = running ? "-" : formatDateTime(item.updateAt);
         const addPayLabel = running ? "현재 추가요금" : "추가요금";
         const pointLabel = formatPoint(item.point);
@@ -218,14 +230,21 @@ export function HistoryDetailPanel({
             key={item.id}
             className={[
               "rounded-[24px] border p-4 shadow-sm",
-              fullDay
+              canceled
+                ? "border-rose-100 bg-rose-50/70"
+                : fullDay
                 ? "border-cyan-200 bg-[linear-gradient(180deg,rgba(236,254,255,0.96)_0%,rgba(255,255,255,0.98)_100%)]"
                 : "border-white/70 bg-white",
             ].join(" ")}
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="flex flex-wrap items-center gap-2 text-base font-black text-slate-900">
+                <div
+                  className={[
+                    "flex flex-wrap items-center gap-2 text-base font-black",
+                    canceledTextClass(canceled),
+                  ].join(" ")}
+                >
                   <span>보관함 {item.storageId ?? "-"}</span>
                   <Badge text={typeLabel} tone={storageTypeTone(typeLabel)} />
                   {fullDay ? <Badge text="24H" tone="cyan" /> : null}
@@ -236,7 +255,10 @@ export function HistoryDetailPanel({
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Badge text={statusLabel} tone={statusTone(statusLabel)} />
+                <Badge
+                  text={canceled ? "취소됨" : statusLabel}
+                  tone={canceled ? "rose" : statusTone(statusLabel)}
+                />
                 <Badge text={pickupLabel} tone={pickupTone(item.pickupProduct)} />
                 <Badge text={osLabel} tone={channelTone(osLabel)} />
               </div>
@@ -245,12 +267,17 @@ export function HistoryDetailPanel({
             <div
               className={[
                 "mt-4 grid grid-cols-2 gap-3 rounded-2xl p-3 xl:grid-cols-4",
-                fullDay ? "bg-white/75" : "bg-slate-50",
+                canceled ? "bg-white/70" : fullDay ? "bg-white/75" : "bg-slate-50",
               ].join(" ")}
             >
               <div>
                 <div className="text-xs font-black text-slate-400">보관일시</div>
-                <div className="mt-1 text-sm font-black text-slate-900">
+                <div
+                  className={[
+                    "mt-1 text-sm font-black",
+                    canceledTextClass(canceled),
+                  ].join(" ")}
+                >
                   {reservationDateText}
                 </div>
               </div>
@@ -259,14 +286,24 @@ export function HistoryDetailPanel({
                 <div className="text-xs font-black text-slate-400">
                   종료시간
                 </div>
-                <div className="mt-1 text-sm font-black text-slate-900">
+                <div
+                  className={[
+                    "mt-1 text-sm font-black",
+                    canceledTextClass(canceled),
+                  ].join(" ")}
+                >
                   {endTimeText}
                 </div>
               </div>
 
               <div>
                 <div className="text-xs font-black text-slate-400">기본금액</div>
-                <div className="mt-1 text-sm font-black text-slate-900">
+                <div
+                  className={[
+                    "mt-1 text-sm font-black",
+                    canceledTextClass(canceled),
+                  ].join(" ")}
+                >
                   {formatPrice(item.price)}
                 </div>
               </div>
@@ -275,7 +312,12 @@ export function HistoryDetailPanel({
                 <div className="text-xs font-black text-slate-400">
                   {addPayLabel}
                 </div>
-                <div className="mt-1 text-sm font-black text-slate-900">
+                <div
+                  className={[
+                    "mt-1 text-sm font-black",
+                    canceledTextClass(canceled),
+                  ].join(" ")}
+                >
                   {formatPrice(item.addPay)}
                 </div>
               </div>
