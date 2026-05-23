@@ -33,10 +33,32 @@ function buildDeviceRanges(): DeviceRange[] {
     end: Math.min(142, MAX_LOCKERS),
   });
 
-  // 19 ~ 37번 ESP: 18번에서 빠진 2칸 때문에 143번부터 이어서 각 8개씩
+  // 19 ~ 20번 ESP: 18번에서 빠진 2칸 때문에 143번부터 이어서 각 8개씩
   let coldStart = 143;
 
-  for (let deviceNo = 19; deviceNo <= 37; deviceNo += 1) {
+  for (let deviceNo = 19; deviceNo <= 20; deviceNo += 1) {
+    const end = Math.min(coldStart + 7, MAX_LOCKERS);
+
+    ranges.push({
+      deviceNo,
+      start: coldStart,
+      end,
+    });
+
+    coldStart = end + 1;
+  }
+
+  // 21번 ESP: 16채널 사용
+  ranges.push({
+    deviceNo: 21,
+    start: coldStart,
+    end: Math.min(coldStart + 15, MAX_LOCKERS),
+  });
+
+  coldStart += 16;
+
+  // 22 ~ 36번 ESP: 21번 이후 다시 각 8개씩
+  for (let deviceNo = 22; deviceNo <= 36; deviceNo += 1) {
     const end = Math.min(coldStart + 7, MAX_LOCKERS);
 
     ranges.push({

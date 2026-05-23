@@ -127,7 +127,7 @@ export function HistorySummaryCards({
                 {storageCount}
               </span>
               <span className="pb-1 text-[13px] font-bold text-slate-500 sm:text-[14px]">
-                전체 보관함 건수
+                전체 보관함 칸수
               </span>
             </div>
           </div>
@@ -135,25 +135,25 @@ export function HistorySummaryCards({
 
         <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryStatWithCancelChip
-            label="냉장 건수"
+            label="냉장 칸수"
             value={coldCount}
             canceledValue={coldCanceledCount}
             className="bg-sky-100 text-sky-900"
           />
           <SummaryStatWithCancelChip
-            label="상온 건수"
+            label="상온 칸수"
             value={roomCount}
             canceledValue={roomCanceledCount}
             className="bg-amber-100 text-amber-900"
           />
           <SummaryStatWithCancelChip
-            label="케리어 건수"
+            label="케리어 칸수"
             value={carrierCount}
             canceledValue={carrierCanceledCount}
             className="bg-violet-100 text-violet-900"
           />
           <SummaryStatWithCancelChip
-            label="야구장픽업 건수"
+            label="야구장픽업 칸수"
             value={pickupCount}
             canceledValue={pickupCanceledCount}
             className="bg-pink-100 text-pink-900"
