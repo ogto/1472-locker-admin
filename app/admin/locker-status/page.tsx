@@ -706,8 +706,15 @@ export default function AdminLockerStatusPage() {
     setSuccessText("");
     setEspOpenResults([]);
 
-    if (deviceNo == null || deviceNo < 1 || deviceNo > MAX_DEVICE_NO || !range) {
+    if (deviceNo == null || deviceNo < 1 || deviceNo > MAX_DEVICE_NO) {
       setErrorText(`ESP 번호는 1부터 ${MAX_DEVICE_NO}까지 입력할 수 있습니다.`);
+      return;
+    }
+
+    if (!range) {
+      setErrorText(
+        `ESP ${deviceNo}번에는 현재 매핑된 보관함이 없습니다. 37번은 295~300번을 사용하고, 38번은 사용하지 않으며, 39번부터 상온 301번 이후를 사용합니다.`
+      );
       return;
     }
 

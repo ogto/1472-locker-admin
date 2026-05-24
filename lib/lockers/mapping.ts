@@ -70,14 +70,14 @@ function buildDeviceRanges(): DeviceRange[] {
     coldStart = end + 1;
   }
 
-  // 38번 ESP: 예외적으로 295 ~ 300만 사용
+  // 37번 ESP: 예외적으로 295 ~ 300만 사용
   ranges.push({
-    deviceNo: 38,
+    deviceNo: 37,
     start: 295,
     end: Math.min(300, MAX_LOCKERS),
   });
 
-  // 39번 ESP부터 다시 8개씩 정상 배치
+  // 38번은 사용하지 않고, 39번 ESP부터 상온 보관함을 8개씩 배치
   let currentStart = 301;
 
   for (let deviceNo = 39; deviceNo <= MAX_DEVICE_NO; deviceNo += 1) {
