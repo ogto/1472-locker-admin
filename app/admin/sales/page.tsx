@@ -138,7 +138,7 @@ function DailyCancelListModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.46)] p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.46)] p-3 backdrop-blur-[3px] sm:p-4"
       onClick={onClose}
     >
       <div
@@ -165,7 +165,7 @@ function DailyCancelListModal({
           </button>
         </div>
 
-        <div className="overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+        <div className="overflow-y-auto px-3 py-4 sm:px-6 sm:py-5">
           {errorText ? (
             <div className="mb-3 rounded-[20px] bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">
               {errorText}
@@ -181,7 +181,63 @@ function DailyCancelListModal({
               취소 내역이 없습니다.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="space-y-3 sm:hidden">
+              {rows.map((row) => {
+                const detail = details[row.id];
+
+                return (
+                  <article
+                    key={row.id}
+                    className="rounded-[24px] bg-rose-50/70 p-4 text-sm text-slate-600"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-black text-slate-400">
+                          취소금액
+                        </div>
+                        <div className="mt-1 text-[20px] font-black text-rose-600">
+                          {row.priceLabel || formatPrice(row.price)}
+                        </div>
+                      </div>
+                      <span className="inline-flex shrink-0 items-center justify-center rounded-full bg-rose-100 px-3 py-1 text-xs font-black text-rose-600">
+                        취소
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 gap-2">
+                      <CancelDetailField
+                        label="결제일시"
+                        value={detail?.paymentAtLabel || "-"}
+                      />
+                      <CancelDetailField
+                        label="취소일시"
+                        value={detail?.cancelAtLabel || row.createdAtLabel || "-"}
+                        strong
+                      />
+                      <CancelDetailField
+                        label="이름"
+                        value={row.customerName || "-"}
+                      />
+                      <CancelDetailField
+                        label="전화번호"
+                        value={row.customerTel || "-"}
+                      />
+                      <CancelDetailField
+                        label="결제수단"
+                        value={row.payTypeLabel || "-"}
+                      />
+                      <CancelDetailField
+                        label="지점"
+                        value={row.pointLabel || "-"}
+                      />
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto sm:block">
               <table className="min-w-full border-separate border-spacing-y-2">
                 <thead>
                   <tr className="text-left text-sm font-black text-slate-500">
@@ -235,8 +291,33 @@ function DailyCancelListModal({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CancelDetailField({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl bg-white/80 px-3 py-3">
+      <div className="text-[12px] font-bold text-slate-400">{label}</div>
+      <div
+        className={[
+          "mt-1 break-words text-[14px] font-black",
+          strong ? "text-rose-600" : "text-slate-800",
+        ].join(" ")}
+      >
+        {value}
       </div>
     </div>
   );
