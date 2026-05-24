@@ -13,6 +13,7 @@ import { SalesMonthCalendar } from "@/components/sales/sales-month-calendar";
 import { SalesSummaryCards } from "@/components/sales/sales-summary-cards";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useSales } from "@/hooks/use-sales";
+import { formatPrice } from "@/lib/common";
 import { fetchReserveHistoryDetail } from "@/lib/history/api";
 import {
   buildFilteredDailySummary,
@@ -60,6 +61,19 @@ function parseDateLike(value: unknown) {
   return null;
 }
 
+function formatDateLikeLabel(value: unknown) {
+  const parsed = parseDateLike(value);
+  if (!parsed) return "-";
+
+  const yyyy = parsed.getFullYear();
+  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+  const dd = String(parsed.getDate()).padStart(2, "0");
+  const hh = String(parsed.getHours()).padStart(2, "0");
+  const mi = String(parsed.getMinutes()).padStart(2, "0");
+
+  return `${yyyy}.${mm}.${dd} ${hh}:${mi}`;
+}
+
 function filterDetailsForSalesRow(
   row: DailySalesViewRow,
   items: HistoryDetailItem[],
@@ -98,6 +112,136 @@ function applySalesRowAmountToDetails(
   return items;
 }
 
+type DailyCancelDetail = {
+  paymentAtLabel: string;
+  cancelAtLabel: string;
+};
+
+function DailyCancelListModal({
+  rows,
+  details,
+  loading,
+  errorText,
+  totalAmount,
+  totalCount,
+  date,
+  onClose,
+}: {
+  rows: DailySalesViewRow[];
+  details: Record<number, DailyCancelDetail>;
+  loading: boolean;
+  errorText: string;
+  totalAmount: number;
+  totalCount: number;
+  date: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,23,42,0.46)] p-4 backdrop-blur-[3px]"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,247,249,0.96)_100%)] shadow-[0_24px_80px_rgba(15,23,42,0.22)] sm:rounded-[32px]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-4 border-b border-rose-100 px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <div className="text-[22px] font-black tracking-[-0.03em] text-slate-900">
+              당일 취소 내역
+            </div>
+            <div className="mt-1 text-sm font-bold text-slate-500">
+              {date} · 취소 {totalCount.toLocaleString()}건 ·{" "}
+              {formatPrice(totalAmount)}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-rose-100 bg-white/90 px-4 py-2.5 text-[14px] font-extrabold text-slate-700 shadow-sm transition hover:bg-rose-50"
+          >
+            닫기
+          </button>
+        </div>
+
+        <div className="overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+          {errorText ? (
+            <div className="mb-3 rounded-[20px] bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">
+              {errorText}
+            </div>
+          ) : null}
+
+          {loading ? (
+            <div className="rounded-[24px] bg-slate-50 px-5 py-8 text-center text-sm font-bold text-slate-500">
+              취소 상세를 불러오는 중입니다.
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="rounded-[24px] bg-slate-50 px-5 py-8 text-center text-sm font-bold text-slate-500">
+              취소 내역이 없습니다.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-separate border-spacing-y-2">
+                <thead>
+                  <tr className="text-left text-sm font-black text-slate-500">
+                    <th className="px-3 py-2">결제일시</th>
+                    <th className="px-3 py-2">취소일시</th>
+                    <th className="px-3 py-2">이름</th>
+                    <th className="px-3 py-2">전화번호</th>
+                    <th className="px-3 py-2">구분</th>
+                    <th className="px-3 py-2">결제수단</th>
+                    <th className="px-3 py-2">취소금액</th>
+                    <th className="px-3 py-2">지점</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {rows.map((row) => {
+                    const detail = details[row.id];
+
+                    return (
+                      <tr
+                        key={row.id}
+                        className="bg-rose-50/70 text-sm text-slate-500"
+                      >
+                        <td className="whitespace-nowrap rounded-l-2xl px-3 py-3 font-semibold text-slate-500">
+                          {detail?.paymentAtLabel || "-"}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 font-semibold text-rose-600">
+                          {detail?.cancelAtLabel || row.createdAtLabel || "-"}
+                        </td>
+                        <td className="px-3 py-3 font-semibold text-slate-700">
+                          {row.customerName || "-"}
+                        </td>
+                        <td className="px-3 py-3">{row.customerTel || "-"}</td>
+                        <td className="px-3 py-3">
+                          <span className="inline-flex min-w-[58px] items-center justify-center rounded-full bg-rose-100 px-3 py-1 text-xs font-black text-rose-600">
+                            취소
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 font-semibold">
+                          {row.payTypeLabel || "-"}
+                        </td>
+                        <td className="px-3 py-3 font-black text-rose-600">
+                          {row.priceLabel || formatPrice(row.price)}
+                        </td>
+                        <td className="rounded-r-2xl px-3 py-3">
+                          {row.pointLabel || "-"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminSalesPage() {
   const auth = useAdminAuth();
 
@@ -109,6 +253,12 @@ export default function AdminSalesPage() {
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [date, setDate] = useState(getTodayDateString());
   const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [cancelListModalOpen, setCancelListModalOpen] = useState(false);
+  const [cancelListLoading, setCancelListLoading] = useState(false);
+  const [cancelListErrorText, setCancelListErrorText] = useState("");
+  const [cancelDetails, setCancelDetails] = useState<
+    Record<number, DailyCancelDetail>
+  >({});
   const [selectedRow, setSelectedRow] = useState<DailySalesViewRow | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -148,6 +298,67 @@ export default function AdminSalesPage() {
     const next = new Date(year, month - 1 + diff, 1);
     setYear(next.getFullYear());
     setMonth(next.getMonth() + 1);
+  }
+
+  const dailyCancelRows = useMemo(() => {
+    if (!filteredData || periodType !== "daily") return [];
+
+    return filteredData.dailyRows.filter((row) => row.rowTypeCode === "2");
+  }, [filteredData, periodType]);
+
+  async function handleOpenCancelList() {
+    setCancelListModalOpen(true);
+    setCancelListErrorText("");
+
+    if (dailyCancelRows.length === 0) {
+      setCancelDetails({});
+      return;
+    }
+
+    setCancelListLoading(true);
+
+    try {
+      const entries = await Promise.all(
+        dailyCancelRows.map(async (row) => {
+          let paymentAtLabel = "-";
+
+          if (row.reserveId != null) {
+            try {
+              const details = await fetchReserveHistoryDetail(
+                row.reserveId,
+                row.point,
+              );
+              const matched =
+                details.find((item) => item.reserveId === row.reserveId) ??
+                details[0];
+
+              paymentAtLabel = formatDateLikeLabel(matched?.createdAt);
+            } catch {
+              paymentAtLabel = "-";
+            }
+          }
+
+          return [
+            row.id,
+            {
+              paymentAtLabel,
+              cancelAtLabel: formatDateLikeLabel(row.createdAt),
+            },
+          ] as const;
+        }),
+      );
+
+      setCancelDetails(Object.fromEntries(entries));
+    } catch (error) {
+      setCancelDetails({});
+      setCancelListErrorText(
+        error instanceof Error
+          ? error.message
+          : "취소 상세를 불러오지 못했습니다.",
+      );
+    } finally {
+      setCancelListLoading(false);
+    }
   }
 
   async function handleClickDailyRow(row: DailySalesViewRow) {
@@ -295,6 +506,7 @@ export default function AdminSalesPage() {
                   periodType={periodType}
                   monthSummary={filteredData.monthSummary}
                   dailySummary={filteredData.dailySummary}
+                  onClickDailyRefund={() => void handleOpenCancelList()}
                 />
                 <SalesDailyTable
                   rows={filteredData.dailyRows}
@@ -316,6 +528,22 @@ export default function AdminSalesPage() {
           onClose={() => setManualModalOpen(false)}
           onSubmit={async (payload) => {
             await submitManualSales(payload);
+          }}
+        />
+      ) : null}
+
+      {cancelListModalOpen ? (
+        <DailyCancelListModal
+          rows={dailyCancelRows}
+          details={cancelDetails}
+          loading={cancelListLoading}
+          errorText={cancelListErrorText}
+          totalAmount={filteredData?.dailySummary.refundAmount ?? 0}
+          totalCount={filteredData?.dailySummary.refundCount ?? 0}
+          date={date}
+          onClose={() => {
+            setCancelListModalOpen(false);
+            setCancelListErrorText("");
           }}
         />
       ) : null}

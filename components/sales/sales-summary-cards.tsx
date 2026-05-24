@@ -1,36 +1,63 @@
 import { formatPrice } from "@/lib/common";
-import type { DailySummary, MonthSummary, SalesPeriodType } from "@/lib/sales/types";
+import type {
+  DailySummary,
+  MonthSummary,
+  SalesPeriodType,
+} from "@/lib/sales/types";
 
 type Props = {
   periodType: SalesPeriodType;
   monthSummary: MonthSummary;
   dailySummary: DailySummary;
+  onClickDailyRefund?: () => void;
 };
 
 function SummaryCard({
   title,
   value,
   helper,
+  onClick,
 }: {
   title: string;
   value: string;
   helper: string;
+  onClick?: () => void;
 }) {
-  return (
-    <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+  const className = [
+    "rounded-[28px] border border-slate-200 bg-white p-5 text-left shadow-sm",
+    onClick
+      ? "transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md"
+      : "",
+  ].join(" ");
+
+  const content = (
+    <>
       <p className="text-[12px] font-bold text-slate-500">{title}</p>
       <p className="mt-3 text-[26px] font-black tracking-[-0.03em] text-slate-900">
         {value}
       </p>
-      <p className="mt-2 whitespace-pre-line text-[12px] text-slate-500">{helper}</p>
-    </article>
+      <p className="mt-2 whitespace-pre-line text-[12px] text-slate-500">
+        {helper}
+      </p>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {content}
+      </button>
+    );
+  }
+
+  return <article className={className}>{content}</article>;
 }
 
 export function SalesSummaryCards({
   periodType,
   monthSummary,
   dailySummary,
+  onClickDailyRefund,
 }: Props) {
   if (periodType === "month") {
     return (
@@ -38,12 +65,14 @@ export function SalesSummaryCards({
         <section>
           <div className="mb-3 px-1">
             <h3 className="text-base font-black text-slate-900">매출 요약</h3>
-            <p className="mt-1 text-sm text-slate-500">결제, 취소, 기본요금, 추가요금 기준</p>
+            <p className="mt-1 text-sm text-slate-500">
+              결제, 취소, 기본요금, 추가요금 기준
+            </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <SummaryCard
-              title="총 결제액"
+              title="총 결제금액"
               value={formatPrice(monthSummary.totalPaymentAmount)}
               helper={`총 ${monthSummary.totalPaymentCount.toLocaleString()}건 결제`}
             />
@@ -61,7 +90,7 @@ export function SalesSummaryCards({
             />
 
             <SummaryCard
-              title="총 취소액"
+              title="총 취소금액"
               value={formatPrice(monthSummary.totalCancelAmount)}
               helper={`총 ${monthSummary.totalCancelCount.toLocaleString()}건 취소`}
             />
@@ -69,7 +98,7 @@ export function SalesSummaryCards({
             <SummaryCard
               title="순매출"
               value={formatPrice(monthSummary.totalAmount)}
-              helper="총 결제액 - 총 취소액"
+              helper="총 결제금액 - 총 취소금액"
             />
           </div>
         </section>
@@ -77,7 +106,9 @@ export function SalesSummaryCards({
         <section>
           <div className="mb-3 px-1">
             <h3 className="text-base font-black text-slate-900">보관 유형</h3>
-            <p className="mt-1 text-sm text-slate-500">냉장 / 상온 / 케리어 건수</p>
+            <p className="mt-1 text-sm text-slate-500">
+              냉장 / 상온 / 캐리어 건수
+            </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -94,9 +125,9 @@ export function SalesSummaryCards({
             />
 
             <SummaryCard
-              title="케리어"
+              title="캐리어"
               value={`${(monthSummary.carrierCount ?? 0).toLocaleString()}건`}
-              helper="케리어 보관 건수"
+              helper="캐리어 보관 건수"
             />
           </div>
         </section>
@@ -108,8 +139,12 @@ export function SalesSummaryCards({
     <div className="space-y-4">
       <section>
         <div className="mb-3 px-1">
-          <h3 className="text-base font-black text-slate-900">당일 매출 요약</h3>
-          <p className="mt-1 text-sm text-slate-500">결제, 취소, 기본요금, 추가요금 기준</p>
+          <h3 className="text-base font-black text-slate-900">
+            당일 매출 요약
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            결제, 취소, 기본요금, 추가요금 기준
+          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -135,6 +170,7 @@ export function SalesSummaryCards({
             title="당일 취소금액"
             value={formatPrice(dailySummary.refundAmount)}
             helper={`취소 ${dailySummary.refundCount.toLocaleString()}건`}
+            onClick={onClickDailyRefund}
           />
 
           <SummaryCard
@@ -150,8 +186,12 @@ export function SalesSummaryCards({
 
       <section>
         <div className="mb-3 px-1">
-          <h3 className="text-base font-black text-slate-900">당일 보관 유형</h3>
-          <p className="mt-1 text-sm text-slate-500">냉장 / 상온 / 케리어 건수</p>
+          <h3 className="text-base font-black text-slate-900">
+            당일 보관 유형
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            냉장 / 상온 / 캐리어 건수
+          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -168,9 +208,9 @@ export function SalesSummaryCards({
           />
 
           <SummaryCard
-            title="케리어"
+            title="캐리어"
             value={`${(dailySummary.carrierCount ?? 0).toLocaleString()}건`}
-            helper="케리어 보관 건수"
+            helper="캐리어 보관 건수"
           />
         </div>
       </section>

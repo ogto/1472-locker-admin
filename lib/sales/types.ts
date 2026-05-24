@@ -44,7 +44,7 @@ export type DailySalesApiItem = {
   tel?: string | null;
   payType: string | number;
   type: string | number;
-  createdAt: string;
+  createdAt: string | number[];
   ordId?: string | null;
   tossPaymentKey?: string | null;
   couponCodeId?: number | null;
@@ -93,7 +93,7 @@ export type PaymentChartRow = {
 export type DailySalesViewRow = {
   id: number;
   reserveId: number | null;
-  createdAt: string;
+  createdAt: string | number[];
   createdAtLabel: string;
   customerName: string;
   customerTel: string;
@@ -174,7 +174,7 @@ export type ManualSalesResponse = {
 export type ManualSalesViewRow = {
   id: number;
   reserveId: number | null;
-  createdAt: string;
+  createdAt: string | number[];
   createdAtLabel: string;
   price: number;
   priceLabel: string;

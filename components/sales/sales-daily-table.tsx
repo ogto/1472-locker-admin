@@ -46,8 +46,28 @@ function getBadgeClass(code: string) {
 }
 
 function getRowTime(row: DailySalesViewRow) {
-  const date = new Date(row.createdAt);
-  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  const raw: unknown = row.createdAt;
+
+  if (Array.isArray(raw) && raw.length >= 5) {
+    const [year, month, day, hour, minute, second = 0] = raw;
+    const parsed = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    );
+
+    return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+  }
+
+  if (typeof raw === "string" && raw.trim()) {
+    const date = new Date(raw);
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  }
+
+  return 0;
 }
 
 function getFallbackCancelKey(row: DailySalesViewRow) {

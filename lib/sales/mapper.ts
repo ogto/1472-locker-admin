@@ -52,8 +52,24 @@ function extractCode(raw?: string | number | null) {
   return anyNumber?.[0] ?? "";
 }
 
-function parseFlexibleDate(value?: string | null) {
+function parseFlexibleDate(value?: string | number[] | null) {
   if (!value) return null;
+
+  if (Array.isArray(value) && value.length >= 5) {
+    const [year, month, day, hour, minute, second = 0] = value;
+    const parsed = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+    );
+
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  if (Array.isArray(value)) return null;
 
   const direct = new Date(value);
   if (!Number.isNaN(direct.getTime())) return direct;
@@ -209,9 +225,9 @@ function formatDateLabel(value?: string | null) {
   return `${yyyy}.${mm}.${dd}`;
 }
 
-function formatDateTimeLabel(value?: string | null) {
+function formatDateTimeLabel(value?: string | number[] | null) {
   const date = parseFlexibleDate(value);
-  if (!date) return value || "-";
+  if (!date) return typeof value === "string" ? value : "-";
 
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, "0");
