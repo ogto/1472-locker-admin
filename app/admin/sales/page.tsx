@@ -189,7 +189,7 @@ function DailyCancelListModal({
                 return (
                   <article
                     key={row.id}
-                    className="rounded-[24px] bg-rose-50/70 p-4 text-sm text-slate-600"
+                    className="rounded-[22px] bg-rose-50/70 p-3 text-sm text-slate-600"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -205,7 +205,7 @@ function DailyCancelListModal({
                       </span>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-1 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2">
                       <CancelDetailField
                         label="결제일시"
                         value={detail?.paymentAtLabel || "-"}
@@ -227,10 +227,6 @@ function DailyCancelListModal({
                         label="결제수단"
                         value={row.payTypeLabel || "-"}
                       />
-                      <CancelDetailField
-                        label="지점"
-                        value={row.pointLabel || "-"}
-                      />
                     </div>
                   </article>
                 );
@@ -248,7 +244,6 @@ function DailyCancelListModal({
                     <th className="px-3 py-2">구분</th>
                     <th className="px-3 py-2">결제수단</th>
                     <th className="px-3 py-2">취소금액</th>
-                    <th className="px-3 py-2">지점</th>
                   </tr>
                 </thead>
 
@@ -282,9 +277,6 @@ function DailyCancelListModal({
                         <td className="px-3 py-3 font-black text-rose-600">
                           {row.priceLabel || formatPrice(row.price)}
                         </td>
-                        <td className="rounded-r-2xl px-3 py-3">
-                          {row.pointLabel || "-"}
-                        </td>
                       </tr>
                     );
                   })}
@@ -309,11 +301,11 @@ function CancelDetailField({
   strong?: boolean;
 }) {
   return (
-    <div className="rounded-2xl bg-white/80 px-3 py-3">
+    <div className="rounded-2xl bg-white/80 px-3 py-2">
       <div className="text-[12px] font-bold text-slate-400">{label}</div>
       <div
         className={[
-          "mt-1 break-words text-[14px] font-black",
+          "mt-0.5 break-words text-[13px] font-black leading-5",
           strong ? "text-rose-600" : "text-slate-800",
         ].join(" ")}
       >
