@@ -18,10 +18,24 @@ type PickupGroup = {
   tel: string;
   status: string;
   statusLabel: string;
+  reservationDateTimeText: string;
   reservationTimeText: string;
   storageIds: number[];
   items: HistoryItem[];
 };
+
+function formatReservationDateTime(item: HistoryItem) {
+  const day = String(item.reservationDay || "").trim();
+  const time = String(item.reservationStartTime || "").trim();
+
+  if (day && time) return `${day} ${time}`;
+  if (day) return day;
+  return time || "-";
+}
+
+function getFirstStorageId(group: PickupGroup) {
+  return group.storageIds.length > 0 ? group.storageIds[0] : Number.MAX_SAFE_INTEGER;
+}
 
 function formatTel(tel: string) {
   const value = String(tel || "").trim();
@@ -61,6 +75,7 @@ function buildPickupGroups(items: HistoryItem[]): PickupGroup[] {
         tel: item.tel || "",
         status: item.reservationStatus || "",
         statusLabel: formatHistoryStatus(item.reservationStatus),
+        reservationDateTimeText: formatReservationDateTime(item),
         reservationTimeText: item.reservationStartTime || "-",
         storageIds: storageId ? [storageId] : [],
         items: [item],
@@ -90,10 +105,8 @@ function buildPickupGroups(items: HistoryItem[]): PickupGroup[] {
       };
     })
     .sort((a, b) => {
-      const timeCompare = a.reservationTimeText.localeCompare(
-        b.reservationTimeText
-      );
-      if (timeCompare !== 0) return timeCompare;
+      const storageCompare = getFirstStorageId(a) - getFirstStorageId(b);
+      if (storageCompare !== 0) return storageCompare;
       return a.reserveId - b.reserveId;
     });
 }
@@ -294,6 +307,16 @@ export default function AdminLogsPage() {
   }, [mounted, auth.booting, auth.authenticated]);
 
   const groups = useMemo(() => buildPickupGroups(items), [items]);
+  const summary = useMemo(
+    () => ({
+      reservationCount: groups.length,
+      storageCount: groups.reduce(
+        (total, group) => total + group.storageIds.length,
+        0
+      ),
+    }),
+    [groups]
+  );
   const filteredGroups = useMemo(
     () => filterPickupGroups(groups, searchQuery),
     [groups, searchQuery]
@@ -446,6 +469,32 @@ export default function AdminLogsPage() {
       />
 
       <div className="space-y-4 lg:space-y-6">
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-[28px] border border-pink-100 bg-white/90 p-5 shadow-[0_18px_42px_rgba(15,23,42,0.07)]">
+            <div className="text-sm font-black text-slate-500">총예약</div>
+            <div className="mt-2 flex items-end gap-2">
+              <span className="text-[38px] font-black leading-none tracking-tight text-slate-950">
+                {summary.reservationCount}
+              </span>
+              <span className="pb-1 text-base font-extrabold text-slate-500">
+                건
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-sky-100 bg-white/90 p-5 shadow-[0_18px_42px_rgba(15,23,42,0.07)]">
+            <div className="text-sm font-black text-slate-500">보관함</div>
+            <div className="mt-2 flex items-end gap-2">
+              <span className="text-[38px] font-black leading-none tracking-tight text-slate-950">
+                {summary.storageCount}
+              </span>
+              <span className="pb-1 text-base font-extrabold text-slate-500">
+                칸
+              </span>
+            </div>
+          </div>
+        </section>
+
         <section className="rounded-[28px] border border-white/70 bg-white/85 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur sm:p-5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <label className="min-w-0 flex-1">
@@ -530,6 +579,7 @@ function filterPickupGroups(groups: PickupGroup[], query: string) {
       group.tel,
       String(group.reserveId),
       group.statusLabel,
+      group.reservationDateTimeText,
       group.reservationTimeText,
       ...group.storageIds.map(String),
     ];
@@ -596,7 +646,7 @@ function PickupMap({
             예약 #{group.reserveId}
           </div>
           <div className="mt-1 text-sm font-bold text-slate-500">
-            {formatTel(group.tel)} · {group.reservationTimeText}
+            {formatTel(group.tel)} · {group.reservationDateTimeText}
           </div>
         </div>
 
@@ -693,7 +743,7 @@ function PickupCollectModal({
               {group.customerName}
             </div>
             <div className="mt-1 text-sm font-bold text-slate-500">
-              예약 #{group.reserveId} · {formatTel(group.tel)}
+              예약 #{group.reserveId} · {formatTel(group.tel)} · {group.reservationDateTimeText}
             </div>
           </div>
           <span
