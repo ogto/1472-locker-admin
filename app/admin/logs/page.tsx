@@ -428,6 +428,12 @@ export default function AdminLogsPage() {
         await loadPickupStatus();
       }
     } catch (error) {
+      if (status === "PICKUP") {
+        await loadPickupStatus();
+        setSelectedReserveId(null);
+        return;
+      }
+
       setModalErrorText(
         error instanceof Error
           ? error.message
