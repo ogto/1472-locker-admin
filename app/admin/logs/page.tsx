@@ -24,14 +24,6 @@ type PickupGroup = {
   items: HistoryItem[];
 };
 
-function getTodayText() {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 function formatTel(tel: string) {
   const value = String(tel || "").trim();
   if (!value) return "-";
@@ -40,11 +32,12 @@ function formatTel(tel: string) {
 }
 
 function isActivePickupItem(item: HistoryItem) {
-  const status = item.reservationStatus || "";
+  const status = (item.reservationStatus || "").trim().toUpperCase();
 
   return (
     item.point === PICKUP_POINT &&
     item.pickupProduct === true &&
+    status !== "PENDING" &&
     status !== "CANCEL" &&
     status !== "CANCELED" &&
     status !== "PICKUP"
@@ -260,7 +253,6 @@ function getStorageNodeTheme(status: string) {
 export default function AdminLogsPage() {
   const auth = useAdminAuth();
   const [mounted, setMounted] = useState(false);
-  const [todayText, setTodayText] = useState("");
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorText, setErrorText] = useState("");
@@ -272,7 +264,7 @@ export default function AdminLogsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openingHistoryId, setOpeningHistoryId] = useState<number | null>(null);
 
-  async function loadPickupStatus(targetDay = todayText || getTodayText()) {
+  async function loadPickupStatus() {
     setLoading(true);
     setErrorText("");
 
@@ -281,8 +273,6 @@ export default function AdminLogsPage() {
         page: 0,
         size: PAGE_SIZE,
         point: PICKUP_POINT,
-        reservationStartDay: targetDay,
-        reservationEndDay: targetDay,
         pickupProduct: "true",
         sortBy: "storageDateTime",
         sortDir: "asc",
@@ -300,8 +290,6 @@ export default function AdminLogsPage() {
               page: index + 1,
               size: PAGE_SIZE,
               point: PICKUP_POINT,
-              reservationStartDay: targetDay,
-              reservationEndDay: targetDay,
               pickupProduct: "true",
               sortBy: "storageDateTime",
               sortDir: "asc",
@@ -343,18 +331,15 @@ export default function AdminLogsPage() {
   }
 
   useEffect(() => {
-    const today = getTodayText();
-    setTodayText(today);
     setMounted(true);
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
     if (!auth.booting && auth.authenticated) {
-      void loadPickupStatus(todayText || getTodayText());
+      void loadPickupStatus();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, auth.booting, auth.authenticated, todayText]);
+  }, [mounted, auth.booting, auth.authenticated]);
 
   const groups = useMemo(() => buildPickupGroups(items), [items]);
   const filteredGroups = useMemo(
@@ -465,7 +450,7 @@ export default function AdminLogsPage() {
           return prev.map((item) => updatedById.get(item.id) ?? item);
         });
       } else {
-        await loadPickupStatus(todayText);
+        await loadPickupStatus();
       }
     } catch (error) {
       setModalErrorText(
@@ -504,7 +489,7 @@ export default function AdminLogsPage() {
     <AdminShell role={auth.role} onLogout={auth.handleLogout}>
       <AdminHeader
         title="야구장픽업"
-        description={`${todayText} 은행점 오늘 야구장픽업 현황`}
+        description="은행점 진행중 야구장픽업 현황"
         onLogout={auth.handleLogout}
       />
 
@@ -524,7 +509,7 @@ export default function AdminLogsPage() {
 
             <button
               type="button"
-              onClick={() => void loadPickupStatus(todayText)}
+              onClick={() => void loadPickupStatus()}
               disabled={loading}
               className="inline-flex h-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-extrabold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -538,7 +523,7 @@ export default function AdminLogsPage() {
         {loading ? (
           <EmptyPanel title="야구장픽업 현황을 불러오는 중입니다" />
         ) : groups.length === 0 ? (
-          <EmptyPanel title="오늘 야구장픽업 예약이 없습니다" />
+          <EmptyPanel title="진행중인 야구장픽업이 없습니다" />
         ) : filteredGroups.length === 0 ? (
           <EmptyPanel title="검색 결과가 없습니다" />
         ) : (
