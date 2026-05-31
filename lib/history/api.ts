@@ -157,6 +157,29 @@ export async function fetchReserveHistoryDetail(
   return Array.isArray(result?.data) ? result.data : [];
 }
 
+export async function fetchActivePickupProductHistories(
+  point = "bank"
+): Promise<HistoryItem[]> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("point", point);
+
+  const response = await fetch(
+    `/api/dashboard/pickup-product/active?${searchParams.toString()}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message || "야구장픽업 진행 현황 조회에 실패했습니다.");
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
 export async function fetchTodayHistoryByStorage(
   point: string,
   storageId: number

@@ -6,13 +6,11 @@ import { AdminHeader } from "@/components/admin/admin-header";
 import { StatusBanner } from "@/components/admin/status-banner";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LoginCard } from "@/components/auth/login-card";
-import { fetchReserveHistory, fetchReserveHistoryDetail } from "@/lib/history/api";
+import { fetchActivePickupProductHistories } from "@/lib/history/api";
 import { formatHistoryStatus } from "@/lib/history/mapper";
 import type { HistoryItem } from "@/lib/history/types";
 
-const PAGE_SIZE = 200;
 const PICKUP_POINT = "bank";
-const ACTIVE_PICKUP_MASTER_STATUSES = ["COMPLETED", "COLLECTED", "DEPARTED"];
 
 type PickupGroup = {
   reserveId: number;
@@ -43,47 +41,6 @@ function isActivePickupItem(item: HistoryItem) {
     status !== "CANCELED" &&
     status !== "PICKUP"
   );
-}
-
-async function fetchPickupItemsByStatus(status: string) {
-  const firstPage = await fetchReserveHistory({
-    page: 0,
-    size: PAGE_SIZE,
-    point: PICKUP_POINT,
-    reservationStatus: status,
-    pickupProduct: "true",
-    sortBy: "storageDateTime",
-    sortDir: "asc",
-  });
-
-  const pageCount = Math.max(1, Number(firstPage.totalPages || 1));
-  const items = Array.isArray(firstPage.content) ? [...firstPage.content] : [];
-
-  if (pageCount <= 1) {
-    return items;
-  }
-
-  const restPages = await Promise.all(
-    Array.from({ length: pageCount - 1 }, (_, index) =>
-      fetchReserveHistory({
-        page: index + 1,
-        size: PAGE_SIZE,
-        point: PICKUP_POINT,
-        reservationStatus: status,
-        pickupProduct: "true",
-        sortBy: "storageDateTime",
-        sortDir: "asc",
-      })
-    )
-  );
-
-  for (const page of restPages) {
-    if (Array.isArray(page.content)) {
-      items.push(...page.content);
-    }
-  }
-
-  return items;
 }
 
 function buildPickupGroups(items: HistoryItem[]): PickupGroup[] {
@@ -311,28 +268,8 @@ export default function AdminLogsPage() {
     setErrorText("");
 
     try {
-      const nextItems = (
-        await Promise.all(
-          ACTIVE_PICKUP_MASTER_STATUSES.map((status) =>
-            fetchPickupItemsByStatus(status)
-          )
-        )
-      ).flat();
-
-      const pickupItems = nextItems.filter(isActivePickupItem);
-      const reserveIds = Array.from(
-        new Set(pickupItems.map((item) => item.reserveId).filter(Boolean))
-      );
-      const detailResults = await Promise.all(
-        reserveIds.map((reserveId) =>
-          fetchReserveHistoryDetail(reserveId, PICKUP_POINT)
-        )
-      );
-      const detailItems = detailResults
-        .flat()
-        .filter(isActivePickupItem) as HistoryItem[];
-
-      setItems(detailItems.length > 0 ? detailItems : pickupItems);
+      const pickupItems = await fetchActivePickupProductHistories(PICKUP_POINT);
+      setItems(pickupItems.filter(isActivePickupItem));
     } catch (error) {
       setItems([]);
       setErrorText(
