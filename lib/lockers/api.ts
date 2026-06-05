@@ -2,8 +2,6 @@ type DisabledStorageItem = {
   storageId: number;
 };
 
-export type AssignmentConfigKind = "cold" | "room";
-
 export type AssignmentConfig = {
   startGroup: number;
   disabledGroups: number[];
@@ -117,10 +115,8 @@ export async function enableStorage(storageId: number) {
   }
 }
 
-export async function fetchAssignmentConfig(
-  kind: AssignmentConfigKind
-): Promise<AssignmentConfig> {
-  const response = await fetch(`/api/lockers/assignment-config/${kind}`, {
+export async function fetchColdAssignmentConfig(): Promise<AssignmentConfig> {
+  const response = await fetch("/api/lockers/assignment-config/cold", {
     method: "GET",
     cache: "no-store",
   });
@@ -134,11 +130,10 @@ export async function fetchAssignmentConfig(
   return normalizeAssignmentConfig(result?.data);
 }
 
-export async function saveAssignmentConfig(
-  kind: AssignmentConfigKind,
+export async function saveColdAssignmentConfig(
   config: AssignmentConfig
 ): Promise<AssignmentConfig> {
-  const response = await fetch(`/api/lockers/assignment-config/${kind}`, {
+  const response = await fetch("/api/lockers/assignment-config/cold", {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
