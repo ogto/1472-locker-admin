@@ -766,7 +766,7 @@ export default function AdminLockerStatusPage() {
 
     if (!range) {
       setErrorText(
-        `ESP ${deviceNo}번에는 현재 매핑된 보관함이 없습니다. 37번은 295~300번을 사용하고, 38번은 사용하지 않으며, 39번부터 상온 301번 이후를 사용합니다.`
+        `ESP ${deviceNo}번에는 현재 매핑된 보관함이 없습니다. 냉장은 ESP 201~222번, 상온은 ESP 39~50번에 매핑되어 있습니다.`
       );
       return;
     }
