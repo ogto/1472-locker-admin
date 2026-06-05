@@ -21,6 +21,7 @@ import {
   DEFAULT_POINT,
   DEFAULT_PULSE_MS,
   MAX_DEVICE_NO,
+  MAX_LOCKERS,
 } from "@/lib/lockers/constants";
 import { DEVICE_RANGES } from "@/lib/lockers/mapping";
 import {
@@ -31,6 +32,7 @@ import {
 
 const COLD_LOCKERS = Array.from({ length: 300 }, (_, index) => index + 1);
 const ROOM_LOCKERS = Array.from({ length: 100 }, (_, index) => index + 301);
+const ROOM_MAX_LOCKER = 400;
 const STATUS_MAX_LOCKER = 400;
 const ESP_OPEN_DELAY_MS = 150;
 
@@ -129,6 +131,10 @@ function pickBoolean(record: Record<string, unknown>, keys: string[]) {
   return null;
 }
 
+function isValidStorageId(storageId: number) {
+  return Number.isInteger(storageId) && storageId >= 1 && storageId <= MAX_LOCKERS;
+}
+
 function readRecord(value: unknown) {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -214,7 +220,7 @@ function buildOccupiedMap(
   for (const item of reserveUsers) {
     const storageId = Number(item.storageId);
 
-    if (!Number.isInteger(storageId) || storageId < 1 || storageId > 400) {
+    if (!isValidStorageId(storageId)) {
       continue;
     }
 
@@ -236,7 +242,7 @@ function buildOccupiedMap(
         item
     );
 
-    if (storageId == null || storageId < 1 || storageId > 400) {
+    if (storageId == null || !isValidStorageId(storageId)) {
       continue;
     }
 
@@ -255,6 +261,53 @@ function buildOccupiedMap(
   }
 
   return map;
+}
+
+function buildCarrierLockers(
+  reserveUsers: ReserveUserItem[],
+  enableStorageItems: unknown[]
+) {
+  const lockerSet = new Set<number>();
+
+  for (const item of reserveUsers) {
+    const storageId = Number(item.storageId);
+
+    if (isValidStorageId(storageId) && item.type === 2) {
+      lockerSet.add(storageId);
+    }
+  }
+
+  for (const item of enableStorageItems) {
+    const record = readRecord(item);
+    const storageId = extractStorageId(
+      record.storageId ??
+        record.storageNo ??
+        record.storageNumber ??
+        record.lockerId ??
+        record.lockerNo ??
+        record.no ??
+        item
+    );
+    const type = pickNumber(record, ["type", "storageType"]);
+
+    if (
+      storageId != null &&
+      isValidStorageId(storageId) &&
+      (type === 2 || storageId > ROOM_MAX_LOCKER)
+    ) {
+      lockerSet.add(storageId);
+    }
+  }
+
+  return Array.from(lockerSet).sort((a, b) => a - b);
+}
+
+function formatLockerRange(lockers: number[]) {
+  if (!lockers.length) return "배정된 캐리어 없음";
+
+  return lockers.length === 1
+    ? `${lockers[0]}`
+    : `${lockers[0]} ~ ${lockers[lockers.length - 1]}`;
 }
 
 function isPickupAvailableStatus(statusValue?: string | null) {
@@ -823,6 +876,14 @@ export default function AdminLockerStatusPage() {
     () => ROOM_LOCKERS.filter((lockerNumber) => occupiedMap.has(lockerNumber)).length,
     [occupiedMap]
   );
+  const carrierLockers = useMemo(
+    () => buildCarrierLockers(reserveUsers, enableStorageItems),
+    [enableStorageItems, reserveUsers]
+  );
+  const carrierOccupiedCount = useMemo(
+    () => carrierLockers.filter((lockerNumber) => occupiedMap.has(lockerNumber)).length,
+    [carrierLockers, occupiedMap]
+  );
   const selectedEspRange = useMemo(
     () => findStatusDeviceRange(parseEspNo(espInput)),
     [espInput]
@@ -935,6 +996,17 @@ export default function AdminLockerStatusPage() {
           totalCount={ROOM_LOCKERS.length}
           tone="room"
           lockers={ROOM_LOCKERS}
+          occupiedMap={occupiedMap}
+          disabledSet={disabledStorageSet}
+          onLockerClick={handleLockerClick}
+        />
+        <LockerStatusSection
+          title="캐리어"
+          description={formatLockerRange(carrierLockers)}
+          occupiedCount={carrierOccupiedCount}
+          totalCount={carrierLockers.length}
+          tone="carrier"
+          lockers={carrierLockers}
           occupiedMap={occupiedMap}
           disabledSet={disabledStorageSet}
           onLockerClick={handleLockerClick}

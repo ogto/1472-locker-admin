@@ -15,7 +15,7 @@ type LockerStatusSectionProps = {
   description: string;
   occupiedCount: number;
   totalCount: number;
-  tone: "cold" | "room";
+  tone: "cold" | "room" | "carrier";
   lockers: number[];
   occupiedMap: Map<number, LockerOccupantInfo | null>;
   disabledSet: Set<number>;
@@ -27,7 +27,7 @@ function buildCellTone(
   occupied: boolean,
   ready: boolean,
   pickupProduct: boolean,
-  tone: "cold" | "room"
+  tone: "cold" | "room" | "carrier"
 ) {
   if (disabled) {
     return "border-rose-300 bg-rose-100 text-rose-900 shadow-[0_10px_25px_rgba(244,63,94,0.16)]";
@@ -49,6 +49,10 @@ function buildCellTone(
     return "border-sky-300 bg-sky-100 text-sky-900 shadow-[0_10px_25px_rgba(14,165,233,0.16)]";
   }
 
+  if (tone === "carrier") {
+    return "border-violet-300 bg-violet-100 text-violet-900 shadow-[0_10px_25px_rgba(139,92,246,0.16)]";
+  }
+
   return "border-amber-300 bg-amber-100 text-amber-900 shadow-[0_10px_25px_rgba(245,158,11,0.16)]";
 }
 
@@ -65,6 +69,7 @@ export function LockerStatusSection({
 }: LockerStatusSectionProps) {
   const availableCount = totalCount - occupiedCount;
   const percent = totalCount === 0 ? 0 : Math.round((occupiedCount / totalCount) * 100);
+  const showAvailableState = tone !== "carrier";
 
   return (
     <section className="rounded-[32px] border border-white/70 bg-white/85 p-5 shadow-[0_20px_50px_rgba(148,163,184,0.12)] backdrop-blur sm:p-6">
@@ -78,14 +83,24 @@ export function LockerStatusSection({
           </h2>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 sm:min-w-[340px]">
+        <div
+          className={[
+            "grid gap-3 sm:min-w-[340px]",
+            showAvailableState ? "grid-cols-3" : "grid-cols-2 [&>*:nth-child(2)]:hidden",
+          ].join(" ")}
+        >
           <MetricCard label="사용중" value={`${occupiedCount}`} accent={tone === "cold" ? "sky" : "amber"} />
           <MetricCard label="비어있음" value={`${availableCount}`} accent="slate" />
           <MetricCard label="점유율" value={`${percent}%`} accent="rose" />
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-3 text-xs font-bold">
+      <div
+        className={[
+          "mt-5 flex flex-wrap gap-3 text-xs font-bold",
+          showAvailableState ? "" : "[&>*:nth-child(n+4)]:hidden",
+        ].join(" ")}
+      >
         <LegendChip label="사용중" tone={tone} />
         <LegendChip label="픽업준비" tone="ready" />
         <LegendChip label="야구장픽업" tone="pickup" />
@@ -154,13 +169,15 @@ function MetricCard({
 }: {
   label: string;
   value: string;
-  accent: "sky" | "amber" | "slate" | "rose";
+  accent: "sky" | "amber" | "violet" | "slate" | "rose";
 }) {
   const accentClass =
     accent === "sky"
       ? "bg-sky-50 text-sky-700"
       : accent === "amber"
       ? "bg-amber-50 text-amber-700"
+      : accent === "violet"
+      ? "bg-violet-50 text-violet-700"
       : accent === "rose"
       ? "bg-rose-50 text-rose-700"
       : "bg-slate-100 text-slate-700";
@@ -178,13 +195,15 @@ function LegendChip({
   tone,
 }: {
   label: string;
-  tone: "cold" | "room" | "empty" | "disabled" | "ready" | "pickup";
+  tone: "cold" | "room" | "carrier" | "empty" | "disabled" | "ready" | "pickup";
 }) {
   const className =
     tone === "cold"
       ? "border-sky-200 bg-sky-50 text-sky-700"
       : tone === "room"
       ? "border-amber-200 bg-amber-50 text-amber-700"
+      : tone === "carrier"
+      ? "border-violet-200 bg-violet-50 text-violet-700"
       : tone === "ready"
       ? "border-orange-300 bg-orange-50 text-orange-800"
       : tone === "pickup"
