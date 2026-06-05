@@ -5,6 +5,7 @@ import {
   fetchColdAssignmentConfig,
   saveColdAssignmentConfig,
 } from "@/lib/lockers/api";
+import type { AssignmentConfig } from "@/lib/lockers/api";
 
 type AssignmentForm = {
   startGroup: string;
@@ -29,12 +30,21 @@ function parseDisabledGroups(value: string) {
   ).sort((a, b) => a - b);
 }
 
+function formatGroupNumber(group: number) {
+  return `${group}번`;
+}
+
+function formatGroupNumbers(groups: number[]) {
+  return groups.length ? groups.map(formatGroupNumber).join(", ") : "없음";
+}
+
 export function AssignmentConfigPanel() {
   const [form, setForm] = useState<AssignmentForm>({
     startGroup: "1",
     disabledGroupsText: "",
     memo: "",
   });
+  const [appliedConfig, setAppliedConfig] = useState<AssignmentConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorText, setErrorText] = useState("");
@@ -57,6 +67,7 @@ export function AssignmentConfigPanel() {
         disabledGroupsText: config.disabledGroups.join(", "),
         memo: config.memo,
       });
+      setAppliedConfig(config);
     } catch (error) {
       setErrorText(
         error instanceof Error
@@ -97,6 +108,13 @@ export function AssignmentConfigPanel() {
       return;
     }
 
+    const disabledGroups = parseDisabledGroups(form.disabledGroupsText);
+
+    if (disabledGroups.includes(startGroup)) {
+      setErrorText("시작 그룹은 제외 그룹에 넣을 수 없습니다.");
+      return;
+    }
+
     setSaving(true);
     setErrorText("");
     setSuccessText("");
@@ -104,7 +122,7 @@ export function AssignmentConfigPanel() {
     try {
       const saved = await saveColdAssignmentConfig({
         startGroup,
-        disabledGroups: parseDisabledGroups(form.disabledGroupsText),
+        disabledGroups,
         memo: form.memo.trim(),
       });
 
@@ -113,6 +131,7 @@ export function AssignmentConfigPanel() {
         disabledGroupsText: saved.disabledGroups.join(", "),
         memo: saved.memo,
       });
+      setAppliedConfig(saved);
       setSuccessText("냉장 그룹 배정 설정을 저장했습니다.");
     } catch (error) {
       setErrorText(
@@ -153,6 +172,35 @@ export function AssignmentConfigPanel() {
           {successText}
         </div>
       ) : null}
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+          <div className="text-xs font-black text-slate-500">현재 시작 그룹</div>
+          <div className="mt-1 text-xl font-black text-slate-950">
+            {appliedConfig
+              ? formatGroupNumber(appliedConfig.startGroup)
+              : loading
+                ? "조회 중"
+                : "-"}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+          <div className="text-xs font-black text-slate-500">현재 제외 그룹</div>
+          <div className="mt-1 text-xl font-black text-slate-950">
+            {appliedConfig
+              ? formatGroupNumbers(appliedConfig.disabledGroups)
+              : loading
+                ? "조회 중"
+                : "-"}
+          </div>
+        </div>
+        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+          <div className="text-xs font-black text-slate-500">현재 메모</div>
+          <div className="mt-1 truncate text-base font-black text-slate-950">
+            {appliedConfig ? appliedConfig.memo || "-" : loading ? "조회 중" : "-"}
+          </div>
+        </div>
+      </div>
 
       <div className="mt-4 rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
