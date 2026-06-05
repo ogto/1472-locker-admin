@@ -2,6 +2,14 @@ type DisabledStorageItem = {
   storageId: number;
 };
 
+export type AssignmentConfigKind = "cold" | "room";
+
+export type AssignmentConfig = {
+  startGroup: number;
+  disabledGroups: number[];
+  memo: string;
+};
+
 function extractStorageId(value: unknown): number | null {
   if (typeof value === "number" && Number.isInteger(value)) {
     return value;
@@ -13,6 +21,40 @@ function extractStorageId(value: unknown): number | null {
   }
 
   return null;
+}
+
+function extractNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function normalizeAssignmentConfig(value: unknown): AssignmentConfig {
+  const record =
+    value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const source =
+    record.data && typeof record.data === "object"
+      ? (record.data as Record<string, unknown>)
+      : record;
+  const disabledGroupsRaw = source.disabledGroups;
+  const disabledGroups = Array.isArray(disabledGroupsRaw)
+    ? disabledGroupsRaw
+        .map((item) => extractNumber(item))
+        .filter((item): item is number => item != null && Number.isInteger(item))
+    : [];
+
+  return {
+    startGroup: extractNumber(source.startGroup) ?? 1,
+    disabledGroups,
+    memo: typeof source.memo === "string" ? source.memo : "",
+  };
 }
 
 export async function fetchDisabledStorages(): Promise<DisabledStorageItem[]> {
@@ -73,4 +115,42 @@ export async function enableStorage(storageId: number) {
   if (!response.ok || (result && !result.ok)) {
     throw new Error(result?.message || "사용불가 해제에 실패했습니다.");
   }
+}
+
+export async function fetchAssignmentConfig(
+  kind: AssignmentConfigKind
+): Promise<AssignmentConfig> {
+  const response = await fetch(`/api/lockers/assignment-config/${kind}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.message || "그룹 배정 설정 조회에 실패했습니다.");
+  }
+
+  return normalizeAssignmentConfig(result?.data);
+}
+
+export async function saveAssignmentConfig(
+  kind: AssignmentConfigKind,
+  config: AssignmentConfig
+): Promise<AssignmentConfig> {
+  const response = await fetch(`/api/lockers/assignment-config/${kind}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(config),
+  });
+
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.message || "그룹 배정 설정 저장에 실패했습니다.");
+  }
+
+  return normalizeAssignmentConfig(result?.data ?? config);
 }

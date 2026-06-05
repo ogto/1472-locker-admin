@@ -13,6 +13,7 @@ import { LockerHero } from "@/components/lockers/locker-hero";
 import { LockerOpenForm } from "@/components/lockers/locker-open-form";
 import { LockerResultPanel } from "@/components/lockers/locker-result-panel";
 import { ConfirmOpenModal } from "@/components/lockers/confirm-open-modal";
+import { AssignmentConfigPanel } from "@/components/lockers/assignment-config-panel";
 
 export default function AdminLockersPage() {
   const auth = useAdminAuth();
@@ -99,6 +100,10 @@ export default function AdminLockersPage() {
 
             <LockerResultPanel resultText={locker.resultText} />
           </section>
+        </div>
+
+        <div className="mt-4 lg:mt-6">
+          <AssignmentConfigPanel />
         </div>
       </AdminShell>
 
