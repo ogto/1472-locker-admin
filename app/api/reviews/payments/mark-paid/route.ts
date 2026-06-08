@@ -1,0 +1,11 @@
+import { NextRequest } from "next/server";
+import { proxyReviewBotJson } from "@/lib/reviews/server";
+
+export async function POST(req: NextRequest) {
+  const body = await req.text();
+
+  return proxyReviewBotJson(req, "/api/admin/review-events/payments/mark-paid", {
+    method: "POST",
+    body,
+  });
+}

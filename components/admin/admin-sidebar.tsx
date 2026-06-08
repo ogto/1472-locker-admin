@@ -13,6 +13,7 @@ const menus: SidebarMenu[] = [
   { href: "/admin/history", label: "이용내역", emoji: "📁" },
   { href: "/admin/sales", label: "매출관리", emoji: "💳", superOnly: true },
   { href: "/admin/manual-sales", label: "매출입력(직원용)", emoji: "🧾" },
+  { href: "/admin/reviews", label: "리뷰관리", emoji: "☆" },
   { href: "/admin/lockers", label: "보관함 제어", emoji: "🧰" },
   { href: "/admin/locker-status", label: "보관함 관리", emoji: "🗂️" },
   { href: "/admin/logs", label: "야구장픽업", emoji: "⚾" },
@@ -63,7 +64,9 @@ function SidebarInner({
                       : "text-slate-700 hover:bg-white",
                   ].join(" ")}
                 >
-                  <span>{menu.emoji}</span>
+                  <span className="grid h-5 w-5 shrink-0 place-items-center text-base leading-none">
+                    {menu.emoji}
+                  </span>
                   <span>{menu.label}</span>
                 </Link>
               </li>
