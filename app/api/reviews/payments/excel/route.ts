@@ -33,14 +33,26 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  const file = await response.arrayBuffer();
+  if (!response.ok) {
+    const text = await response.text();
+    return NextResponse.json(
+      {
+        ok: false,
+        message: text || "지급 엑셀 파일을 생성하지 못했습니다.",
+      },
+      { status: response.status }
+    );
+  }
+
+  const file = new Uint8Array(await response.arrayBuffer());
 
   return new NextResponse(file, {
-    status: response.status,
+    status: 200,
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": "attachment; filename=review-event-payments.xlsx",
+      "Cache-Control": "no-store",
     },
   });
 }
