@@ -31,6 +31,8 @@ export type ReviewEvent = {
   previousReviewEventRequestId?: number | null;
   reviewNote?: string | null;
   rejectReason?: string | null;
+  visitRoute?: string | null;
+  visitRouteAnsweredAt?: string | null;
   createdAt?: string | null;
   proofSentAt?: string | null;
   submittedAt?: string | null;

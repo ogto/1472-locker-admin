@@ -46,12 +46,16 @@ function formatDate(value?: string | null) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
     minute: "2-digit",
-  }).format(date);
+    hour12: false,
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}`;
 }
 
 function maskPhone(phone: string) {
@@ -64,6 +68,10 @@ function statusClass(status: ReviewEventStatus) {
   if (status === "PAID" || status === "APPROVED") return "bg-emerald-100 text-emerald-800";
   if (status === "REJECTED" || status === "DUPLICATED") return "bg-rose-100 text-rose-800";
   return "bg-slate-100 text-slate-700";
+}
+
+function visitRouteLabel(value?: string | null) {
+  return value?.trim() || "미응답";
 }
 
 export default function AdminReviewsPage() {
@@ -94,6 +102,28 @@ export default function AdminReviewsPage() {
     [rows, selectedId]
   );
   const selectedPaymentIdSet = useMemo(() => new Set(selectedPaymentIds), [selectedPaymentIds]);
+  const stats = useMemo(() => {
+    const statusCounts = rows.reduce<Record<string, number>>((acc, row) => {
+      const label = statusLabels[row.status] || row.status;
+      acc[label] = (acc[label] || 0) + 1;
+      return acc;
+    }, {});
+    const visitRouteCounts = rows.reduce<Record<string, number>>((acc, row) => {
+      const label = visitRouteLabel(row.visitRoute);
+      acc[label] = (acc[label] || 0) + 1;
+      return acc;
+    }, {});
+    const paymentPendingRows = rows.filter((row) => row.status === "PAYMENT_PENDING");
+
+    return {
+      total: rows.length,
+      reviewPending: rows.filter((row) => row.status === "REVIEW_PENDING").length,
+      paymentPending: paymentPendingRows.length,
+      paymentTotal: paymentPendingRows.reduce((sum, row) => sum + Number(row.rewardAmount || 0), 0),
+      statusItems: Object.entries(statusCounts).sort((a, b) => b[1] - a[1]),
+      visitRouteItems: Object.entries(visitRouteCounts).sort((a, b) => b[1] - a[1]),
+    };
+  }, [rows]);
 
   async function load(nextStatus = status, nextPhone = phone) {
     setLoading(true);
@@ -298,6 +328,15 @@ export default function AdminReviewsPage() {
           </div>
         </section>
 
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="총 리뷰 요청" value={`${stats.total.toLocaleString("ko-KR")}건`} />
+          <StatCard label="검수대기" value={`${stats.reviewPending.toLocaleString("ko-KR")}건`} />
+          <StatCard label="지급대기" value={`${stats.paymentPending.toLocaleString("ko-KR")}건`} />
+          <StatCard label="지급 예정액" value={formatWon(stats.paymentTotal)} />
+          <BreakdownCard title="상태별" items={stats.statusItems} />
+          <BreakdownCard title="방문경로" items={stats.visitRouteItems} wide />
+        </section>
+
         {errorText ? <StatusBanner type="error" text={errorText} /> : null}
         {okText ? <StatusBanner type="ok" text={okText} /> : null}
         {selectedPaymentIds.length > 0 ? (
@@ -385,6 +424,9 @@ export default function AdminReviewsPage() {
                       </div>
                     </div>
 
+                    <div className="mt-2 text-sm font-bold text-slate-500">
+                      방문경로: <span className="text-slate-800">{visitRouteLabel(row.visitRoute)}</span>
+                    </div>
                     <div className="mt-2 text-sm font-bold text-slate-600">
                       {row.rewardType === "CASH"
                         ? `현금 ${formatWon(row.rewardAmount)}`
@@ -409,7 +451,7 @@ export default function AdminReviewsPage() {
             </div>
 
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[900px] text-left text-sm">
+              <table className="w-full min-w-[1060px] text-left text-sm">
                 <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
                   <tr>
                     <th className="px-4 py-3">선택</th>
@@ -418,8 +460,9 @@ export default function AdminReviewsPage() {
                     <th className="px-4 py-3">예약번호</th>
                     <th className="px-4 py-3">금액</th>
                     <th className="px-4 py-3">혜택</th>
+                    <th className="px-4 py-3">방문경로</th>
                     <th className="px-4 py-3">상태</th>
-                    <th className="px-4 py-3">중복</th>
+                    <th className="px-4 py-3">처리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -443,7 +486,7 @@ export default function AdminReviewsPage() {
                               aria-label={`신청 #${row.id} 지급완료 선택`}
                             />
                           ) : (
-                            "-"
+                            <span aria-hidden="true" />
                           )}
                         </td>
                         <td className="px-4 py-3 font-bold text-slate-700">{formatDate(row.createdAt)}</td>
@@ -457,13 +500,28 @@ export default function AdminReviewsPage() {
                               ? `쿠폰 #${row.couponId}`
                               : "-"}
                         </td>
+                        <td className="px-4 py-3 font-bold text-slate-700">{visitRouteLabel(row.visitRoute)}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${statusClass(row.status)}`}>
                             {statusLabels[row.status] || row.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-xs font-bold text-rose-500">
-                          {row.duplicateFlags?.length ? row.duplicateFlags.join(", ") : "-"}
+                        <td className="px-4 py-3">
+                          {row.status === "PAYMENT_PENDING" ? (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                markPaidByIds([row.id]);
+                              }}
+                              disabled={actionLoading || loading}
+                              className="inline-flex min-h-[34px] items-center justify-center rounded-xl bg-sky-600 px-3 text-xs font-black text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              지급완료
+                            </button>
+                          ) : (
+                            <span aria-hidden="true" />
+                          )}
                         </td>
                       </tr>
                     );
@@ -565,6 +623,46 @@ export default function AdminReviewsPage() {
   );
 }
 
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[22px] border border-white/70 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
+      <div className="text-xs font-black text-slate-500">{label}</div>
+      <div className="mt-2 text-2xl font-black tracking-tight text-slate-950">{value}</div>
+    </div>
+  );
+}
+
+function BreakdownCard({
+  title,
+  items,
+  wide,
+}: {
+  title: string;
+  items: Array<[string, number]>;
+  wide?: boolean;
+}) {
+  return (
+    <div className={`rounded-[22px] border border-white/70 bg-white/80 px-5 py-4 shadow-sm backdrop-blur ${wide ? "sm:col-span-2 xl:col-span-2" : "xl:col-span-2"}`}>
+      <div className="text-xs font-black text-slate-500">{title}</div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {items.length ? (
+          items.map(([label, count]) => (
+            <span
+              key={label}
+              className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700"
+            >
+              {label}
+              <span className="text-slate-400">{count.toLocaleString("ko-KR")}</span>
+            </span>
+          ))
+        ) : (
+          <span className="text-sm font-bold text-slate-400">없음</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ReviewDetail({
   event,
   reason,
@@ -617,6 +715,7 @@ function ReviewDetail({
         <Info label="전화번호" value={maskPhone(event.phone)} />
         <Info label="지점" value={event.point || "-"} />
         <Info label="이용금액" value={formatWon(event.useAmount)} />
+        <Info label="방문경로" value={visitRouteLabel(event.visitRoute)} />
         <Info
           label="혜택"
           value={
