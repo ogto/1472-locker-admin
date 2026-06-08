@@ -181,6 +181,23 @@ export default function AdminReviewsPage() {
     );
   }
 
+  async function copyAccount(account: string) {
+    if (!account || account === "-") {
+      setErrorText("복사할 계좌정보가 없습니다.");
+      setOkText("");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(account);
+      setErrorText("");
+      setOkText("계좌정보를 복사했습니다.");
+    } catch {
+      setErrorText("계좌정보를 복사하지 못했습니다. 직접 드래그해서 복사해주세요.");
+      setOkText("");
+    }
+  }
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -469,6 +486,7 @@ export default function AdminReviewsPage() {
                 }
               }}
               onMarkPaid={(event) => markPaidByIds([event.id])}
+              onCopyAccount={(account) => void copyAccount(account)}
               onPreview={(title, src) => setPreviewImage({ title, src })}
             />
           </div>
@@ -504,6 +522,7 @@ export default function AdminReviewsPage() {
                 }
               }}
               onMarkPaid={(event) => markPaidByIds([event.id])}
+              onCopyAccount={(account) => void copyAccount(account)}
               onPreview={(title, src) => setPreviewImage({ title, src })}
             />
           </div>
@@ -529,6 +548,7 @@ function ReviewDetail({
   onApprove,
   onReject,
   onMarkPaid,
+  onCopyAccount,
   onPreview,
 }: {
   event: ReviewEvent | null;
@@ -538,6 +558,7 @@ function ReviewDetail({
   onApprove: (event: ReviewEvent) => void;
   onReject: (event: ReviewEvent) => void;
   onMarkPaid: (event: ReviewEvent) => void;
+  onCopyAccount: (account: string) => void;
   onPreview: (title: string, src: string) => void;
 }) {
   if (!event) {
@@ -581,7 +602,7 @@ function ReviewDetail({
                 : "-"
           }
         />
-        <Info label="계좌" value={formatAccount(event)} wide />
+        <CopyInfo label="계좌" value={formatAccount(event)} wide onCopy={onCopyAccount} />
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
@@ -660,6 +681,38 @@ function Info({ label, value, wide }: { label: string; value: string; wide?: boo
       <div className="text-xs font-bold text-slate-500">{label}</div>
       <div className="mt-1 break-words text-sm font-black text-slate-900">{value}</div>
     </div>
+  );
+}
+
+function CopyInfo({
+  label,
+  value,
+  wide,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  wide?: boolean;
+  onCopy: (value: string) => void;
+}) {
+  const canCopy = Boolean(value && value !== "-");
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (canCopy) onCopy(value);
+      }}
+      disabled={!canCopy}
+      className={`rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:bg-white ${wide ? "col-span-2" : ""}`}
+      title={canCopy ? "클릭하면 계좌정보가 복사됩니다" : undefined}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-bold text-slate-500">{label}</div>
+        {canCopy ? <div className="text-xs font-black text-sky-600">복사</div> : null}
+      </div>
+      <div className="mt-1 break-words text-sm font-black text-slate-900">{value}</div>
+    </button>
   );
 }
 
