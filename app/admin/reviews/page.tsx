@@ -103,24 +103,14 @@ export default function AdminReviewsPage() {
   );
   const selectedPaymentIdSet = useMemo(() => new Set(selectedPaymentIds), [selectedPaymentIds]);
   const stats = useMemo(() => {
-    const statusCounts = rows.reduce<Record<string, number>>((acc, row) => {
-      const label = statusLabels[row.status] || row.status;
-      acc[label] = (acc[label] || 0) + 1;
-      return acc;
-    }, {});
     const visitRouteCounts = rows.reduce<Record<string, number>>((acc, row) => {
       const label = visitRouteLabel(row.visitRoute);
       acc[label] = (acc[label] || 0) + 1;
       return acc;
     }, {});
-    const paymentPendingRows = rows.filter((row) => row.status === "PAYMENT_PENDING");
 
     return {
       total: rows.length,
-      reviewPending: rows.filter((row) => row.status === "REVIEW_PENDING").length,
-      paymentPending: paymentPendingRows.length,
-      paymentTotal: paymentPendingRows.reduce((sum, row) => sum + Number(row.rewardAmount || 0), 0),
-      statusItems: Object.entries(statusCounts).sort((a, b) => b[1] - a[1]),
       visitRouteItems: Object.entries(visitRouteCounts).sort((a, b) => b[1] - a[1]),
     };
   }, [rows]);
@@ -328,13 +318,9 @@ export default function AdminReviewsPage() {
           </div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
           <StatCard label="총 리뷰 요청" value={`${stats.total.toLocaleString("ko-KR")}건`} />
-          <StatCard label="검수대기" value={`${stats.reviewPending.toLocaleString("ko-KR")}건`} />
-          <StatCard label="지급대기" value={`${stats.paymentPending.toLocaleString("ko-KR")}건`} />
-          <StatCard label="지급 예정액" value={formatWon(stats.paymentTotal)} />
-          <BreakdownCard title="상태별" items={stats.statusItems} />
-          <BreakdownCard title="방문경로" items={stats.visitRouteItems} wide />
+          <BreakdownCard title="방문경로" items={stats.visitRouteItems} />
         </section>
 
         {errorText ? <StatusBanner type="error" text={errorText} /> : null}
@@ -635,14 +621,12 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function BreakdownCard({
   title,
   items,
-  wide,
 }: {
   title: string;
   items: Array<[string, number]>;
-  wide?: boolean;
 }) {
   return (
-    <div className={`rounded-[22px] border border-white/70 bg-white/80 px-5 py-4 shadow-sm backdrop-blur ${wide ? "sm:col-span-2 xl:col-span-2" : "xl:col-span-2"}`}>
+    <div className="rounded-[22px] border border-white/70 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
       <div className="text-xs font-black text-slate-500">{title}</div>
       <div className="mt-3 flex flex-wrap gap-2">
         {items.length ? (
