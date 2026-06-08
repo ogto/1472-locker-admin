@@ -79,6 +79,10 @@ export default function AdminReviewsPage() {
   const [okText, setOkText] = useState("");
   const [reason, setReason] = useState("");
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<number[]>([]);
+  const [copyToast, setCopyToast] = useState<{
+    type: "ok" | "error";
+    text: string;
+  } | null>(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<{
     title: string;
@@ -185,6 +189,7 @@ export default function AdminReviewsPage() {
     if (!account || account === "-") {
       setErrorText("복사할 계좌정보가 없습니다.");
       setOkText("");
+      setCopyToast({ type: "error", text: "복사할 계좌정보가 없습니다." });
       return;
     }
 
@@ -192,9 +197,11 @@ export default function AdminReviewsPage() {
       await navigator.clipboard.writeText(account);
       setErrorText("");
       setOkText("계좌정보를 복사했습니다.");
+      setCopyToast({ type: "ok", text: "계좌정보를 복사했어요." });
     } catch {
       setErrorText("계좌정보를 복사하지 못했습니다. 직접 드래그해서 복사해주세요.");
       setOkText("");
+      setCopyToast({ type: "error", text: "복사하지 못했어요. 직접 복사해주세요." });
     }
   }
 
@@ -206,6 +213,12 @@ export default function AdminReviewsPage() {
     if (mounted && !auth.booting && auth.authenticated) void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, auth.booting, auth.authenticated]);
+
+  useEffect(() => {
+    if (!copyToast) return;
+    const timer = window.setTimeout(() => setCopyToast(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [copyToast]);
 
   if (!mounted || auth.booting) {
     return (
@@ -535,6 +548,18 @@ export default function AdminReviewsPage() {
           src={previewImage.src}
           onClose={() => setPreviewImage(null)}
         />
+      ) : null}
+
+      {copyToast ? (
+        <div className="fixed inset-x-0 bottom-5 z-[80] flex justify-center px-4 sm:bottom-6">
+          <div
+            className={`rounded-full px-5 py-3 text-sm font-black text-white shadow-2xl ${
+              copyToast.type === "ok" ? "bg-slate-950" : "bg-rose-600"
+            }`}
+          >
+            {copyToast.text}
+          </div>
+        </div>
       ) : null}
     </AdminShell>
   );

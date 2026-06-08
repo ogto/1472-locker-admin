@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   }
 
   const response = await fetch(
-    `${getReviewBotBaseUrl()}/api/admin/review-events/payments.xls`,
+    `${getReviewBotBaseUrl()}/api/admin/review-events/payments.xlsx`,
     {
       headers: {
         "X-Admin-Token": adminToken,
@@ -33,13 +33,14 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  const text = await response.text();
+  const file = await response.arrayBuffer();
 
-  return new NextResponse(text, {
+  return new NextResponse(file, {
     status: response.status,
     headers: {
-      "Content-Type": "application/vnd.ms-excel; charset=utf-8",
-      "Content-Disposition": "attachment; filename=review-event-payments.xls",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": "attachment; filename=review-event-payments.xlsx",
     },
   });
 }
