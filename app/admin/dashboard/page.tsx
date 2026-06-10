@@ -134,7 +134,7 @@ export default function AdminDashboardPage() {
     }
   }
 
-  async function handlePickup() {
+  async function handlePickup(options?: { force?: boolean }) {
     const pickupTargets = detailData.filter((item) => {
       const status = item.reservationStatus?.trim().toUpperCase() || "";
 
@@ -166,6 +166,7 @@ export default function AdminDashboardPage() {
         historyIds,
         point,
         reserveId,
+        force: options?.force,
       });
 
       if (selected) {
@@ -379,7 +380,7 @@ export default function AdminDashboardPage() {
         pickupLoading={pickupLoading}
         cancelLoading={cancelLoading}
         openLockerLoadingId={openLockerLoadingId}
-        onPickup={() => void handlePickup()}
+        onPickup={(options) => void handlePickup(options)}
         onCancelReserve={() => void handleCancelReserve()}
         onOpenLocker={(item) => void handleOpenLocker(item)}
         onClose={() => {

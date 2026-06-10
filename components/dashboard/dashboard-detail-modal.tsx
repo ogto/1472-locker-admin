@@ -21,7 +21,7 @@ type Props = {
   pickupLoading: boolean;
   cancelLoading: boolean;
   openLockerLoadingId: number | null;
-  onPickup: () => Promise<void> | void;
+  onPickup: (options?: { force?: boolean }) => Promise<void> | void;
   onCancelReserve: () => Promise<void> | void;
   onOpenLocker: (item: ReserveUserDetailItem) => Promise<void> | void;
   onClose: () => void;
@@ -42,6 +42,11 @@ export function DashboardDetailModal({
   onClose,
 }: Props) {
   const [pickupConfirmOpen, setPickupConfirmOpen] = useState(false);
+  const [forcePickupPasswordOpen, setForcePickupPasswordOpen] = useState(false);
+  const [forcePickupPassword, setForcePickupPassword] = useState("");
+  const [forcePickupPasswordError, setForcePickupPasswordError] = useState("");
+  const [forcePickupPasswordLoading, setForcePickupPasswordLoading] =
+    useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [openTarget, setOpenTarget] = useState<ReserveUserDetailItem | null>(
     null
@@ -67,6 +72,14 @@ export function DashboardDetailModal({
   });
 
   const canPickup = pickupTargets.length > 0;
+  const unpaidAddPayTargets = pickupTargets.filter(
+    (item) => safeAmount(item.addPay) > 0 && item.addPayTof !== true
+  );
+  const hasUnpaidAddPay = unpaidAddPayTargets.length > 0;
+  const unpaidAddPayAmount = unpaidAddPayTargets.reduce(
+    (sum, item) => sum + safeAmount(item.addPay),
+    0
+  );
   const canCancel = data.some((item) => {
     const status = item.reservationStatus?.trim().toUpperCase() || "";
 
@@ -81,6 +94,9 @@ export function DashboardDetailModal({
 
   const handleClose = () => {
     setPickupConfirmOpen(false);
+    setForcePickupPasswordOpen(false);
+    setForcePickupPassword("");
+    setForcePickupPasswordError("");
     setCancelConfirmOpen(false);
     setOpenTarget(null);
     onClose();
@@ -89,6 +105,56 @@ export function DashboardDetailModal({
   const handleConfirmPickup = async () => {
     await onPickup();
     setPickupConfirmOpen(false);
+  };
+
+  const handlePickupClick = () => {
+    if (hasUnpaidAddPay) {
+      setForcePickupPassword("");
+      setForcePickupPasswordError("");
+      setForcePickupPasswordOpen(true);
+      return;
+    }
+
+    setPickupConfirmOpen(true);
+  };
+
+  const handleConfirmForcePickup = async () => {
+    const password = forcePickupPassword.trim();
+
+    if (!password) {
+      setForcePickupPasswordError("비밀번호를 입력하세요.");
+      return;
+    }
+
+    setForcePickupPasswordLoading(true);
+    setForcePickupPasswordError("");
+
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({ password }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.message || "비밀번호가 올바르지 않습니다.");
+      }
+
+      await onPickup({ force: true });
+      setForcePickupPasswordOpen(false);
+      setForcePickupPassword("");
+    } catch (error) {
+      setForcePickupPasswordError(
+        error instanceof Error ? error.message : "비밀번호 확인에 실패했습니다."
+      );
+    } finally {
+      setForcePickupPasswordLoading(false);
+    }
   };
 
   const handleConfirmCancel = async () => {
@@ -150,7 +216,7 @@ export function DashboardDetailModal({
               {canPickup ? (
                 <button
                   type="button"
-                  onClick={() => setPickupConfirmOpen(true)}
+                  onClick={handlePickupClick}
                   disabled={pickupLoading}
                   className="inline-flex min-h-[44px] w-full items-center justify-center whitespace-nowrap rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-[14px] font-extrabold text-emerald-700 shadow-sm transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[120px]"
                 >
@@ -238,6 +304,29 @@ export function DashboardDetailModal({
         />
       ) : null}
 
+      {forcePickupPasswordOpen ? (
+        <ForcePickupPasswordModal
+          loading={pickupLoading || forcePickupPasswordLoading}
+          count={pickupTargets.length}
+          amount={unpaidAddPayAmount}
+          customerName={first?.mberNm?.trim() || "-"}
+          password={forcePickupPassword}
+          errorText={forcePickupPasswordError}
+          onChangePassword={(value) => {
+            setForcePickupPassword(value);
+            setForcePickupPasswordError("");
+          }}
+          onConfirm={handleConfirmForcePickup}
+          onCancel={() => {
+            if (!pickupLoading && !forcePickupPasswordLoading) {
+              setForcePickupPasswordOpen(false);
+              setForcePickupPassword("");
+              setForcePickupPasswordError("");
+            }
+          }}
+        />
+      ) : null}
+
       {cancelConfirmOpen ? (
         <ConfirmCancelModal
           loading={cancelLoading}
@@ -294,6 +383,81 @@ function ConfirmPickupModal({
         cancelText="취소"
         confirmText="확인 후 완료"
         loadingText="처리중..."
+        confirmClassName="border-emerald-100 bg-emerald-500 text-white"
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />
+    </ConfirmModalFrame>
+  );
+}
+
+function ForcePickupPasswordModal({
+  loading,
+  count,
+  amount,
+  customerName,
+  password,
+  errorText,
+  onChangePassword,
+  onConfirm,
+  onCancel,
+}: {
+  loading: boolean;
+  count: number;
+  amount: number;
+  customerName: string;
+  password: string;
+  errorText: string;
+  onChangePassword: (value: string) => void;
+  onConfirm: () => Promise<void> | void;
+  onCancel: () => void;
+}) {
+  return (
+    <ConfirmModalFrame onCancel={onCancel}>
+      <ConfirmHeader
+        title="추가금 확인"
+        description="추가금 미결제 건은 비밀번호 확인 후 픽업완료 처리됩니다."
+      />
+
+      <div className="mt-5 rounded-[22px] border border-rose-100 bg-rose-50/70 px-4 py-4">
+        <div className="text-[14px] font-bold leading-6 text-slate-700">
+          <span className="font-black text-slate-900">{customerName}</span> 고객의
+          픽업 대상 <span className="font-black text-slate-900">{count}건</span>에
+          추가금 <span className="font-black text-rose-700">{formatPrice(amount)}</span>이
+          있습니다.
+        </div>
+      </div>
+
+      <label className="mt-4 block">
+        <span className="mb-2 block text-sm font-black text-slate-700">
+          관리자 비밀번호
+        </span>
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => onChangePassword(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !loading) {
+              void onConfirm();
+            }
+          }}
+          autoFocus
+          className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-rose-300 focus:ring-4 focus:ring-rose-100"
+          placeholder="비밀번호 입력"
+        />
+      </label>
+
+      {errorText ? (
+        <div className="mt-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-600">
+          {errorText}
+        </div>
+      ) : null}
+
+      <ConfirmActions
+        loading={loading}
+        cancelText="취소"
+        confirmText="확인 후 픽업완료"
+        loadingText="확인 중..."
         confirmClassName="border-emerald-100 bg-emerald-500 text-white"
         onCancel={onCancel}
         onConfirm={onConfirm}
