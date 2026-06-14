@@ -38,6 +38,8 @@ const statusLabels: Record<ReviewEventStatus, string> = {
   DUPLICATED: "중복",
 };
 
+const PAGE_SIZE = 10;
+
 function formatWon(value: number) {
   return `${Number(value || 0).toLocaleString("ko-KR")}원`;
 }
@@ -74,11 +76,31 @@ function visitRouteLabel(value?: string | null) {
   return value?.trim() || "미응답";
 }
 
+function todayDateInputValue() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isSameDate(value: string | null | undefined, dateValue: string) {
+  if (!dateValue) return true;
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  if (!Number.isFinite(time)) return false;
+  const fromTime = new Date(`${dateValue}T00:00:00`).getTime();
+  const toTime = new Date(`${dateValue}T23:59:59.999`).getTime();
+  return time >= fromTime && time <= toTime;
+}
+
 export default function AdminReviewsPage() {
   const auth = useAdminAuth();
   const [mounted, setMounted] = useState(false);
   const [status, setStatus] = useState<ReviewEventStatus | "">("");
   const [phone, setPhone] = useState("");
+  const [selectedDate, setSelectedDate] = useState(() => todayDateInputValue());
+  const [page, setPage] = useState(1);
   const [rows, setRows] = useState<ReviewEvent[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,29 +113,38 @@ export default function AdminReviewsPage() {
     type: "ok" | "error";
     text: string;
   } | null>(null);
-  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<{
     title: string;
     src: string;
   } | null>(null);
 
+  const filteredRows = useMemo(
+    () => rows.filter((row) => isSameDate(row.createdAt, selectedDate)),
+    [rows, selectedDate]
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const pagedRows = useMemo(
+    () => filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredRows, page]
+  );
   const selected = useMemo(
-    () => rows.find((row) => row.id === selectedId) || rows[0] || null,
-    [rows, selectedId]
+    () => filteredRows.find((row) => row.id === selectedId) || filteredRows[0] || null,
+    [filteredRows, selectedId]
   );
   const selectedPaymentIdSet = useMemo(() => new Set(selectedPaymentIds), [selectedPaymentIds]);
   const stats = useMemo(() => {
-    const visitRouteCounts = rows.reduce<Record<string, number>>((acc, row) => {
+    const visitRouteCounts = filteredRows.reduce<Record<string, number>>((acc, row) => {
       const label = visitRouteLabel(row.visitRoute);
       acc[label] = (acc[label] || 0) + 1;
       return acc;
     }, {});
 
     return {
-      total: rows.length,
+      total: filteredRows.length,
       visitRouteItems: Object.entries(visitRouteCounts).sort((a, b) => b[1] - a[1]),
     };
-  }, [rows]);
+  }, [filteredRows]);
 
   async function load(nextStatus = status, nextPhone = phone) {
     setLoading(true);
@@ -123,6 +154,7 @@ export default function AdminReviewsPage() {
     try {
       const items = await fetchReviewEvents({ status: nextStatus, phone: nextPhone });
       setRows(items);
+      setPage(1);
       setSelectedPaymentIds((current) => {
         const payableIds = new Set(
           items.filter((item) => item.status === "PAYMENT_PENDING").map((item) => item.id)
@@ -240,6 +272,15 @@ export default function AdminReviewsPage() {
     return () => window.clearTimeout(timer);
   }, [copyToast]);
 
+  useEffect(() => {
+    setPage(1);
+    setSelectedPaymentIds([]);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
+
   if (!mounted || auth.booting) {
     return (
       <div className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top,#ffe4f1_0%,#fff4fa_35%,#f8fbff_100%)] px-4">
@@ -266,13 +307,12 @@ export default function AdminReviewsPage() {
     <AdminShell role={auth.role} onLogout={auth.handleLogout}>
       <AdminHeader
         title="리뷰관리"
-        description="카카오 리뷰 이벤트 접수, 증빙 검수, 현금 지급 처리를 관리합니다."
         onLogout={auth.handleLogout}
       />
 
       <div className="space-y-4 lg:space-y-6">
         <section className="rounded-[24px] border border-white/70 bg-white/75 p-3 shadow-sm backdrop-blur sm:rounded-[28px] sm:p-5">
-          <div className="grid gap-2 sm:gap-3 lg:grid-cols-[180px_minmax(180px,1fr)_auto_auto]">
+          <div className="grid gap-2 sm:gap-3 lg:grid-cols-[180px_170px_minmax(180px,1fr)_auto_auto]">
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value as ReviewEventStatus | "")}
@@ -284,6 +324,14 @@ export default function AdminReviewsPage() {
                 </option>
               ))}
             </select>
+
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              className="min-h-[44px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none focus:border-pink-300 sm:min-h-[46px]"
+              aria-label="날짜"
+            />
 
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -342,16 +390,16 @@ export default function AdminReviewsPage() {
           </section>
         ) : null}
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(380px,0.75fr)]">
+        <div>
           <section className="overflow-hidden rounded-[24px] border border-white/70 bg-white/75 shadow-sm backdrop-blur sm:rounded-[28px]">
             <div className="border-b border-slate-100 px-5 py-4">
               <div className="text-sm font-black text-slate-900">
-                신청 목록 {loading ? "" : `${rows.length.toLocaleString("ko-KR")}건`}
+                신청 목록 {loading ? "" : `${filteredRows.length.toLocaleString("ko-KR")}건`}
               </div>
             </div>
 
             <div className="space-y-2 p-3 lg:hidden">
-              {rows.map((row) => {
+              {pagedRows.map((row) => {
                 const active = selected?.id === row.id;
 
                 return (
@@ -368,7 +416,7 @@ export default function AdminReviewsPage() {
                         type="button"
                         onClick={() => {
                           setSelectedId(row.id);
-                          setMobileDetailOpen(true);
+                          setDetailOpen(true);
                         }}
                         className="min-w-0 flex-1 text-left"
                       >
@@ -452,13 +500,16 @@ export default function AdminReviewsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {rows.map((row) => {
+                  {pagedRows.map((row) => {
                     const active = selected?.id === row.id;
 
                     return (
                       <tr
                         key={row.id}
-                        onClick={() => setSelectedId(row.id)}
+                        onClick={() => {
+                          setSelectedId(row.id);
+                          setDetailOpen(true);
+                        }}
                         className={`cursor-pointer transition ${active ? "bg-pink-50/80" : "hover:bg-slate-50"}`}
                       >
                         <td className="px-4 py-3">
@@ -516,7 +567,7 @@ export default function AdminReviewsPage() {
               </table>
             </div>
 
-            {!loading && rows.length === 0 ? (
+            {!loading && filteredRows.length === 0 ? (
               <div className="px-5 py-12 text-center sm:py-16">
                 <div className="text-lg font-black text-slate-900">조회된 리뷰 이벤트가 없습니다</div>
                 <div className="mt-2 text-sm font-bold text-slate-500">
@@ -524,39 +575,26 @@ export default function AdminReviewsPage() {
                 </div>
               </div>
             ) : null}
+            {!loading && filteredRows.length > 0 ? (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={filteredRows.length}
+                pageSize={PAGE_SIZE}
+                onChange={setPage}
+              />
+            ) : null}
           </section>
-
-          <div className="hidden lg:block">
-            <ReviewDetail
-              event={selected}
-              reason={reason}
-              disabled={actionLoading || loading}
-              onChangeReason={setReason}
-              onApprove={(event) => {
-                if (confirmApprove(event)) {
-                  void runAction(() => approveReviewEvent(event.id), "승인 처리했습니다.");
-                }
-              }}
-              onReject={(event) => {
-                if (confirmReject(event, reason)) {
-                  void runAction(() => rejectReviewEvent(event.id, reason), "반려 처리했습니다.");
-                }
-              }}
-              onMarkPaid={(event) => markPaidByIds([event.id])}
-              onCopyAccount={(account) => void copyAccount(account)}
-              onPreview={(title, src) => setPreviewImage({ title, src })}
-            />
-          </div>
         </div>
       </div>
 
-      {mobileDetailOpen && selected ? (
-        <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm lg:hidden">
-          <div className="absolute inset-x-0 bottom-0 max-h-[92dvh] overflow-y-auto rounded-t-[28px] bg-[radial-gradient(circle_at_top,#fff7fb_0%,#ffffff_42%,#f8fbff_100%)] p-3 shadow-2xl">
+      {detailOpen && selected ? (
+        <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm">
+          <div className="absolute inset-x-0 bottom-0 max-h-[92dvh] overflow-y-auto rounded-t-[28px] bg-[radial-gradient(circle_at_top,#fff7fb_0%,#ffffff_42%,#f8fbff_100%)] p-3 shadow-2xl lg:inset-y-6 lg:left-1/2 lg:right-auto lg:w-[760px] lg:max-w-[calc(100vw-120px)] lg:-translate-x-1/2 lg:rounded-[28px] lg:p-4">
             <div className="sticky top-0 z-10 mb-2 flex justify-end bg-transparent">
               <button
                 type="button"
-                onClick={() => setMobileDetailOpen(false)}
+                onClick={() => setDetailOpen(false)}
                 className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm"
                 aria-label="닫기"
               >
@@ -647,6 +685,73 @@ function BreakdownCard({
   );
 }
 
+function Pagination({
+  page,
+  totalPages,
+  totalItems,
+  pageSize,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onChange: (page: number) => void;
+}) {
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, totalItems);
+  const pages = Array.from({ length: totalPages }, (_, index) => index + 1).filter((item) => {
+    if (totalPages <= 7) return true;
+    return item === 1 || item === totalPages || Math.abs(item - page) <= 2;
+  });
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-xs font-bold text-slate-500">
+        {start.toLocaleString("ko-KR")}-{end.toLocaleString("ko-KR")} / {totalItems.toLocaleString("ko-KR")}건
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(1, page - 1))}
+          disabled={page <= 1}
+          className="min-h-[36px] rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          이전
+        </button>
+        {pages.map((item, index) => {
+          const prev = pages[index - 1];
+          const needsGap = prev && item - prev > 1;
+          return (
+            <div key={item} className="flex items-center gap-2">
+              {needsGap ? <span className="text-xs font-black text-slate-300">...</span> : null}
+              <button
+                type="button"
+                onClick={() => onChange(item)}
+                className={`grid h-9 min-w-9 place-items-center rounded-xl px-3 text-xs font-black shadow-sm ${
+                  item === page
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-700"
+                }`}
+              >
+                {item}
+              </button>
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(totalPages, page + 1))}
+          disabled={page >= totalPages}
+          className="min-h-[36px] rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          다음
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ReviewDetail({
   event,
   reason,
@@ -713,7 +818,7 @@ function ReviewDetail({
         <CopyInfo label="계좌" value={formatAccount(event)} wide onCopy={onCopyAccount} />
       </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <ImageBox
           title="전자영수증"
           src={event.proofImageUrl}
