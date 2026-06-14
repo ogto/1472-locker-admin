@@ -76,30 +76,11 @@ function visitRouteLabel(value?: string | null) {
   return value?.trim() || "미응답";
 }
 
-function todayDateInputValue() {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function isSameDate(value: string | null | undefined, dateValue: string) {
-  if (!dateValue) return true;
-  if (!value) return false;
-  const time = new Date(value).getTime();
-  if (!Number.isFinite(time)) return false;
-  const fromTime = new Date(`${dateValue}T00:00:00`).getTime();
-  const toTime = new Date(`${dateValue}T23:59:59.999`).getTime();
-  return time >= fromTime && time <= toTime;
-}
-
 export default function AdminReviewsPage() {
   const auth = useAdminAuth();
   const [mounted, setMounted] = useState(false);
   const [status, setStatus] = useState<ReviewEventStatus | "">("");
   const [phone, setPhone] = useState("");
-  const [selectedDate, setSelectedDate] = useState(() => todayDateInputValue());
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<ReviewEvent[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -119,10 +100,7 @@ export default function AdminReviewsPage() {
     src: string;
   } | null>(null);
 
-  const filteredRows = useMemo(
-    () => rows.filter((row) => isSameDate(row.createdAt, selectedDate)),
-    [rows, selectedDate]
-  );
+  const filteredRows = rows;
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const pagedRows = useMemo(
     () => filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
@@ -273,11 +251,6 @@ export default function AdminReviewsPage() {
   }, [copyToast]);
 
   useEffect(() => {
-    setPage(1);
-    setSelectedPaymentIds([]);
-  }, [selectedDate]);
-
-  useEffect(() => {
     setPage((current) => Math.min(current, totalPages));
   }, [totalPages]);
 
@@ -312,7 +285,7 @@ export default function AdminReviewsPage() {
 
       <div className="space-y-4 lg:space-y-6">
         <section className="rounded-[24px] border border-white/70 bg-white/75 p-3 shadow-sm backdrop-blur sm:rounded-[28px] sm:p-5">
-          <div className="grid gap-2 sm:gap-3 lg:grid-cols-[180px_170px_minmax(180px,1fr)_auto_auto]">
+          <div className="grid gap-2 sm:gap-3 lg:grid-cols-[180px_minmax(180px,1fr)_auto_auto]">
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value as ReviewEventStatus | "")}
@@ -324,14 +297,6 @@ export default function AdminReviewsPage() {
                 </option>
               ))}
             </select>
-
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)}
-              className="min-h-[44px] rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none focus:border-pink-300 sm:min-h-[46px]"
-              aria-label="날짜"
-            />
 
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
