@@ -36,6 +36,8 @@ type CalendarCell = {
   appAmount: number;
   cardAmount: number;
   cashAmount: number;
+  photoCardAmount: number;
+  photoCardCount: number;
   paymentCount: number;
   cancelCount: number;
   paymentAmount: number;
@@ -74,11 +76,15 @@ function getDaySummary(row?: MonthSalesApiItem | null) {
   const appCancelAmount = getRecordValue(row?.paymentTypeCancelAmount, ["0", "additionalProp1"]);
   const cardCancelAmount = getRecordValue(row?.paymentTypeCancelAmount, ["1", "additionalProp2"]);
   const cashCancelAmount = getRecordValue(row?.paymentTypeCancelAmount, ["2", "additionalProp3"]);
+  const photoCardAmount = Number(row?.photoCardAmount || 0);
+  const photoCardCount = Number(row?.photoCardCount || 0);
 
   return {
     appAmount: appAmount - appCancelAmount,
     cardAmount: cardAmount - cardCancelAmount,
     cashAmount: cashAmount - cashCancelAmount,
+    photoCardAmount,
+    photoCardCount,
     paymentCount: Math.round(
       getRecordValue(row?.paymentTypeCount as Record<string, number> | undefined, [
         "0",
@@ -87,7 +93,7 @@ function getDaySummary(row?: MonthSalesApiItem | null) {
         "additionalProp1",
         "additionalProp2",
         "additionalProp3",
-      ])
+      ]) + photoCardCount
     ),
     cancelCount: Math.round(
       getRecordValue(row?.paymentTypeCancelCount as Record<string, number> | undefined, [
@@ -158,9 +164,10 @@ export function SalesMonthCalendar({
         acc.app += day.appAmount;
         acc.card += day.cardAmount;
         acc.cash += day.cashAmount;
+        acc.photoCard += day.photoCardAmount;
         return acc;
       },
-      { total: 0, app: 0, card: 0, cash: 0 }
+      { total: 0, app: 0, card: 0, cash: 0, photoCard: 0 }
     );
   }, [rows]);
 
@@ -199,6 +206,8 @@ export function SalesMonthCalendar({
         appAmount: day.appAmount,
         cardAmount: day.cardAmount,
         cashAmount: day.cashAmount,
+        photoCardAmount: day.photoCardAmount,
+        photoCardCount: day.photoCardCount,
         paymentCount: day.paymentCount,
         cancelCount: day.cancelCount,
         paymentAmount: day.paymentAmount,
@@ -271,15 +280,20 @@ export function SalesMonthCalendar({
         <div
           className={[
             "mt-6 grid grid-cols-2 gap-3 border-b border-slate-200 pb-6 2xl:gap-5 2xl:pb-8",
-            point === "bank" ? "xl:grid-cols-6" : "xl:grid-cols-4",
+            point === "bank" ? "xl:grid-cols-7" : "xl:grid-cols-4",
           ].join(" ")}
         >
-          <SummaryStat label={`${month}월 총금액`} value={summary.total} />
-          <SummaryStat label="앱" value={summary.app} />
-          <SummaryStat label="카드" value={summary.card} />
-          <SummaryStat label="현금" value={summary.cash} />
+          <SummaryStat label={`${month}월 총금액`} value={summary.total} tone="blue" />
+          <SummaryStat label="앱" value={summary.app} tone="green" />
+          <SummaryStat label="카드" value={summary.card} tone="indigo" />
+          <SummaryStat label="현금" value={summary.cash} tone="amber" />
           {point === "bank" ? (
             <>
+              <SummaryStat
+                label="인생네컷"
+                value={summary.photoCard}
+                tone="rose"
+              />
               <SummaryStat
                 label="이번달 선결제"
                 value={prepaidSummary?.prepaidThisMonthAmount ?? 0}
@@ -377,8 +391,9 @@ export function SalesMonthCalendar({
                 <div className="mt-4 space-y-1">
                   <AmountLine label="총금액" value={cell.totalAmount} tone="blue" />
                   <AmountLine label="앱" value={cell.appAmount} tone="green" />
-                  <AmountLine label="카드" value={cell.cardAmount} tone="slate" />
+                  <AmountLine label="카드" value={cell.cardAmount} tone="indigo" />
                   <AmountLine label="현금" value={cell.cashAmount} tone="amber" />
+                  <AmountLine label="인생네컷" value={cell.photoCardAmount} tone="rose" wideLabel />
                 </div>
               </button>
             ))}
@@ -413,7 +428,7 @@ export function SalesMonthCalendar({
                 }}
                 disabled={!cell.inMonth}
                 className={[
-                  "min-h-[124px] rounded-[22px] border px-3 py-2.5 text-left transition 2xl:min-h-[156px] 2xl:px-4 2xl:py-3.5",
+                  "min-h-[142px] rounded-[22px] border px-3 py-2.5 text-left transition 2xl:min-h-[174px] 2xl:px-4 2xl:py-3.5",
                   cell.inMonth
                     ? cell.isToday
                       ? "border-rose-200 bg-rose-50/40 shadow-[0_10px_30px_rgba(251,113,133,0.08)] hover:-translate-y-0.5 hover:shadow-md"
@@ -451,8 +466,9 @@ export function SalesMonthCalendar({
                     <div className="mt-3 hidden space-y-0.5 sm:block 2xl:mt-4 2xl:space-y-1">
                       <AmountLine label="총금액" value={cell.totalAmount} tone="blue" />
                       <AmountLine label="앱" value={cell.appAmount} tone="green" />
-                      <AmountLine label="카드" value={cell.cardAmount} tone="slate" />
+                      <AmountLine label="카드" value={cell.cardAmount} tone="indigo" />
                       <AmountLine label="현금" value={cell.cashAmount} tone="amber" />
+                      <AmountLine label="인생네컷" value={cell.photoCardAmount} tone="rose" wideLabel />
                     </div>
                   </>
                 ) : null}
@@ -472,11 +488,32 @@ export function SalesMonthCalendar({
   );
 }
 
-function SummaryStat({ label, value }: { label: string; value: number }) {
+function SummaryStat({
+  label,
+  value,
+  tone = "slate",
+}: {
+  label: string;
+  value: number;
+  tone?: "blue" | "green" | "indigo" | "amber" | "rose" | "slate";
+}) {
+  const valueClass =
+    tone === "blue"
+      ? "text-blue-600"
+      : tone === "green"
+      ? "text-emerald-600"
+      : tone === "indigo"
+      ? "text-indigo-600"
+      : tone === "amber"
+      ? "text-amber-600"
+      : tone === "rose"
+      ? "text-rose-500"
+      : "text-slate-800";
+
   return (
     <div className="border-slate-200 xl:border-r xl:pr-6 xl:last:border-r-0 2xl:pr-8">
       <div className="text-[13px] font-black text-slate-400 sm:text-[14px] 2xl:text-[16px]">{label}</div>
-      <div className="mt-2 whitespace-nowrap text-[20px] font-black tracking-[-0.04em] text-slate-800 sm:text-[23px] 2xl:text-[28px]">
+      <div className={`mt-2 whitespace-nowrap text-[20px] font-black tracking-[-0.04em] sm:text-[23px] 2xl:text-[28px] ${valueClass}`}>
         {formatPrice(value)}
       </div>
     </div>
@@ -488,19 +525,25 @@ function AmountLine({
   value,
   tone,
   compact = false,
+  wideLabel = false,
 }: {
   label: string;
   value: number;
-  tone: "blue" | "green" | "slate" | "amber";
+  tone: "blue" | "green" | "indigo" | "slate" | "amber" | "rose";
   compact?: boolean;
+  wideLabel?: boolean;
 }) {
   const toneClass =
     tone === "blue"
       ? "text-blue-500"
       : tone === "green"
       ? "text-emerald-500"
+      : tone === "indigo"
+      ? "text-indigo-500"
       : tone === "amber"
       ? "text-amber-500"
+      : tone === "rose"
+      ? "text-rose-500"
       : "text-slate-400";
 
   return (
@@ -508,6 +551,8 @@ function AmountLine({
       className={[
         compact
           ? "grid grid-cols-[44px_minmax(0,1fr)] items-baseline gap-1 text-[12px] font-semibold leading-[1.15]"
+          : wideLabel
+          ? "grid grid-cols-[58px_minmax(0,1fr)] items-baseline gap-2 text-[12px] font-semibold leading-[1.2] 2xl:grid-cols-[68px_minmax(0,1fr)] 2xl:gap-2.5 2xl:text-[15px]"
           : "grid grid-cols-[40px_minmax(0,1fr)] items-baseline gap-2 text-[13px] font-semibold leading-[1.2] 2xl:grid-cols-[48px_minmax(0,1fr)] 2xl:gap-2.5 2xl:text-[16px]",
         toneClass,
       ].join(" ")}
@@ -540,6 +585,7 @@ function SalesDayDetailModal({
     { label: "앱", value: formatPrice(cell.appAmount) },
     { label: "카드", value: formatPrice(cell.cardAmount) },
     { label: "현금", value: formatPrice(cell.cashAmount) },
+    { label: "인생네컷", value: formatPrice(cell.photoCardAmount) },
   ];
 
   return (

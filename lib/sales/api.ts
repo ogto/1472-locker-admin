@@ -4,6 +4,8 @@ import type {
   ManualSalesRequest,
   ManualSalesResponse,
   MonthSalesApiItem,
+  PhotoCardSalesDailyResponse,
+  PhotoCardSalesMonthResponse,
   PointKey,
   SalesPrepaidSummary,
 } from "./types";
@@ -37,6 +39,18 @@ async function parseJsonSafely(response: Response) {
   }
 }
 
+function unwrapPayload<T>(payload: unknown) {
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+
+    if ("data" in record) return record.data as T;
+    if ("result" in record) return record.result as T;
+    if ("payload" in record) return record.payload as T;
+  }
+
+  return payload as T;
+}
+
 export async function getMonthSales(params: GetMonthSalesParams) {
   const searchParams = new URLSearchParams({
     year: String(params.year),
@@ -61,6 +75,35 @@ export async function getMonthSales(params: GetMonthSalesParams) {
   return (data ?? []) as MonthSalesApiItem[];
 }
 
+export async function getPhotoCardMonthSales(params: {
+  year: number;
+  month: number;
+}) {
+  const searchParams = new URLSearchParams({
+    year: String(params.year),
+    month: String(params.month),
+  });
+
+  const response = await fetch(
+    `/api/photo-card-sales/month?${searchParams.toString()}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    },
+  );
+
+  const data = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(
+      (data as { message?: string } | null)?.message ||
+        "사진매출 월별 데이터를 불러오지 못했습니다.",
+    );
+  }
+
+  return unwrapPayload<PhotoCardSalesMonthResponse | null>(data ?? null);
+}
+
 export async function getDailySales(params: GetDailySalesParams) {
   const searchParams = new URLSearchParams({
     date: params.date,
@@ -82,6 +125,31 @@ export async function getDailySales(params: GetDailySalesParams) {
   }
 
   return (data ?? null) as DailySalesApiResponse;
+}
+
+export async function getPhotoCardDailySales(params: { date: string }) {
+  const searchParams = new URLSearchParams({
+    date: params.date,
+  });
+
+  const response = await fetch(
+    `/api/photo-card-sales/daily?${searchParams.toString()}`,
+    {
+      method: "GET",
+      cache: "no-store",
+    },
+  );
+
+  const data = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(
+      (data as { message?: string } | null)?.message ||
+        "사진매출 일별 데이터를 불러오지 못했습니다.",
+    );
+  }
+
+  return unwrapPayload<PhotoCardSalesDailyResponse | null>(data ?? null);
 }
 
 export async function getPrepaidSummary(point: PointKey) {

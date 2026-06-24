@@ -5,11 +5,15 @@ import {
   createManualSales,
   getDailySales,
   getMonthSales,
+  getPhotoCardDailySales,
+  getPhotoCardMonthSales,
   getPrepaidSummary,
 } from "@/lib/sales/api";
 import {
   buildPrepaidSummaryFromMonthRows,
   mapSalesDashboardData,
+  mergePhotoCardDailySales,
+  mergePhotoCardMonthSales,
 } from "@/lib/sales/mapper";
 import type {
   DailySalesApiResponse,
@@ -54,11 +58,23 @@ export function useSales(params: Params) {
 
     try {
       if (params.periodType === "month") {
-        const monthItems = await getMonthSales({
-          year: params.year,
-          month: params.month,
-          point: params.point,
-        });
+        const [monthItems, photoCardSales] = await Promise.all([
+          getMonthSales({
+            year: params.year,
+            month: params.month,
+            point: params.point,
+          }),
+          params.point === "bank"
+            ? getPhotoCardMonthSales({
+                year: params.year,
+                month: params.month,
+              })
+            : Promise.resolve(null),
+        ]);
+        const mergedMonthItems =
+          params.point === "bank"
+            ? mergePhotoCardMonthSales(monthItems, photoCardSales)
+            : monthItems;
         let prepaidSummary =
           buildPrepaidSummaryFromMonthRows(monthItems, params.point) ?? null;
 
@@ -71,14 +87,31 @@ export function useSales(params: Params) {
           }
         }
 
-        setData(mapSalesDashboardData(monthItems, EMPTY_DAILY_DATA, prepaidSummary));
+        setData(
+          mapSalesDashboardData(
+            mergedMonthItems,
+            EMPTY_DAILY_DATA,
+            prepaidSummary,
+          ),
+        );
       } else {
-        const dailyData = await getDailySales({
-          date: params.date,
-          point: params.point,
-        });
+        const [dailyData, photoCardSales] = await Promise.all([
+          getDailySales({
+            date: params.date,
+            point: params.point,
+          }),
+          params.point === "bank"
+            ? getPhotoCardDailySales({
+                date: params.date,
+              })
+            : Promise.resolve(null),
+        ]);
+        const mergedDailyData =
+          params.point === "bank"
+            ? mergePhotoCardDailySales(dailyData, photoCardSales)
+            : dailyData;
 
-        setData(mapSalesDashboardData([], dailyData, null));
+        setData(mapSalesDashboardData([], mergedDailyData, null));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "매출 데이터를 불러오지 못했습니다.");

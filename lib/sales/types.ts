@@ -20,6 +20,8 @@ export type MonthSalesApiItem = {
   paymentAmount?: number;
   cancelAmount?: number;
   netAmount?: number;
+  photoCardAmount?: number;
+  photoCardCount?: number;
   prepaidThisMonthAmount?: number;
   prepaidNextMonthAmount?: number;
 };
@@ -73,6 +75,48 @@ export type DailySalesApiResponse = {
   netAmount: number;
   items: DailySalesApiItem[];
   detailItems?: DailySalesDetailItem[];
+};
+
+export type PhotoCardSalesMonthDailyItem = {
+  date: string;
+  totalAmount?: number;
+  cardAmount?: number;
+  count?: number;
+};
+
+export type PhotoCardSalesMonthResponse = {
+  year: number;
+  month: number;
+  totalAmount?: number;
+  cardAmount?: number;
+  appAmount?: number;
+  cashAmount?: number;
+  count?: number;
+  daily?: PhotoCardSalesMonthDailyItem[];
+};
+
+export type PhotoCardSalesPaymentItem = {
+  id?: number | string | null;
+  orderId?: string | null;
+  paymentKey?: string | null;
+  orderName?: string | null;
+  amount?: number | string | null;
+  status?: string | null;
+  method?: string | null;
+  receiptUrl?: string | null;
+  approvedAt?: string | number[] | null;
+  createDt?: string | number[] | null;
+  updateDt?: string | number[] | null;
+};
+
+export type PhotoCardSalesDailyResponse = {
+  date: string;
+  totalAmount?: number;
+  cardAmount?: number;
+  appAmount?: number;
+  cashAmount?: number;
+  count?: number;
+  items?: PhotoCardSalesPaymentItem[];
 };
 
 export type MonthlyChartRow = {

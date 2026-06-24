@@ -10,6 +10,9 @@ import type {
   MonthSummary,
   MonthlyChartRow,
   PaymentChartRow,
+  PhotoCardSalesDailyResponse,
+  PhotoCardSalesMonthResponse,
+  PhotoCardSalesPaymentItem,
   PointKey,
   SalesPaymentFilter,
   SalesDashboardData,
@@ -35,6 +38,7 @@ const ROW_TYPE_LABEL: Record<string, string> = {
   "0": "기본결제",
   "1": "추가결제",
   "2": "취소",
+  "3": "사진매출",
 };
 
 function extractCode(raw?: string | number | null) {
@@ -255,6 +259,57 @@ function sumSelectedRecordValues(
   const targetKey = paymentFilter === "app" ? "0" : "1";
 
   return Number(record?.[targetKey] ?? 0);
+}
+
+function normalizeDateKey(value?: string | number[] | null) {
+  const parsed = parseFlexibleDate(value);
+  if (!parsed) return String(value || "").slice(0, 10);
+
+  const yyyy = parsed.getFullYear();
+  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+  const dd = String(parsed.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function pickPhotoCardPaymentDate(item: PhotoCardSalesPaymentItem) {
+  return item.approvedAt || item.updateDt || item.createDt || "";
+}
+
+function toPhotoCardDailyItem(
+  item: PhotoCardSalesPaymentItem,
+  index: number,
+): DailySalesApiItem {
+  const amount = Number(item.amount || 0);
+  const orderId = item.orderId?.trim() || "";
+  const fallbackId = orderId
+    ? Math.abs(
+        Array.from(orderId).reduce(
+          (acc, char) => (acc * 31 + char.charCodeAt(0)) | 0,
+          17,
+        ),
+      )
+    : index + 1;
+
+  return {
+    id:
+      typeof item.id === "number"
+        ? item.id
+        : Number.isFinite(Number(item.id))
+        ? Number(item.id)
+        : -1_000_000 - fallbackId,
+    price: amount,
+    storageId: null,
+    mberNo: null,
+    mberNm: "사진매출",
+    tel: null,
+    payType: "1",
+    type: "3",
+    createdAt: pickPhotoCardPaymentDate(item),
+    ordId: orderId,
+    tossPaymentKey: item.paymentKey?.trim() || null,
+    point: "bank",
+    memo: item.orderName?.trim() || "포토카드 결제",
+  };
 }
 
 export function getPaymentTypeLabel(raw?: string | number | null) {
@@ -624,7 +679,10 @@ export function buildFilteredDailySummary(
   }
 
   const paymentRows = rows.filter(
-    (row) => row.rowTypeCode === "0" || row.rowTypeCode === "1",
+    (row) =>
+      row.rowTypeCode === "0" ||
+      row.rowTypeCode === "1" ||
+      row.rowTypeCode === "3",
   );
   const refundRows = rows.filter((row) => row.rowTypeCode === "2");
   const paymentAmount = paymentRows.reduce((acc, cur) => acc + Number(cur.price || 0), 0);
@@ -650,7 +708,7 @@ export function buildFilteredDailySummary(
 export function buildDailySummary(daily: DailySalesApiResponse): DailySummary {
   const paymentCount = daily.items.filter((row) => {
     const type = extractCode(row.type);
-    return type === "0" || type === "1";
+    return type === "0" || type === "1" || type === "3";
   }).length;
 
   const refundCount = daily.items.filter(
@@ -702,6 +760,103 @@ export function buildPrepaidSummaryFromMonthRows(
     nextMonthEndDate: "",
     prepaidThisMonthAmount: Number(row.prepaidThisMonthAmount || 0),
     prepaidNextMonthAmount: Number(row.prepaidNextMonthAmount || 0),
+  };
+}
+
+export function mergePhotoCardMonthSales(
+  monthItems: MonthSalesApiItem[],
+  photoCardSales?: PhotoCardSalesMonthResponse | null,
+): MonthSalesApiItem[] {
+  const dailyRows = photoCardSales?.daily ?? [];
+  if (dailyRows.length === 0) return monthItems;
+
+  const mergedMap = new Map<string, MonthSalesApiItem>();
+
+  monthItems.forEach((item) => {
+    mergedMap.set(normalizeDateKey(item.createdAt), { ...item });
+  });
+
+  dailyRows.forEach((photoRow) => {
+    const dateKey = normalizeDateKey(photoRow.date);
+    if (!dateKey) return;
+
+    const amount = Number(photoRow.cardAmount ?? photoRow.totalAmount ?? 0);
+    const count = Number(photoRow.count ?? 0);
+    if (!amount && !count) return;
+
+    const existing =
+      mergedMap.get(dateKey) ??
+      ({
+        createdAt: dateKey,
+        totalAmount: 0,
+        paymentTypeAmount: {},
+        paymentTypeCancelAmount: {},
+        paymentTypeCancelCount: {},
+        paymentTypeCount: {},
+        typeAmount: {},
+        coldCount: 0,
+        roomCount: 0,
+        carrierCount: 0,
+        baseAmount: 0,
+        baseCount: 0,
+        addAmount: 0,
+        addCount: 0,
+        paymentAmount: 0,
+        cancelAmount: 0,
+        netAmount: 0,
+        photoCardAmount: 0,
+        photoCardCount: 0,
+      } satisfies MonthSalesApiItem);
+
+    mergedMap.set(dateKey, {
+      ...existing,
+      paymentAmount: Number(existing.paymentAmount || 0) + amount,
+      netAmount: Number(existing.netAmount || 0) + amount,
+      totalAmount: Number(existing.totalAmount || 0) + amount,
+      photoCardAmount: Number(existing.photoCardAmount || 0) + amount,
+      photoCardCount: Number(existing.photoCardCount || 0) + count,
+    });
+  });
+
+  return Array.from(mergedMap.values()).sort((a, b) =>
+    normalizeDateKey(a.createdAt).localeCompare(normalizeDateKey(b.createdAt)),
+  );
+}
+
+export function mergePhotoCardDailySales(
+  dailyData: DailySalesApiResponse,
+  photoCardSales?: PhotoCardSalesDailyResponse | null,
+): DailySalesApiResponse {
+  const amount = Number(
+    photoCardSales?.cardAmount ?? photoCardSales?.totalAmount ?? 0,
+  );
+  const items = photoCardSales?.items ?? [];
+
+  if (!amount && items.length === 0) return dailyData;
+
+  const photoItems = items.map((item, index) =>
+    toPhotoCardDailyItem(item, index),
+  );
+  const fallbackPhotoItems =
+    photoItems.length > 0
+      ? photoItems
+      : [
+          toPhotoCardDailyItem(
+            {
+              orderId: `photo-card-sales-${photoCardSales?.date || dailyData.date}`,
+              orderName: "포토카드 결제",
+              amount,
+              approvedAt: photoCardSales?.date || dailyData.date,
+            },
+            0,
+          ),
+        ];
+
+  return {
+    ...dailyData,
+    paymentAmount: Number(dailyData.paymentAmount || 0) + amount,
+    netAmount: Number(dailyData.netAmount || 0) + amount,
+    items: [...(dailyData.items ?? []), ...fallbackPhotoItems],
   };
 }
 
