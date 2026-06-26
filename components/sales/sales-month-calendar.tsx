@@ -594,7 +594,7 @@ function SalesDayDetailModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl rounded-[32px] bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.16)] sm:p-8"
+        className="relative flex max-h-[calc(100dvh-32px)] w-full max-w-3xl flex-col overflow-hidden rounded-[32px] bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.16)] sm:max-h-[calc(100dvh-48px)] sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -605,7 +605,7 @@ function SalesDayDetailModal({
           ×
         </button>
 
-        <div className="flex items-start justify-between gap-4 pr-14 sm:pr-16">
+        <div className="flex shrink-0 items-start justify-between gap-4 pr-14 sm:pr-16">
           <div>
             <div className="text-[34px] font-black tracking-[-0.05em] text-slate-800 sm:text-[38px]">
               매출액
@@ -616,16 +616,16 @@ function SalesDayDetailModal({
           </div>
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-[24px] border border-slate-200">
+        <div className="mt-6 min-h-0 overflow-y-auto rounded-[24px] border border-slate-200">
           {rows.map((row) => (
             <div
               key={row.label}
-              className="grid grid-cols-[1.1fr_1fr] border-b border-slate-200 last:border-b-0"
+              className="grid grid-cols-[104px_minmax(0,1fr)] border-b border-slate-200 last:border-b-0 sm:grid-cols-[132px_minmax(0,1fr)]"
             >
-              <div className="bg-slate-50 px-5 py-3.5 text-[16px] font-black text-slate-600 sm:text-[18px]">
+              <div className="bg-slate-50 px-4 py-3.5 text-[16px] font-black text-slate-600 sm:px-5 sm:text-[18px]">
                 {row.label}
               </div>
-              <div className="px-5 py-3.5 text-[18px] font-semibold text-slate-700 sm:text-[20px]">
+              <div className="min-w-0 px-4 py-3.5 text-[18px] font-semibold text-slate-700 sm:px-5 sm:text-[20px]">
                 {row.value}
               </div>
             </div>
