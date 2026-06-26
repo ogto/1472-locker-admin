@@ -770,7 +770,7 @@ export default function AdminLockerStatusPage() {
 
     if (!range) {
       setErrorText(
-        `ESP ${deviceNo}번에는 현재 매핑된 보관함이 없습니다. 16채널은 ESP 201~216, 220~222번, 기존 8채널은 ESP 39~44번에 매핑되어 있습니다.`
+        `ESP ${deviceNo}번에는 현재 매핑된 보관함이 없습니다. 16채널은 ESP 201~216, 220~222번, 기존 8채널은 ESP 39~45번에 매핑되어 있습니다.`
       );
       return;
     }

@@ -6,6 +6,7 @@ export type DeviceRange = {
   deviceNo: number;
   start: number;
   end: number;
+  lockerStart?: number;
 };
 
 export type LockerMapping = {
@@ -37,18 +38,19 @@ function buildDeviceRanges(): DeviceRange[] {
   ];
 
   const roomEightChannelRanges: DeviceRange[] = [
-    { deviceNo: 39, start: 305, end: 312 },
-    { deviceNo: 40, start: 313, end: 320 },
-    { deviceNo: 41, start: 321, end: 328 },
-    { deviceNo: 42, start: 329, end: 336 },
-    { deviceNo: 43, start: 337, end: 344 },
-    { deviceNo: 44, start: 345, end: 352 },
+    { deviceNo: 39, start: 305, end: 308, lockerStart: 5 },
+    { deviceNo: 40, start: 309, end: 316 },
+    { deviceNo: 41, start: 317, end: 324 },
+    { deviceNo: 42, start: 325, end: 332 },
+    { deviceNo: 43, start: 333, end: 340 },
+    { deviceNo: 44, start: 341, end: 348 },
+    { deviceNo: 45, start: 349, end: 352 },
   ];
 
   const ranges = [
     ...coldSixteenChannelRanges,
     // 보관함 215~304는 현재 미사용.
-    // ESP 217~219의 6타워 16채널 전환 전까지 305~352는 기존 8채널을 유지한다.
+    // ESP 217~219의 6타워 16채널 전환 전까지 305~352는 기존 301 기준 8채널 매핑을 유지한다.
     ...roomEightChannelRanges,
   ];
 
@@ -72,7 +74,7 @@ export function calcLockerMapping(storageId: number): LockerMapping | null {
 
   return {
     deviceNo: range.deviceNo,
-    lockerNo: storageId - range.start + 1,
+    lockerNo: storageId - range.start + (range.lockerStart ?? 1),
   };
 }
 
