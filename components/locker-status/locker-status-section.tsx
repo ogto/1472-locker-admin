@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment } from "react";
+
 type LockerOccupantInfo = {
   name: string;
   tel: string;
@@ -17,6 +19,7 @@ type LockerStatusSectionProps = {
   totalCount: number;
   tone: "cold" | "room" | "carrier";
   lockers: number[];
+  breakBeforeLockers?: number[];
   occupiedMap: Map<number, LockerOccupantInfo | null>;
   disabledSet: Set<number>;
   onLockerClick: (lockerNumber: number) => void;
@@ -63,6 +66,7 @@ export function LockerStatusSection({
   totalCount,
   tone,
   lockers,
+  breakBeforeLockers = [],
   occupiedMap,
   disabledSet,
   onLockerClick,
@@ -110,6 +114,7 @@ export function LockerStatusSection({
 
       <div className="mt-5 grid grid-cols-5 gap-2 sm:grid-cols-8 lg:grid-cols-10 2xl:grid-cols-12">
         {lockers.map((lockerNumber) => {
+          const shouldBreak = breakBeforeLockers.includes(lockerNumber);
           const item = occupiedMap.get(lockerNumber);
           const disabled = disabledSet.has(lockerNumber);
           const occupied = Boolean(item);
@@ -137,24 +142,26 @@ export function LockerStatusSection({
             : `${lockerNumber}번 비어있음`;
 
           return (
-            <button
-              type="button"
-              key={lockerNumber}
-              title={titleText}
-              onClick={() => onLockerClick(lockerNumber)}
-              className={[
-                "rounded-2xl border px-2 py-3 text-center transition hover:-translate-y-0.5",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300",
-                buildCellTone(disabled, occupied, ready, pickupProduct, tone),
-              ].join(" ")}
-            >
-              <div className="text-[11px] font-black tracking-tight sm:text-xs">
-                {lockerNumber}
-              </div>
-              <div className="mt-1 text-[10px] font-bold sm:text-[11px]">
-                {statusText}
-              </div>
-            </button>
+            <Fragment key={lockerNumber}>
+              {shouldBreak ? <div className="col-span-full h-2" aria-hidden="true" /> : null}
+              <button
+                type="button"
+                title={titleText}
+                onClick={() => onLockerClick(lockerNumber)}
+                className={[
+                  "rounded-2xl border px-2 py-3 text-center transition hover:-translate-y-0.5",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300",
+                  buildCellTone(disabled, occupied, ready, pickupProduct, tone),
+                ].join(" ")}
+              >
+                <div className="text-[11px] font-black tracking-tight sm:text-xs">
+                  {lockerNumber}
+                </div>
+                <div className="mt-1 text-[10px] font-bold sm:text-[11px]">
+                  {statusText}
+                </div>
+              </button>
+            </Fragment>
           );
         })}
       </div>

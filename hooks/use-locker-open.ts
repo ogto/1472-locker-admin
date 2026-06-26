@@ -209,7 +209,7 @@ export function useLockerOpen(
     if (!target) {
       return {
         value: "선택 안됨",
-        helper: "1~320 사이 보관함 번호를 입력하세요.",
+        helper: `1~${MAX_LOCKERS} 사이 보관함 번호를 입력하세요.`,
       };
     }
 

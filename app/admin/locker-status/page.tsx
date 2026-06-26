@@ -30,10 +30,14 @@ import {
   formatStatus,
 } from "@/lib/common";
 
-const COLD_LOCKERS = Array.from({ length: 300 }, (_, index) => index + 1);
-const ROOM_LOCKERS = Array.from({ length: 100 }, (_, index) => index + 301);
-const ROOM_MAX_LOCKER = 400;
-const STATUS_MAX_LOCKER = 400;
+function range(start: number, end: number) {
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
+
+const COLD_LOCKERS = [...range(1, 214), ...range(305, 352)];
+const ROOM_LOCKERS = range(353, 396);
+const ROOM_MAX_LOCKER = 396;
+const STATUS_MAX_LOCKER = 396;
 const ESP_OPEN_DELAY_MS = 150;
 
 type LockerOccupantInfo = {
@@ -766,7 +770,7 @@ export default function AdminLockerStatusPage() {
 
     if (!range) {
       setErrorText(
-        `ESP ${deviceNo}번에는 현재 매핑된 보관함이 없습니다. 냉장은 ESP 201~222번, 상온은 ESP 39~50번에 매핑되어 있습니다.`
+        `ESP ${deviceNo}번에는 현재 매핑된 보관함이 없습니다. 16채널은 ESP 201~216, 220~222번, 기존 8채널은 ESP 39~44번에 매핑되어 있습니다.`
       );
       return;
     }
@@ -979,11 +983,12 @@ export default function AdminLockerStatusPage() {
 
         <LockerStatusSection
           title="냉장"
-          description="1 ~ 300"
+          description="1 ~ 214, 305 ~ 352"
           occupiedCount={coldOccupiedCount}
           totalCount={COLD_LOCKERS.length}
           tone="cold"
           lockers={COLD_LOCKERS}
+          breakBeforeLockers={[305]}
           occupiedMap={occupiedMap}
           disabledSet={disabledStorageSet}
           onLockerClick={handleLockerClick}
@@ -991,7 +996,7 @@ export default function AdminLockerStatusPage() {
 
         <LockerStatusSection
           title="상온"
-          description="301 ~ 400"
+          description="353 ~ 396"
           occupiedCount={roomOccupiedCount}
           totalCount={ROOM_LOCKERS.length}
           tone="room"

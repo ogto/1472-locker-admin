@@ -1,6 +1,5 @@
 import {
   MAX_LOCKERS,
-  MAX_ROOM_TEMPERATURE_DEVICE_NO,
 } from "@/lib/lockers/constants";
 
 export type DeviceRange = {
@@ -15,8 +14,6 @@ export type LockerMapping = {
 };
 
 function buildDeviceRanges(): DeviceRange[] {
-  const ranges: DeviceRange[] = [];
-
   const coldSixteenChannelRanges: DeviceRange[] = [
     { deviceNo: 201, start: 1, end: 16 },
     { deviceNo: 202, start: 17, end: 32 },
@@ -34,36 +31,26 @@ function buildDeviceRanges(): DeviceRange[] {
     { deviceNo: 214, start: 175, end: 190 },
     { deviceNo: 215, start: 191, end: 206 },
     { deviceNo: 216, start: 207, end: 214 },
-    { deviceNo: 217, start: 215, end: 230 },
-    { deviceNo: 218, start: 231, end: 246 },
-    { deviceNo: 219, start: 247, end: 262 },
-    { deviceNo: 220, start: 263, end: 278 },
-    { deviceNo: 221, start: 279, end: 294 },
-    { deviceNo: 222, start: 295, end: 300 },
+    { deviceNo: 220, start: 353, end: 368 },
+    { deviceNo: 221, start: 369, end: 384 },
+    { deviceNo: 222, start: 385, end: 396 },
   ];
 
-  ranges.push(...coldSixteenChannelRanges);
+  const roomEightChannelRanges: DeviceRange[] = [
+    { deviceNo: 39, start: 305, end: 312 },
+    { deviceNo: 40, start: 313, end: 320 },
+    { deviceNo: 41, start: 321, end: 328 },
+    { deviceNo: 42, start: 329, end: 336 },
+    { deviceNo: 43, start: 337, end: 344 },
+    { deviceNo: 44, start: 345, end: 352 },
+  ];
 
-  // 냉장은 16채널 ESP 201~222, 상온은 기존 8채널 ESP 39~50을 유지
-  let currentStart = 301;
-
-  for (
-    let deviceNo = 39;
-    deviceNo <= MAX_ROOM_TEMPERATURE_DEVICE_NO;
-    deviceNo += 1
-  ) {
-    if (currentStart > MAX_LOCKERS) break;
-
-    const end = Math.min(currentStart + 7, MAX_LOCKERS);
-
-    ranges.push({
-      deviceNo,
-      start: currentStart,
-      end,
-    });
-
-    currentStart = end + 1;
-  }
+  const ranges = [
+    ...coldSixteenChannelRanges,
+    // 보관함 215~304는 현재 미사용.
+    // ESP 217~219의 6타워 16채널 전환 전까지 305~352는 기존 8채널을 유지한다.
+    ...roomEightChannelRanges,
+  ];
 
   return ranges.filter((range) => range.start <= range.end);
 }

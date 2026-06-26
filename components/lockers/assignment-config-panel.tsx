@@ -13,6 +13,10 @@ type AssignmentForm = {
   memo: string;
 };
 
+const MIN_COLD_GROUP = 1;
+const MAX_COLD_GROUP = 4;
+const COLD_GROUP_RANGE_LABEL = "1~214, 305~352";
+
 function parseDisabledGroups(value: string) {
   const trimmed = value.trim();
 
@@ -89,8 +93,12 @@ export function AssignmentConfigPanel() {
   async function handleSave() {
     const startGroup = Number(form.startGroup.trim());
 
-    if (!Number.isInteger(startGroup) || startGroup < 1) {
-      setErrorText("시작 그룹은 1 이상의 숫자여야 합니다.");
+    if (
+      !Number.isInteger(startGroup) ||
+      startGroup < MIN_COLD_GROUP ||
+      startGroup > MAX_COLD_GROUP
+    ) {
+      setErrorText(`시작 그룹은 ${MIN_COLD_GROUP}~${MAX_COLD_GROUP} 사이여야 합니다.`);
       return;
     }
 
@@ -100,11 +108,15 @@ export function AssignmentConfigPanel() {
       .filter(Boolean)
       .find((item) => {
         const parsed = Number(item);
-        return !Number.isInteger(parsed) || parsed < 1;
+        return (
+          !Number.isInteger(parsed) ||
+          parsed < MIN_COLD_GROUP ||
+          parsed > MAX_COLD_GROUP
+        );
       });
 
     if (invalidDisabledGroupText) {
-      setErrorText("제외 그룹에 숫자가 아닌 값이 있습니다.");
+      setErrorText(`제외 그룹은 ${MIN_COLD_GROUP}~${MAX_COLD_GROUP} 사이 숫자만 입력할 수 있습니다.`);
       return;
     }
 
@@ -206,7 +218,7 @@ export function AssignmentConfigPanel() {
         <div className="flex items-center justify-between gap-3">
           <div className="text-base font-black text-slate-900">냉장</div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-            1~300
+            {COLD_GROUP_RANGE_LABEL}
           </span>
         </div>
 
@@ -216,7 +228,8 @@ export function AssignmentConfigPanel() {
             <input
               type="number"
               inputMode="numeric"
-              min={1}
+              min={MIN_COLD_GROUP}
+              max={MAX_COLD_GROUP}
               value={form.startGroup}
               onChange={(event) =>
                 updateForm("startGroup", event.target.value.replace(/[^\d]/g, ""))
