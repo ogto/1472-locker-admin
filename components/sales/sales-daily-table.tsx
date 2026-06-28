@@ -32,6 +32,16 @@ function getPayTypeText(row: DailySalesViewRow) {
   return "-";
 }
 
+function getCardCompanyText(row: DailySalesViewRow) {
+  if (row.payTypeCode !== "1") return "-";
+
+  const company = row.cardCompany?.trim();
+  const number = row.cardNumber?.trim();
+
+  if (company && number) return `${company} · ${number}`;
+  return company || number || "-";
+}
+
 function getPriceText(row: DailySalesViewRow) {
   const label = row.priceLabel?.trim();
   if (label) return label;
@@ -180,6 +190,7 @@ export function SalesDailyTable({
             {visibleRows.map((row) => {
               const rowTypeText = getRowTypeText(row);
               const payTypeText = getPayTypeText(row);
+              const cardCompanyText = getCardCompanyText(row);
               const priceText = getPriceText(row);
               const isCanceledPayment = canceledPaymentIds.has(row.id);
 
@@ -266,6 +277,17 @@ export function SalesDailyTable({
                       </div>
                     </div>
 
+                    {row.payTypeCode === "1" ? (
+                      <div className="rounded-2xl bg-white px-3 py-3">
+                        <div className="text-[12px] font-bold text-slate-400">
+                          카드사
+                        </div>
+                        <div className="mt-1 text-[15px] font-black text-slate-800">
+                          {cardCompanyText}
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div className="rounded-2xl bg-white px-3 py-3">
                       <div className="text-[12px] font-bold text-slate-400">
                         지점
@@ -297,6 +319,7 @@ export function SalesDailyTable({
                   <th className="px-3 py-2">전화번호</th>
                   <th className="px-3 py-2">구분</th>
                   <th className="px-3 py-2">결제수단</th>
+                  <th className="px-3 py-2">카드사</th>
                   <th className="px-3 py-2">금액</th>
                   <th className="px-3 py-2">지점</th>
                   <th className="px-3 py-2">메모</th>
@@ -307,6 +330,7 @@ export function SalesDailyTable({
                 {visibleRows.map((row) => {
                   const rowTypeText = getRowTypeText(row);
                   const payTypeText = getPayTypeText(row);
+                  const cardCompanyText = getCardCompanyText(row);
                   const priceText = getPriceText(row);
                   const isCanceledPayment = canceledPaymentIds.has(row.id);
 
@@ -352,6 +376,8 @@ export function SalesDailyTable({
                       </td>
 
                       <td className="px-3 py-3 font-semibold">{payTypeText}</td>
+
+                      <td className="px-3 py-3 font-semibold">{cardCompanyText}</td>
 
                       <td
                         className={[

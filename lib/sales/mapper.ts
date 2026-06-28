@@ -421,7 +421,12 @@ export function mapFilteredPaymentRows(
 
 function buildDailyViewRow(
   row: DailySalesApiItem,
-  payer?: { payerName?: string | null; payerTel?: string | null },
+  payer?: {
+    payerName?: string | null;
+    payerTel?: string | null;
+    cardCompany?: string | null;
+    cardNumber?: string | null;
+  },
 ): DailySalesViewRow {
   const payTypeCode = extractCode(row.payType);
   const rowTypeCode = extractCode(row.type);
@@ -445,6 +450,8 @@ function buildDailyViewRow(
     ordId: row.ordId?.trim() || "",
     tossPaymentKey: row.tossPaymentKey?.trim() || "",
     memberNo: row.mberNo ?? null,
+    cardCompany: payer?.cardCompany?.trim() || "",
+    cardNumber: payer?.cardNumber?.trim() || "",
   };
 }
 
@@ -470,6 +477,8 @@ export function mapDailyRows(
         return buildDailyViewRow(detail.item, {
           payerName: detail.payerName,
           payerTel: detail.payerTel,
+          cardCompany: detail.cardCompany,
+          cardNumber: detail.cardNumber,
         });
       }
 
