@@ -579,6 +579,8 @@ export default function AdminSalesPage() {
                   periodType={periodType}
                   monthSummary={filteredData.monthSummary}
                   dailySummary={filteredData.dailySummary}
+                  dailyRows={filteredData.dailyRows}
+                  dailyDate={date}
                   onClickDailyRefund={() => void handleOpenCancelList()}
                 />
                 <SalesDailyTable

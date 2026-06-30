@@ -36,10 +36,7 @@ function getCardCompanyText(row: DailySalesViewRow) {
   if (row.payTypeCode !== "1") return "-";
 
   const company = row.cardCompany?.trim();
-  const number = row.cardNumber?.trim();
-
-  if (company && number) return `${company} · ${number}`;
-  return company || number || "-";
+  return company || "-";
 }
 
 function getPriceText(row: DailySalesViewRow) {

@@ -425,7 +425,6 @@ function buildDailyViewRow(
     payerName?: string | null;
     payerTel?: string | null;
     cardCompany?: string | null;
-    cardNumber?: string | null;
   },
 ): DailySalesViewRow {
   const payTypeCode = extractCode(row.payType);
@@ -451,7 +450,6 @@ function buildDailyViewRow(
     tossPaymentKey: row.tossPaymentKey?.trim() || "",
     memberNo: row.mberNo ?? null,
     cardCompany: payer?.cardCompany?.trim() || "",
-    cardNumber: payer?.cardNumber?.trim() || "",
   };
 }
 
@@ -478,7 +476,6 @@ export function mapDailyRows(
           payerName: detail.payerName,
           payerTel: detail.payerTel,
           cardCompany: detail.cardCompany,
-          cardNumber: detail.cardNumber,
         });
       }
 

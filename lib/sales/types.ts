@@ -60,7 +60,6 @@ export type DailySalesDetailItem = {
   payerName?: string | null;
   payerTel?: string | null;
   cardCompany?: string | null;
-  cardNumber?: string | null;
 };
 
 export type DailySalesApiResponse = {
@@ -156,7 +155,6 @@ export type DailySalesViewRow = {
   tossPaymentKey: string;
   memberNo: number | null;
   cardCompany: string;
-  cardNumber: string;
 };
 
 export type MonthSummary = {
