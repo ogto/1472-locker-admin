@@ -10,6 +10,7 @@ import { SalesDailyTable } from "@/components/sales/sales-daily-table";
 import { SalesFilters } from "@/components/sales/sales-filters";
 import { SalesManualModal } from "@/components/sales/sales-manual-modal";
 import { SalesMonthCalendar } from "@/components/sales/sales-month-calendar";
+import { SalesSettlementTables } from "@/components/sales/sales-settlement-tables";
 import { SalesSummaryCards } from "@/components/sales/sales-summary-cards";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useSales } from "@/hooks/use-sales";
@@ -28,6 +29,7 @@ import type {
   PointKey,
   SalesPaymentFilter,
   SalesPeriodType,
+  SalesMonthView,
 } from "@/lib/sales/types";
 
 function getTodayDateString() {
@@ -320,6 +322,7 @@ export default function AdminSalesPage() {
 
   const today = useMemo(() => new Date(), []);
   const [periodType, setPeriodType] = useState<SalesPeriodType>("month");
+  const [monthView, setMonthView] = useState<SalesMonthView>("calendar");
   const [paymentFilter, setPaymentFilter] = useState<SalesPaymentFilter>("all");
   const [point, setPoint] = useState<PointKey>("bank");
   const [year, setYear] = useState(today.getFullYear());
@@ -509,15 +512,33 @@ export default function AdminSalesPage() {
           <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
             <button
               type="button"
-              onClick={() => setPeriodType("month")}
+              onClick={() => {
+                setPeriodType("month");
+                setMonthView("calendar");
+              }}
               className={[
                 "rounded-xl px-4 py-2 text-sm font-black transition",
-                periodType === "month"
+                periodType === "month" && monthView === "calendar"
                   ? "bg-slate-900 text-white"
                   : "text-slate-600 hover:bg-slate-50",
               ].join(" ")}
             >
               월별
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPeriodType("month");
+                setMonthView("settlement");
+              }}
+              className={[
+                "rounded-xl px-4 py-2 text-sm font-black transition",
+                periodType === "month" && monthView === "settlement"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              정산표
             </button>
             <button
               type="button"
@@ -561,18 +582,27 @@ export default function AdminSalesPage() {
         ) : (
           <>
             {periodType === "month" ? (
-              <SalesMonthCalendar
-                year={year}
-                month={month}
-                point={point}
-                loading={loading}
-                rows={filteredData.rawMonthItems}
-                prepaidSummary={filteredData.prepaidSummary}
-                onPrevMonth={() => moveMonth(-1)}
-                onNextMonth={() => moveMonth(1)}
-                onChangePoint={setPoint}
-                onRefresh={refetch}
-              />
+              monthView === "settlement" ? (
+                <SalesSettlementTables
+                  year={year}
+                  month={month}
+                  onPrevMonth={() => moveMonth(-1)}
+                  onNextMonth={() => moveMonth(1)}
+                />
+              ) : (
+                <SalesMonthCalendar
+                  year={year}
+                  month={month}
+                  point={point}
+                  loading={loading}
+                  rows={filteredData.rawMonthItems}
+                  prepaidSummary={filteredData.prepaidSummary}
+                  onPrevMonth={() => moveMonth(-1)}
+                  onNextMonth={() => moveMonth(1)}
+                  onChangePoint={setPoint}
+                  onRefresh={refetch}
+                />
+              )
             ) : (
               <>
                 <SalesSummaryCards

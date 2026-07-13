@@ -8,6 +8,7 @@ import type {
   PhotoCardSalesMonthResponse,
   PointKey,
   SalesPrepaidSummary,
+  SalesSettlementData,
 } from "./types";
 
 type GetMonthSalesParams = {
@@ -170,6 +171,28 @@ export async function getPrepaidSummary(point: PointKey) {
   }
 
   return (data ?? null) as SalesPrepaidSummary;
+}
+
+export async function getSalesSettlement(params: { year: number; month: number }) {
+  const searchParams = new URLSearchParams({
+    year: String(params.year),
+    month: String(params.month),
+  });
+
+  const response = await fetch(`/api/sales/settlement?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+  const data = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(
+      (data as { message?: string } | null)?.message ||
+        "월 정산 데이터를 불러오지 못했습니다.",
+    );
+  }
+
+  return data as SalesSettlementData;
 }
 
 export async function getManualSales(params: GetManualSalesParams) {

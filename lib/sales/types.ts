@@ -1,5 +1,6 @@
 export type PointKey = "sungsim" | "baseball" | "bank";
 export type SalesPeriodType = "month" | "daily";
+export type SalesMonthView = "calendar" | "settlement";
 export type SalesPaymentFilter = "all" | "app" | "card";
 
 export type MonthSalesApiItem = {
@@ -233,4 +234,38 @@ export type ManualSalesViewRow = {
 
 export type ManualSalesDashboardData = {
   manualRows: ManualSalesViewRow[];
+};
+
+export type SettlementDailyRow = {
+  date: string;
+  amount: number;
+  count: number;
+};
+
+export type SettlementPickupDailyRow = SettlementDailyRow & {
+  storageFee: number;
+  coldCount: number;
+  coldAmount: number;
+  roomCount: number;
+  roomAmount: number;
+  carrierCount: number;
+  carrierAmount: number;
+};
+
+export type SettlementPickupLedgerRow = {
+  id: number;
+  date: string;
+  amount: number;
+  type: "payment" | "cancel";
+  reserveId: number;
+};
+
+export type SalesSettlementData = {
+  year: number;
+  month: number;
+  bank: SettlementDailyRow[];
+  baseball: SettlementDailyRow[];
+  photoCard: SettlementDailyRow[];
+  pickupDaily: SettlementPickupDailyRow[];
+  pickupLedger: SettlementPickupLedgerRow[];
 };
