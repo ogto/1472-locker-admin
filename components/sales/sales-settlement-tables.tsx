@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, RefreshCw } from "lucide-react";
 import { getSalesSettlement } from "@/lib/sales/api";
 import type {
   SalesSettlementData,
@@ -101,6 +101,7 @@ function DailyTable({
 export function SalesSettlementTables({ year, month, onPrevMonth, onNextMonth }: Props) {
   const [data, setData] = useState<SalesSettlementData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const requestId = useRef(0);
 
@@ -125,6 +126,34 @@ export function SalesSettlementTables({ year, month, onPrevMonth, onNextMonth }:
     void load();
   }, [load]);
 
+  const downloadExcel = useCallback(async () => {
+    setDownloading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/sales/settlement/excel?year=${year}&month=${month}`, {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw new Error(result?.message || "정산 엑셀을 생성하지 못했습니다.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${year}년_${month}월_매출_전체.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "정산 엑셀을 생성하지 못했습니다.");
+    } finally {
+      setDownloading(false);
+    }
+  }, [year, month]);
+
   const categoryTotals = useMemo(() => {
     const rows = data?.pickupDaily ?? [];
     return {
@@ -146,12 +175,15 @@ export function SalesSettlementTables({ year, month, onPrevMonth, onNextMonth }:
           <div className="text-sm font-bold text-slate-500">월 정산표</div>
           <h2 className="mt-1 text-2xl font-black tracking-[-0.03em] text-slate-900">{year}년 {month}월 매출</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={onPrevMonth} className="inline-flex min-h-11 items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 hover:bg-slate-50">
             <ChevronLeft size={18} /> 이전 달
           </button>
           <button type="button" onClick={() => void load()} disabled={loading} className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-slate-900 px-4 text-sm font-black text-white disabled:opacity-50">
             <RefreshCw size={17} className={loading ? "animate-spin" : ""} /> 새로고침
+          </button>
+          <button type="button" onClick={() => void downloadExcel()} disabled={downloading || loading} className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-black text-white hover:bg-emerald-700 disabled:opacity-50">
+            <Download size={17} /> {downloading ? "엑셀 생성 중" : "엑셀 다운로드"}
           </button>
           <button type="button" onClick={onNextMonth} className="inline-flex min-h-11 items-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-black text-slate-700 hover:bg-slate-50">
             다음 달 <ChevronRight size={18} />

@@ -528,6 +528,20 @@ export default function AdminSalesPage() {
             <button
               type="button"
               onClick={() => {
+                setPeriodType("daily");
+              }}
+              className={[
+                "rounded-xl px-4 py-2 text-sm font-black transition",
+                periodType === "daily"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:bg-slate-50",
+              ].join(" ")}
+            >
+              일별
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 setPeriodType("month");
                 setMonthView("settlement");
               }}
@@ -539,18 +553,6 @@ export default function AdminSalesPage() {
               ].join(" ")}
             >
               정산표
-            </button>
-            <button
-              type="button"
-              onClick={() => setPeriodType("daily")}
-              className={[
-                "rounded-xl px-4 py-2 text-sm font-black transition",
-                periodType === "daily"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:bg-slate-50",
-              ].join(" ")}
-            >
-              일별
             </button>
           </div>
         </div>
