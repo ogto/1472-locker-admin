@@ -58,7 +58,8 @@ export function useSales(params: Params) {
 
     try {
       if (params.periodType === "month") {
-        const [monthItems, photoCardSales] = await Promise.all([
+        const supportsPrepaid = params.point === "bank" || params.point === "baseball";
+        const [monthItems, photoCardSales, fetchedPrepaidSummary] = await Promise.all([
           getMonthSales({
             year: params.year,
             month: params.month,
@@ -70,22 +71,18 @@ export function useSales(params: Params) {
                 month: params.month,
               })
             : Promise.resolve(null),
+          supportsPrepaid
+            ? getPrepaidSummary(params.point).catch(() => null)
+            : Promise.resolve(null),
         ]);
         const mergedMonthItems =
           params.point === "bank"
             ? mergePhotoCardMonthSales(monthItems, photoCardSales)
             : monthItems;
-        let prepaidSummary =
-          buildPrepaidSummaryFromMonthRows(monthItems, params.point) ?? null;
-
-        if (params.point === "bank") {
-          try {
-            prepaidSummary = await getPrepaidSummary(params.point);
-          } catch {
-            prepaidSummary =
-              buildPrepaidSummaryFromMonthRows(monthItems, params.point) ?? null;
-          }
-        }
+        const prepaidSummary =
+          fetchedPrepaidSummary ??
+          buildPrepaidSummaryFromMonthRows(monthItems, params.point) ??
+          null;
 
         setData(
           mapSalesDashboardData(

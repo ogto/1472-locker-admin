@@ -280,7 +280,11 @@ export function SalesMonthCalendar({
         <div
           className={[
             "mt-6 grid grid-cols-2 gap-3 border-b border-slate-200 pb-6 2xl:gap-5 2xl:pb-8",
-            point === "bank" ? "xl:grid-cols-7" : "xl:grid-cols-4",
+            point === "bank"
+              ? "xl:grid-cols-7"
+              : point === "baseball"
+                ? "xl:grid-cols-6"
+                : "xl:grid-cols-4",
           ].join(" ")}
         >
           <SummaryStat label={`${month}월 총금액`} value={summary.total} tone="blue" />
@@ -288,12 +292,14 @@ export function SalesMonthCalendar({
           <SummaryStat label="카드" value={summary.card} tone="indigo" />
           <SummaryStat label="현금" value={summary.cash} tone="amber" />
           {point === "bank" ? (
+            <SummaryStat
+              label="인생네컷"
+              value={summary.photoCard}
+              tone="rose"
+            />
+          ) : null}
+          {point === "bank" || point === "baseball" ? (
             <>
-              <SummaryStat
-                label="인생네컷"
-                value={summary.photoCard}
-                tone="rose"
-              />
               <SummaryStat
                 label="이번달 선결제"
                 value={prepaidSummary?.prepaidThisMonthAmount ?? 0}

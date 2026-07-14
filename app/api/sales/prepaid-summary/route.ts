@@ -6,9 +6,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const point = searchParams.get("point") || "bank";
 
-  if (point !== "bank") {
+  if (point !== "bank" && point !== "baseball") {
     return NextResponse.json(
-      { message: "선결제 조회는 은행점만 지원합니다." },
+      { message: "선결제 조회는 은행점과 야구장점만 지원합니다." },
       { status: 400 },
     );
   }

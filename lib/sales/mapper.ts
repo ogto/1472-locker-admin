@@ -747,7 +747,7 @@ export function buildPrepaidSummaryFromMonthRows(
   monthItems: MonthSalesApiItem[],
   point: PointKey,
 ): SalesPrepaidSummary | null {
-  if (point !== "bank") return null;
+  if (point !== "bank" && point !== "baseball") return null;
 
   const row = monthItems.find(
     (item) =>
