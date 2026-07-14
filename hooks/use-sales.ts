@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createManualSales,
   getCarryoverSummary,
@@ -48,19 +48,21 @@ const EMPTY_DAILY_DATA: DailySalesApiResponse = {
 };
 
 export function useSales(params: Params) {
+  const requestIdRef = useRef(0);
   const [data, setData] = useState<SalesDashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   const fetchData = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError("");
 
     try {
       if (params.periodType === "month") {
         const supportsPrepaid = params.point === "bank" || params.point === "baseball";
-        const [monthItems, photoCardSales, fetchedPrepaidSummary, carryoverSummary] = await Promise.all([
+        const [monthItems, photoCardSales, fetchedPrepaidSummary] = await Promise.all([
           getMonthSales({
             year: params.year,
             month: params.month,
@@ -75,13 +77,6 @@ export function useSales(params: Params) {
           supportsPrepaid
             ? getPrepaidSummary(params.point).catch(() => null)
             : Promise.resolve(null),
-          supportsPrepaid
-            ? getCarryoverSummary({
-                year: params.year,
-                month: params.month,
-                point: params.point,
-              }).catch(() => null)
-            : Promise.resolve(null),
         ]);
         const mergedMonthItems =
           params.point === "bank"
@@ -93,13 +88,23 @@ export function useSales(params: Params) {
           null;
 
         setData(
-          mapSalesDashboardData(
-            mergedMonthItems,
-            EMPTY_DAILY_DATA,
-            prepaidSummary,
-            carryoverSummary,
-          ),
+          mapSalesDashboardData(mergedMonthItems, EMPTY_DAILY_DATA, prepaidSummary, null),
         );
+
+        if (supportsPrepaid) {
+          void getCarryoverSummary({
+            year: params.year,
+            month: params.month,
+            point: params.point,
+          })
+            .then((carryoverSummary) => {
+              if (requestIdRef.current !== requestId) return;
+              setData((current) =>
+                current ? { ...current, carryoverSummary } : current,
+              );
+            })
+            .catch(() => undefined);
+        }
       } else {
         const [dailyData, photoCardSales] = await Promise.all([
           getDailySales({

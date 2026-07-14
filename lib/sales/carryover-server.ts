@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import type { PointKey, SalesCarryoverSummary } from "./types";
 
 const API_BASE =
@@ -35,37 +36,27 @@ function yearMonth(value: unknown) {
 
 function previousPeriod(year: number, month: number) {
   const date = new Date(Date.UTC(year, month - 2, 1));
-  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
   return {
-    year: date.getUTCFullYear(),
-    month: date.getUTCMonth() + 1,
     key: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
-    endDate: `${lastDay.getUTCFullYear()}-${String(lastDay.getUTCMonth() + 1).padStart(2, "0")}-${String(lastDay.getUTCDate()).padStart(2, "0")}`,
   };
 }
 
-async function getBankCarryover(year: number, month: number) {
-  const previous = previousPeriod(year, month);
-  const raw = unwrap(
-    await fetchJson(
-      `${API_BASE}/v4/sales-info/prepaid-summary?point=bank&baseDate=${previous.endDate}`,
-    ),
-  ) as RawRecord | null;
-  return Number(raw?.prepaidNextMonthAmount || 0);
-}
-
-async function getBaseballCarryover(year: number, month: number) {
+async function getUsageCarryover(
+  year: number,
+  month: number,
+  point: Extract<PointKey, "bank" | "baseball">,
+) {
   const previous = previousPeriod(year, month);
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const startDay = `${year}-${String(month).padStart(2, "0")}-01`;
   const endDay = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-  const pageSize = 500;
+  const pageSize = 10000;
 
   const getPage = async (page: number) => {
     const params = new URLSearchParams({
       page: String(page),
       size: String(pageSize),
-      point: "baseball",
+      point,
       reservationStartDay: startDay,
       reservationEndDay: endDay,
     });
@@ -108,19 +99,24 @@ export function isCarryoverPoint(point: string): point is Extract<PointKey, "ban
   return point === "bank" || point === "baseball";
 }
 
-export async function getSalesCarryoverSummary(
+async function calculateSalesCarryoverSummary(
   year: number,
   month: number,
   point: Extract<PointKey, "bank" | "baseball">,
 ): Promise<SalesCarryoverSummary> {
-  const baseball = point === "baseball" ? await getBaseballCarryover(year, month) : null;
-  const amount = baseball?.amount ?? (await getBankCarryover(year, month));
+  const carryover = await getUsageCarryover(year, month, point);
 
   return {
     year,
     month,
     point,
-    amount,
-    count: baseball?.count ?? null,
+    amount: carryover.amount,
+    count: carryover.count,
   };
 }
+
+export const getSalesCarryoverSummary = unstable_cache(
+  calculateSalesCarryoverSummary,
+  ["sales-carryover-summary-v2"],
+  { revalidate: 300 },
+);

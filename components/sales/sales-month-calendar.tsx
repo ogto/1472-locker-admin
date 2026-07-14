@@ -313,7 +313,7 @@ export function SalesMonthCalendar({
               />
               <SummaryStat
                 label="이월금액"
-                value={carryoverSummary?.amount ?? 0}
+                value={carryoverSummary?.amount ?? null}
               />
             </>
           ) : null}
@@ -507,7 +507,7 @@ function SummaryStat({
   tone = "slate",
 }: {
   label: string;
-  value: number;
+  value: number | null;
   tone?: "blue" | "green" | "indigo" | "amber" | "rose" | "slate";
 }) {
   const valueClass =
@@ -527,7 +527,7 @@ function SummaryStat({
     <div className="border-slate-200 xl:border-r xl:pr-6 xl:last:border-r-0 2xl:pr-8">
       <div className="text-[13px] font-black text-slate-400 sm:text-[14px] 2xl:text-[16px]">{label}</div>
       <div className={`mt-2 whitespace-nowrap text-[20px] font-black tracking-[-0.04em] sm:text-[23px] 2xl:text-[28px] ${valueClass}`}>
-        {formatPrice(value)}
+        {value === null ? "계산 중..." : formatPrice(value)}
       </div>
     </div>
   );
