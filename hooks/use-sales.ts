@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createManualSales,
+  getCarryoverSummary,
   getDailySales,
   getMonthSales,
   getPhotoCardDailySales,
@@ -59,7 +60,7 @@ export function useSales(params: Params) {
     try {
       if (params.periodType === "month") {
         const supportsPrepaid = params.point === "bank" || params.point === "baseball";
-        const [monthItems, photoCardSales, fetchedPrepaidSummary] = await Promise.all([
+        const [monthItems, photoCardSales, fetchedPrepaidSummary, carryoverSummary] = await Promise.all([
           getMonthSales({
             year: params.year,
             month: params.month,
@@ -73,6 +74,13 @@ export function useSales(params: Params) {
             : Promise.resolve(null),
           supportsPrepaid
             ? getPrepaidSummary(params.point).catch(() => null)
+            : Promise.resolve(null),
+          supportsPrepaid
+            ? getCarryoverSummary({
+                year: params.year,
+                month: params.month,
+                point: params.point,
+              }).catch(() => null)
             : Promise.resolve(null),
         ]);
         const mergedMonthItems =
@@ -89,6 +97,7 @@ export function useSales(params: Params) {
             mergedMonthItems,
             EMPTY_DAILY_DATA,
             prepaidSummary,
+            carryoverSummary,
           ),
         );
       } else {

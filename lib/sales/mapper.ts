@@ -870,6 +870,7 @@ export function mapSalesDashboardData(
   monthItems: MonthSalesApiItem[],
   dailyData: DailySalesApiResponse,
   prepaidSummary: SalesPrepaidSummary | null = null,
+  carryoverSummary: SalesDashboardData["carryoverSummary"] = null,
 ): SalesDashboardData {
   const paymentRows = mapPaymentRows(monthItems);
 
@@ -880,6 +881,7 @@ export function mapSalesDashboardData(
     monthSummary: buildMonthSummary(monthItems, paymentRows),
     dailySummary: buildDailySummary(dailyData),
     prepaidSummary,
+    carryoverSummary,
     rawMonthItems: monthItems,
     rawDailyData: dailyData,
   };

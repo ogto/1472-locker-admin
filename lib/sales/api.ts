@@ -7,6 +7,7 @@ import type {
   PhotoCardSalesDailyResponse,
   PhotoCardSalesMonthResponse,
   PointKey,
+  SalesCarryoverSummary,
   SalesPrepaidSummary,
   SalesSettlementData,
 } from "./types";
@@ -171,6 +172,31 @@ export async function getPrepaidSummary(point: PointKey) {
   }
 
   return (data ?? null) as SalesPrepaidSummary;
+}
+
+export async function getCarryoverSummary(params: {
+  year: number;
+  month: number;
+  point: PointKey;
+}) {
+  const searchParams = new URLSearchParams({
+    year: String(params.year),
+    month: String(params.month),
+    point: params.point,
+  });
+  const response = await fetch(`/api/sales/carryover-summary?${searchParams.toString()}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+  const data = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(
+      (data as { message?: string } | null)?.message || "이월금액을 불러오지 못했습니다.",
+    );
+  }
+
+  return data as SalesCarryoverSummary;
 }
 
 export async function getSalesSettlement(params: { year: number; month: number }) {

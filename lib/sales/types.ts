@@ -63,6 +63,14 @@ export type DailySalesDetailItem = {
   cardCompany?: string | null;
 };
 
+export type SalesCarryoverSummary = {
+  year: number;
+  month: number;
+  point: PointKey;
+  amount: number;
+  count: number | null;
+};
+
 export type DailySalesApiResponse = {
   date: string;
   coldCount: number;
@@ -200,6 +208,7 @@ export type SalesDashboardData = {
   monthSummary: MonthSummary;
   dailySummary: DailySummary;
   prepaidSummary: SalesPrepaidSummary | null;
+  carryoverSummary: SalesCarryoverSummary | null;
   rawMonthItems: MonthSalesApiItem[];
   rawDailyData: DailySalesApiResponse;
 };

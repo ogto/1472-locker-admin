@@ -6,6 +6,7 @@ import type {
   MonthSalesApiItem,
   PointKey,
   SalesPrepaidSummary,
+  SalesCarryoverSummary,
 } from "@/lib/sales/types";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
   loading: boolean;
   rows: MonthSalesApiItem[];
   prepaidSummary: SalesPrepaidSummary | null;
+  carryoverSummary: SalesCarryoverSummary | null;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onChangePoint: (value: PointKey) => void;
@@ -148,6 +150,7 @@ export function SalesMonthCalendar({
   loading,
   rows,
   prepaidSummary,
+  carryoverSummary,
   onPrevMonth,
   onNextMonth,
   onChangePoint,
@@ -281,9 +284,9 @@ export function SalesMonthCalendar({
           className={[
             "mt-6 grid grid-cols-2 gap-3 border-b border-slate-200 pb-6 2xl:gap-5 2xl:pb-8",
             point === "bank"
-              ? "xl:grid-cols-7"
+              ? "xl:grid-cols-8"
               : point === "baseball"
-                ? "xl:grid-cols-6"
+                ? "xl:grid-cols-7"
                 : "xl:grid-cols-4",
           ].join(" ")}
         >
@@ -307,6 +310,10 @@ export function SalesMonthCalendar({
               <SummaryStat
                 label="다음달 선결제"
                 value={prepaidSummary?.prepaidNextMonthAmount ?? 0}
+              />
+              <SummaryStat
+                label="이월금액"
+                value={carryoverSummary?.amount ?? 0}
               />
             </>
           ) : null}
