@@ -38,10 +38,6 @@ function dateKey(value: unknown) {
   return String(value ?? "").match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? "";
 }
 
-function code(value: unknown) {
-  return String(value ?? "").match(/\d+/)?.[0] ?? "";
-}
-
 function sumRecord(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return 0;
   return Object.values(value as RawRecord).reduce<number>((sum, item) => sum + Number(item || 0), 0);
@@ -70,6 +66,53 @@ function monthRows(value: unknown) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+type UsageRow = {
+  id: number;
+  reserveId: number;
+  date: string;
+  amount: number;
+};
+
+function isCanceledUsage(row: RawRecord) {
+  const status = String(row.reservationStatus ?? "").toUpperCase();
+  return status === "CANCEL" || status === "CANCELED";
+}
+
+function usageRows(value: RawRecord[]) {
+  const unique = new Map<number, UsageRow>();
+
+  for (const row of value) {
+    if (isCanceledUsage(row)) continue;
+
+    const id = Number(row.id);
+    const reserveId = Number(row.reserveId ?? row.id);
+    const date = dateKey(row.reservationDay ?? row.createdAt);
+    if (!Number.isInteger(reserveId) || !date) continue;
+
+    unique.set(reserveId, {
+      id: Number.isInteger(id) ? id : reserveId,
+      reserveId,
+      date,
+      amount: Number(row.price || 0),
+    });
+  }
+
+  return [...unique.values()].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
+}
+
+function usageDailyRows(rows: UsageRow[]) {
+  const dailyMap = new Map<string, { date: string; amount: number; count: number }>();
+
+  for (const row of rows) {
+    const daily = dailyMap.get(row.date) ?? { date: row.date, amount: 0, count: 0 };
+    daily.amount += row.amount;
+    daily.count += 1;
+    dailyMap.set(row.date, daily);
+  }
+
+  return [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 async function mapWithConcurrency<T, R>(items: T[], limit: number, mapper: (item: T) => Promise<R>) {
   const results = new Array<R>(items.length);
   let nextIndex = 0;
@@ -83,6 +126,51 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, mapper: (item
   return results;
 }
 
+async function fetchUsageHistory(
+  year: number,
+  month: number,
+  point: "bank" | "baseball",
+  pickupProduct?: boolean,
+) {
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const startDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDay = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  const pageSize = 500;
+
+  const getPage = async (page: number) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      size: String(pageSize),
+      point,
+      reservationStartDay: startDay,
+      reservationEndDay: endDay,
+    });
+    if (pickupProduct !== undefined) params.set("pickupProduct", String(pickupProduct));
+
+    const pageData = unwrap<RawRecord>(
+      await fetchJson(`${API_BASE}/v4/bread-storage/reserve-history?${params.toString()}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }),
+    ) ?? {};
+
+    return {
+      rows: Array.isArray(pageData.content) ? (pageData.content as RawRecord[]) : [],
+      totalPages: Math.max(1, Number(pageData.totalPages || 1)),
+    };
+  };
+
+  const first = await getPage(0);
+  if (first.totalPages <= 1) return first.rows;
+
+  const remaining = await mapWithConcurrency(
+    Array.from({ length: first.totalPages - 1 }, (_, index) => index + 1),
+    4,
+    async (page) => (await getPage(page)).rows,
+  );
+  return [first.rows, ...remaining].flat();
+}
+
 export function isValidSettlementPeriod(year: number, month: number) {
   return Number.isInteger(year) && year >= 2020 && Number.isInteger(month) && month >= 1 && month <= 12;
 }
@@ -90,44 +178,20 @@ export function isValidSettlementPeriod(year: number, month: number) {
 export async function getSalesSettlementData(year: number, month: number): Promise<SalesSettlementData> {
   if (!isValidSettlementPeriod(year, month)) throw new Error("올바른 year, month가 필요합니다.");
 
-  const end = new Date(Date.UTC(year, month, 0));
-  const dates = Array.from({ length: end.getUTCDate() }, (_, index) =>
-    `${year}-${String(month).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`,
-  );
   const monthParams = `year=${year}&month=${month}`;
 
-  const [bankRaw, baseballRaw, photoRaw] = await Promise.all([
+  const [bankRaw, photoRaw, pickupHistoryRaw, baseballHistoryRaw] = await Promise.all([
     fetchJson(`${API_BASE}/v4/sales-info/month?${monthParams}&point=bank`),
-    fetchJson(`${API_BASE}/v4/sales-info/month?${monthParams}&point=baseball`),
     fetchJson(`${API_BASE}/v4/sales-info/photo-card/month?${monthParams}`, {
       headers: { Accept: "application/json, text/plain, */*" },
     }),
+    fetchUsageHistory(year, month, "bank", true),
+    fetchUsageHistory(year, month, "baseball"),
   ]);
-  const dailyResults = await mapWithConcurrency(dates, 8, async (date) => ({
-    date,
-    data: unwrap<RawRecord>(await fetchJson(`${API_BASE}/v4/sales-info/daily?date=${date}&point=bank`)),
-  }));
 
-  const ledgerBase: Array<{ id: number; date: string; amount: number; type: "payment" | "cancel"; reserveId: number }> = [];
-  for (const result of dailyResults) {
-    const items = Array.isArray(result.data?.items) ? (result.data.items as RawRecord[]) : [];
-    for (const item of items) {
-      const reserveId = Number(item.storageId);
-      const typeCode = code(item.type);
-      const price = Math.abs(Number(item.price || 0));
-      if (!Number.isInteger(reserveId) || price < 8000 || (typeCode !== "0" && typeCode !== "2")) continue;
-      const canceled = typeCode === "2";
-      ledgerBase.push({
-        id: Number(item.id),
-        date: result.date,
-        amount: (canceled ? -1 : 1) * price,
-        type: canceled ? "cancel" : "payment",
-        reserveId,
-      });
-    }
-  }
-
-  const reserveIds = [...new Set(ledgerBase.map((row) => row.reserveId))];
+  const pickupUsage = usageRows(pickupHistoryRaw);
+  const baseballUsage = usageRows(baseballHistoryRaw);
+  const reserveIds = pickupUsage.map((row) => row.reserveId);
   const detailPairs = await mapWithConcurrency(reserveIds, 12, async (reserveId) => {
     try {
       const details = await fetchJson(
@@ -141,14 +205,13 @@ export async function getSalesSettlementData(year: number, month: number): Promi
   });
   const detailMap = new Map(detailPairs);
 
-  const pickupLedger = ledgerBase.flatMap((row) => {
+  const pickupLedger = pickupUsage.map((row) => {
     const details = detailMap.get(row.reserveId) ?? [];
-    if (!details.some((item) => item.pickupProduct === true)) return [];
     const detailTypes = details.map((item) => Number(item.type)).filter(Number.isInteger);
     const types = detailTypes.length ? detailTypes : [0];
     const category = types.includes(2) ? "carrier" : types.includes(1) ? "room" : "cold";
     const baseFee = types.reduce((sum, type) => sum + (type === 1 ? 4000 : 5000), 0) || 5000;
-    return [{ ...row, category, storageFee: row.type === "cancel" ? -baseFee : baseFee }];
+    return { ...row, type: "payment" as const, category, storageFee: baseFee };
   });
 
   const pickupMap = new Map<string, RawRecord>();
@@ -165,11 +228,10 @@ export async function getSalesSettlementData(year: number, month: number): Promi
       carrierCount: 0,
       carrierAmount: 0,
     };
-    const sign = row.type === "cancel" ? -1 : 1;
     daily.amount = Number(daily.amount) + row.amount;
-    daily.count = Number(daily.count) + sign;
+    daily.count = Number(daily.count) + 1;
     daily.storageFee = Number(daily.storageFee) + row.storageFee;
-    daily[`${row.category}Count`] = Number(daily[`${row.category}Count`]) + sign;
+    daily[`${row.category}Count`] = Number(daily[`${row.category}Count`]) + 1;
     daily[`${row.category}Amount`] = Number(daily[`${row.category}Amount`]) + row.amount;
     pickupMap.set(row.date, daily);
   }
@@ -181,7 +243,7 @@ export async function getSalesSettlementData(year: number, month: number): Promi
     year,
     month,
     bank: monthRows(bankRaw),
-    baseball: monthRows(baseballRaw),
+    baseball: usageDailyRows(baseballUsage),
     photoCard: photoDaily
       .map((row) => ({
         date: dateKey(row.date),
