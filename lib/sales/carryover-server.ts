@@ -35,10 +35,12 @@ function yearMonth(value: unknown) {
 
 function previousPeriod(year: number, month: number) {
   const date = new Date(Date.UTC(year, month - 2, 1));
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
   return {
     year: date.getUTCFullYear(),
     month: date.getUTCMonth() + 1,
     key: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`,
+    endDate: `${lastDay.getUTCFullYear()}-${String(lastDay.getUTCMonth() + 1).padStart(2, "0")}-${String(lastDay.getUTCDate()).padStart(2, "0")}`,
   };
 }
 
@@ -46,12 +48,10 @@ async function getBankCarryover(year: number, month: number) {
   const previous = previousPeriod(year, month);
   const raw = unwrap(
     await fetchJson(
-      `${API_BASE}/v4/sales-info/month?year=${previous.year}&month=${previous.month}&point=bank`,
+      `${API_BASE}/v4/sales-info/prepaid-summary?point=bank&baseDate=${previous.endDate}`,
     ),
-  );
-  const rows = Array.isArray(raw) ? (raw as RawRecord[]) : [];
-  const row = rows.find((item) => item.prepaidNextMonthAmount !== undefined);
-  return Number(row?.prepaidNextMonthAmount || 0);
+  ) as RawRecord | null;
+  return Number(raw?.prepaidNextMonthAmount || 0);
 }
 
 async function getBaseballCarryover(year: number, month: number) {
