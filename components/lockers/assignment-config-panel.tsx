@@ -2,52 +2,47 @@
 
 import { useEffect, useState } from "react";
 import {
+  COLD_ASSIGNMENT_GROUPS,
+  DEFAULT_COLD_ASSIGNMENT_ORDER,
   fetchColdAssignmentConfig,
   saveColdAssignmentConfig,
 } from "@/lib/lockers/api";
-import type { AssignmentConfig } from "@/lib/lockers/api";
+import type {
+  AssignmentConfig,
+  ColdAssignmentGroupId,
+} from "@/lib/lockers/api";
 
-type AssignmentForm = {
-  startGroup: string;
-  disabledGroupsText: string;
-  memo: string;
+type AssignmentForm = AssignmentConfig;
+
+const GROUP_RANGE: Record<ColdAssignmentGroupId, string> = {
+  "1": "1~58",
+  "2-1": "59~96",
+  "2-2": "97~136",
+  "3-1": "137~174",
+  "3-2": "175~214",
+  "3-3": "305~352",
 };
 
-const MIN_COLD_GROUP = 1;
-const MAX_COLD_GROUP = 4;
-const COLD_GROUP_RANGE_LABEL = "1~214, 305~352";
-
-function parseDisabledGroups(value: string) {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return [];
-  }
-
-  return Array.from(
-    new Set(
-      trimmed
-        .split(/[,\s]+/)
-        .map((item) => Number(item.trim()))
-        .filter((item) => Number.isInteger(item))
-    )
-  ).sort((a, b) => a - b);
+function createDefaultForm(): AssignmentForm {
+  return {
+    assignmentOrder: [...DEFAULT_COLD_ASSIGNMENT_ORDER],
+    disabledGroups: [],
+    memo: "",
+  };
 }
 
-function formatGroupNumber(group: number) {
-  return `${group}번`;
-}
-
-function formatGroupNumbers(groups: number[]) {
-  return groups.length ? groups.map(formatGroupNumber).join(", ") : "없음";
+function isValidAssignmentOrder(
+  order: ColdAssignmentGroupId[]
+): boolean {
+  return (
+    order.length === COLD_ASSIGNMENT_GROUPS.length &&
+    new Set(order).size === COLD_ASSIGNMENT_GROUPS.length &&
+    COLD_ASSIGNMENT_GROUPS.every((groupId) => order.includes(groupId))
+  );
 }
 
 export function AssignmentConfigPanel() {
-  const [form, setForm] = useState<AssignmentForm>({
-    startGroup: "1",
-    disabledGroupsText: "",
-    memo: "",
-  });
+  const [form, setForm] = useState<AssignmentForm>(createDefaultForm);
   const [appliedConfig, setAppliedConfig] = useState<AssignmentConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -66,11 +61,7 @@ export function AssignmentConfigPanel() {
     try {
       const config = await fetchColdAssignmentConfig();
 
-      setForm({
-        startGroup: String(config.startGroup),
-        disabledGroupsText: config.disabledGroups.join(", "),
-        memo: config.memo,
-      });
+      setForm(config);
       setAppliedConfig(config);
     } catch (error) {
       setErrorText(
@@ -83,47 +74,36 @@ export function AssignmentConfigPanel() {
     }
   }
 
-  function updateForm(key: keyof AssignmentForm, value: string) {
+  function moveGroup(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+
+    if (targetIndex < 0 || targetIndex >= form.assignmentOrder.length) return;
+
+    setForm((prev) => {
+      const assignmentOrder = [...prev.assignmentOrder];
+      [assignmentOrder[index], assignmentOrder[targetIndex]] = [
+        assignmentOrder[targetIndex],
+        assignmentOrder[index],
+      ];
+
+      return { ...prev, assignmentOrder };
+    });
+    setSuccessText("");
+  }
+
+  function toggleDisabledGroup(groupId: ColdAssignmentGroupId) {
     setForm((prev) => ({
       ...prev,
-      [key]: value,
+      disabledGroups: prev.disabledGroups.includes(groupId)
+        ? prev.disabledGroups.filter((item) => item !== groupId)
+        : [...prev.disabledGroups, groupId],
     }));
+    setSuccessText("");
   }
 
   async function handleSave() {
-    const startGroup = Number(form.startGroup.trim());
-
-    if (
-      !Number.isInteger(startGroup) ||
-      startGroup < MIN_COLD_GROUP ||
-      startGroup > MAX_COLD_GROUP
-    ) {
-      setErrorText(`시작 그룹은 ${MIN_COLD_GROUP}~${MAX_COLD_GROUP} 사이여야 합니다.`);
-      return;
-    }
-
-    const invalidDisabledGroupText = form.disabledGroupsText
-      .trim()
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .find((item) => {
-        const parsed = Number(item);
-        return (
-          !Number.isInteger(parsed) ||
-          parsed < MIN_COLD_GROUP ||
-          parsed > MAX_COLD_GROUP
-        );
-      });
-
-    if (invalidDisabledGroupText) {
-      setErrorText(`제외 그룹은 ${MIN_COLD_GROUP}~${MAX_COLD_GROUP} 사이 숫자만 입력할 수 있습니다.`);
-      return;
-    }
-
-    const disabledGroups = parseDisabledGroups(form.disabledGroupsText);
-
-    if (disabledGroups.includes(startGroup)) {
-      setErrorText("시작 그룹은 제외 그룹에 넣을 수 없습니다.");
+    if (!isValidAssignmentOrder(form.assignmentOrder)) {
+      setErrorText("배정 순서에는 지원하는 6개 그룹이 중복이나 누락 없이 모두 있어야 합니다.");
       return;
     }
 
@@ -133,16 +113,12 @@ export function AssignmentConfigPanel() {
 
     try {
       const saved = await saveColdAssignmentConfig({
-        startGroup,
-        disabledGroups,
+        assignmentOrder: form.assignmentOrder,
+        disabledGroups: form.disabledGroups,
         memo: form.memo.trim(),
       });
 
-      setForm({
-        startGroup: String(saved.startGroup),
-        disabledGroupsText: saved.disabledGroups.join(", "),
-        memo: saved.memo,
-      });
+      setForm(saved);
       setAppliedConfig(saved);
       setSuccessText("냉장 그룹 배정 설정을 저장했습니다.");
     } catch (error) {
@@ -160,7 +136,7 @@ export function AssignmentConfigPanel() {
         <div>
           <div className="text-lg font-black text-slate-900">냉장 그룹 배정 설정</div>
           <div className="mt-1 text-sm font-bold text-slate-500">
-            냉장 보관함 배정 시작 그룹과 제외 그룹을 관리합니다.
+            은행점 냉장 보관함의 배정 우선순위와 사용불가 그룹을 관리합니다.
           </div>
         </div>
         <button
@@ -185,82 +161,105 @@ export function AssignmentConfigPanel() {
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl bg-slate-50 px-4 py-3">
-          <div className="text-xs font-black text-slate-500">현재 시작 그룹</div>
-          <div className="mt-1 text-xl font-black text-slate-950">
+          <div className="text-xs font-black text-slate-500">현재 배정 순서</div>
+          <div className="mt-1 text-base font-black text-slate-950">
             {appliedConfig
-              ? formatGroupNumber(appliedConfig.startGroup)
+              ? appliedConfig.assignmentOrder.join(" → ")
               : loading
                 ? "조회 중"
                 : "-"}
           </div>
         </div>
         <div className="rounded-2xl bg-slate-50 px-4 py-3">
-          <div className="text-xs font-black text-slate-500">현재 제외 그룹</div>
-          <div className="mt-1 text-xl font-black text-slate-950">
+          <div className="text-xs font-black text-slate-500">현재 사용불가 그룹</div>
+          <div className="mt-1 text-base font-black text-slate-950">
             {appliedConfig
-              ? formatGroupNumbers(appliedConfig.disabledGroups)
+              ? appliedConfig.disabledGroups.join(", ") || "없음"
               : loading
                 ? "조회 중"
                 : "-"}
-          </div>
-        </div>
-        <div className="rounded-2xl bg-slate-50 px-4 py-3">
-          <div className="text-xs font-black text-slate-500">현재 메모</div>
-          <div className="mt-1 truncate text-base font-black text-slate-950">
-            {appliedConfig ? appliedConfig.memo || "-" : loading ? "조회 중" : "-"}
           </div>
         </div>
       </div>
 
       <div className="mt-4 rounded-[24px] border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="text-base font-black text-slate-900">냉장</div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-            {COLD_GROUP_RANGE_LABEL}
-          </span>
+        <div>
+          <div className="text-base font-black text-slate-900">배정 순서</div>
+          <p className="mt-1 text-xs font-bold text-slate-500">
+            위에서부터 우선 배정됩니다. 사용불가 그룹도 순서에는 포함해야 합니다.
+          </p>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-xs font-black text-slate-500">시작 그룹</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={MIN_COLD_GROUP}
-              max={MAX_COLD_GROUP}
-              value={form.startGroup}
-              onChange={(event) =>
-                updateForm("startGroup", event.target.value.replace(/[^\d]/g, ""))
-              }
-              className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-900 outline-none transition focus:border-rose-200 focus:shadow-[0_0_0_6px_rgba(251,207,232,0.35)]"
-            />
-          </label>
+        <ol className="mt-4 space-y-2">
+          {form.assignmentOrder.map((groupId, index) => {
+            const disabled = form.disabledGroups.includes(groupId);
 
-          <label className="block">
-            <span className="text-xs font-black text-slate-500">제외 그룹</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={form.disabledGroupsText}
-              onChange={(event) =>
-                updateForm("disabledGroupsText", event.target.value)
-              }
-              className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-900 outline-none transition focus:border-rose-200 focus:shadow-[0_0_0_6px_rgba(251,207,232,0.35)]"
-              placeholder="예: 1, 3"
-            />
-          </label>
-        </div>
+            return (
+              <li
+                key={groupId}
+                className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center"
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-white">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="font-black text-slate-950">그룹 {groupId}</div>
+                    <div className="text-xs font-bold text-slate-500">
+                      보관함 {GROUP_RANGE[groupId]}
+                    </div>
+                  </div>
+                </div>
 
-        <label className="mt-3 block">
+                <div className="flex items-center justify-between gap-2 sm:justify-end">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-1 text-xs font-black text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={disabled}
+                      onChange={() => toggleDisabledGroup(groupId)}
+                      className="h-4 w-4 accent-rose-500"
+                    />
+                    사용불가
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => moveGroup(index, -1)}
+                    disabled={index === 0 || loading || saving}
+                    aria-label={`${groupId} 그룹을 위로 이동`}
+                    className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    위
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveGroup(index, 1)}
+                    disabled={
+                      index === form.assignmentOrder.length - 1 || loading || saving
+                    }
+                    aria-label={`${groupId} 그룹을 아래로 이동`}
+                    className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    아래
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+
+        <label className="mt-4 block">
           <span className="text-xs font-black text-slate-500">메모</span>
           <input
             type="text"
             value={form.memo}
-            onChange={(event) => updateForm("memo", event.target.value)}
+            onChange={(event) => {
+              setForm((prev) => ({ ...prev, memo: event.target.value }));
+              setSuccessText("");
+            }}
             className="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-900 outline-none transition focus:border-rose-200 focus:shadow-[0_0_0_6px_rgba(251,207,232,0.35)]"
-            placeholder="예: 1그룹 점검"
+            placeholder="예: 2그룹부터 우선 배정"
           />
         </label>
 
