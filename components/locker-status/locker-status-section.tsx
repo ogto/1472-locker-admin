@@ -45,7 +45,7 @@ function buildCellTone(
   }
 
   if (pickupProduct) {
-    return "border-pink-300 bg-pink-100 text-pink-900 shadow-[0_10px_25px_rgba(236,72,153,0.16)] ring-2 ring-pink-100";
+    return "border-emerald-300 bg-emerald-100 text-emerald-900 shadow-[0_10px_25px_rgba(16,185,129,0.16)] ring-2 ring-emerald-100";
   }
 
   if (tone === "cold") {
@@ -214,7 +214,7 @@ function LegendChip({
       : tone === "ready"
       ? "border-orange-300 bg-orange-50 text-orange-800"
       : tone === "pickup"
-      ? "border-pink-300 bg-pink-50 text-pink-800"
+      ? "border-emerald-300 bg-emerald-50 text-emerald-800"
       : tone === "disabled"
       ? "border-rose-200 bg-rose-50 text-rose-700"
       : "border-slate-200 bg-slate-50 text-slate-500";
