@@ -2,9 +2,24 @@ type DisabledStorageItem = {
   storageId: number;
 };
 
+export const COLD_ASSIGNMENT_GROUPS = [
+  "1",
+  "2-1",
+  "2-2",
+  "3-1",
+  "3-2",
+  "3-3",
+] as const;
+
+export type ColdAssignmentGroupId = (typeof COLD_ASSIGNMENT_GROUPS)[number];
+
+export const DEFAULT_COLD_ASSIGNMENT_ORDER: ColdAssignmentGroupId[] = [
+  ...COLD_ASSIGNMENT_GROUPS,
+];
+
 export type AssignmentConfig = {
-  startGroup: number;
-  disabledGroups: number[];
+  assignmentOrder: ColdAssignmentGroupId[];
+  disabledGroups: ColdAssignmentGroupId[];
   memo: string;
 };
 
@@ -21,17 +36,11 @@ function extractStorageId(value: unknown): number | null {
   return null;
 }
 
-function extractNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value.trim());
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  return null;
+function isColdAssignmentGroupId(value: unknown): value is ColdAssignmentGroupId {
+  return (
+    typeof value === "string" &&
+    COLD_ASSIGNMENT_GROUPS.includes(value as ColdAssignmentGroupId)
+  );
 }
 
 function normalizeAssignmentConfig(
@@ -45,40 +54,54 @@ function normalizeAssignmentConfig(
       ? (record.data as Record<string, unknown>)
       : record;
   const hasConfigValue =
-    "startGroup" in source || "disabledGroups" in source || "memo" in source;
+    "assignmentOrderList" in source ||
+    "assignmentOrder" in source ||
+    "disabledGroupList" in source ||
+    "disabledGroups" in source ||
+    "memo" in source;
 
   if (!hasConfigValue && fallback) {
     return fallback;
   }
 
-  const disabledGroupsRaw = source.disabledGroupList ?? source.disabledGroups;
-  const disabledGroups = parseAssignmentGroups(disabledGroupsRaw, fallback);
+  const assignmentOrder = parseAssignmentOrder(
+    source.assignmentOrderList ?? source.assignmentOrder,
+    fallback?.assignmentOrder ?? DEFAULT_COLD_ASSIGNMENT_ORDER
+  );
+  const disabledGroups = parseDisabledGroups(
+    source.disabledGroupList ?? source.disabledGroups,
+    fallback?.disabledGroups ?? []
+  );
 
   return {
-    startGroup: extractNumber(source.startGroup) ?? fallback?.startGroup ?? 1,
+    assignmentOrder,
     disabledGroups,
     memo: typeof source.memo === "string" ? source.memo : fallback?.memo ?? "",
   };
 }
 
-function parseAssignmentGroups(
+function parseAssignmentOrder(
   value: unknown,
-  fallback?: AssignmentConfig
-): number[] {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => extractNumber(item))
-      .filter((item): item is number => item != null && Number.isInteger(item));
-  }
+  fallback: ColdAssignmentGroupId[]
+): ColdAssignmentGroupId[] {
+  if (!Array.isArray(value)) return [...fallback];
 
-  if (typeof value === "string" && value.trim()) {
-    return value
-      .split(/[,\s]+/)
-      .map((item) => extractNumber(item))
-      .filter((item): item is number => item != null && Number.isInteger(item));
-  }
+  const groups = value.filter(isColdAssignmentGroupId);
+  const isCompleteOrder =
+    groups.length === COLD_ASSIGNMENT_GROUPS.length &&
+    new Set(groups).size === COLD_ASSIGNMENT_GROUPS.length &&
+    COLD_ASSIGNMENT_GROUPS.every((groupId) => groups.includes(groupId));
 
-  return fallback?.disabledGroups ?? [];
+  return isCompleteOrder ? groups : [...fallback];
+}
+
+function parseDisabledGroups(
+  value: unknown,
+  fallback: ColdAssignmentGroupId[]
+): ColdAssignmentGroupId[] {
+  if (!Array.isArray(value)) return [...fallback];
+
+  return Array.from(new Set(value.filter(isColdAssignmentGroupId)));
 }
 
 export async function fetchDisabledStorages(): Promise<DisabledStorageItem[]> {
