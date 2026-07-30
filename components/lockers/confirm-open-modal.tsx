@@ -1,5 +1,7 @@
 "use client";
 
+import { formatPrice } from "@/lib/common";
+
 type Props = {
   open: boolean;
   point: string;
@@ -14,6 +16,7 @@ type Props = {
     status: string;
     visitText?: string;
   } | null;
+  currentPaidAmount?: number | null;
   disabled?: boolean;
   disableSubmitting?: boolean;
   pickupSubmitting?: boolean;
@@ -28,6 +31,7 @@ type Props = {
     tel: string;
     timeRange: string;
     status: string;
+    paidAmount: number | null;
   }>;
   onClose: () => void;
   onConfirm: () => void;
@@ -42,6 +46,7 @@ export function ConfirmOpenModal({
   pulseMs,
   submitting,
   userInfo,
+  currentPaidAmount = null,
   disabled = false,
   disableSubmitting = false,
   pickupSubmitting = false,
@@ -104,6 +109,13 @@ export function ConfirmOpenModal({
               <Row label="예약일시" value={userInfo.reservationDate} />
               <Row label="상태" value={userInfo.status} />
               <Row label="방문횟수" value={userInfo.visitText || "-"} />
+              <Row
+                label="결제금액"
+                value={
+                  currentPaidAmount == null ? "확인 불가" : formatPrice(currentPaidAmount)
+                }
+                valueClassName="text-pink-600"
+              />
             </div>
           ) : (
             <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
@@ -128,44 +140,43 @@ export function ConfirmOpenModal({
               오늘 이 보관함 이용 내역이 없습니다.
             </div>
           ) : (
-            <div className="mt-3 overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-y-2">
-                <thead>
-                  <tr className="text-left text-xs font-black text-slate-500">
-                    <th className="px-2 py-1">이름</th>
-                    <th className="px-2 py-1">전화번호</th>
-                    <th className="px-2 py-1">이용시간</th>
-                    <th className="px-2 py-1">상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyRows.map((row) => (
-                    <tr key={row.id} className="bg-slate-50 text-sm text-slate-700">
-                      <td className="rounded-l-2xl px-2 py-2 font-bold text-slate-900">
-                        {row.name}
-                      </td>
-                      <td className="px-2 py-2">{row.tel}</td>
-                      <td className="px-2 py-2 font-semibold">
-                        {row.timeRange}
-                      </td>
-                      <td className="rounded-r-2xl px-2 py-2">
-                        <span
-                          className={[
-                            "inline-flex rounded-full px-2.5 py-1 text-xs font-black",
-                            row.status === "이용중" || row.status === "보관중"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : row.status === "취소"
-                              ? "bg-rose-100 text-rose-600"
-                              : "bg-slate-100 text-slate-600",
-                          ].join(" ")}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mt-3 space-y-2">
+              {historyRows.map((row) => (
+                <article
+                  key={row.id}
+                  className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-black text-slate-900">{row.name}</div>
+                      <div className="mt-0.5 truncate text-xs font-semibold text-slate-500">
+                        {row.tel}
+                      </div>
+                    </div>
+                    <span
+                      className={[
+                        "shrink-0 rounded-full px-2.5 py-1 text-xs font-black",
+                        row.status === "이용중" || row.status === "보관중"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : row.status === "취소"
+                            ? "bg-rose-100 text-rose-600"
+                            : "bg-white text-slate-600 ring-1 ring-slate-200",
+                      ].join(" ")}
+                    >
+                      {row.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200/80 pt-3">
+                    <HistoryValue label="이용시간" value={row.timeRange} />
+                    <HistoryValue
+                      label="결제금액"
+                      value={row.paidAmount == null ? "확인 불가" : formatPrice(row.paidAmount)}
+                      accent
+                    />
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </div>
@@ -234,11 +245,43 @@ export function ConfirmOpenModal({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  valueClassName = "",
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-slate-500">{label}</span>
-      <strong className="text-right text-slate-900">{value}</strong>
+      <strong className={`text-right text-slate-900 ${valueClassName}`}>{value}</strong>
+    </div>
+  );
+}
+
+function HistoryValue({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] font-bold text-slate-400">{label}</div>
+      <div
+        className={[
+          "mt-1 break-words text-sm font-black",
+          accent ? "text-pink-600" : "text-slate-700",
+        ].join(" ")}
+      >
+        {value}
+      </div>
     </div>
   );
 }

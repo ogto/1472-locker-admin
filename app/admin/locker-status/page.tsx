@@ -57,6 +57,7 @@ type LockerHistoryRow = {
   tel: string;
   timeRange: string;
   status: string;
+  paidAmount: number | null;
 };
 
 type PickupTarget = {
@@ -426,6 +427,18 @@ function buildPickupTargets(
   return Array.from(targetMap.values());
 }
 
+function compareHistoryNewestFirst(a: HistoryItem, b: HistoryItem) {
+  const aDateTime = `${a.reservationDay?.trim() || ""} ${
+    a.reservationStartTime?.trim() || ""
+  }`;
+  const bDateTime = `${b.reservationDay?.trim() || ""} ${
+    b.reservationStartTime?.trim() || ""
+  }`;
+  const dateTimeOrder = bDateTime.localeCompare(aDateTime);
+
+  return dateTimeOrder !== 0 ? dateTimeOrder : Number(b.id || 0) - Number(a.id || 0);
+}
+
 export default function AdminLockerStatusPage() {
   const auth = useAdminAuth();
   const [reserveUsers, setReserveUsers] = useState<ReserveUserItem[]>([]);
@@ -577,12 +590,13 @@ export default function AdminLockerStatusPage() {
       const collected = await fetchTodayHistoryByStorage(DEFAULT_POINT, lockerNumber);
       setSelectedHistoryItems(collected);
 
-      const mappedRows = collected.map((item) => ({
+      const mappedRows = [...collected].sort(compareHistoryNewestFirst).map((item) => ({
           id: item.id,
           name: item.mberNm?.trim() || "-",
           tel: item.tel?.trim() || "-",
           timeRange: buildHistoryTimeRange(item),
           status: formatStatus(item.reservationStatus),
+          paidAmount: Number.isFinite(Number(item.price)) ? Number(item.price) : null,
         }));
 
       const currentUser = occupiedMap.get(lockerNumber);
@@ -608,6 +622,7 @@ export default function AdminLockerStatusPage() {
                 tel: currentUser.tel,
                 timeRange: buildCurrentUserTimeRange(currentUser.reservationDate),
                 status: currentUser.status || "이용중",
+                paidAmount: null,
               },
               ...mappedRows,
             ]
@@ -860,6 +875,21 @@ export default function AdminLockerStatusPage() {
     if (selectedLockerId == null) return null;
     return occupiedMap.get(selectedLockerId) ?? null;
   }, [occupiedMap, selectedLockerId]);
+  const selectedUserPaidAmount = useMemo(() => {
+    if (!selectedUserInfo) return null;
+
+    const matchingItems = selectedHistoryItems.filter(
+      (item) =>
+        item.tel?.trim() === selectedUserInfo.tel &&
+        item.mberNm?.trim() === selectedUserInfo.name
+    );
+    const matchedItem =
+      matchingItems.find((item) => isPickupAvailableStatus(item.reservationStatus)) ??
+      matchingItems[0];
+
+    if (!matchedItem || !Number.isFinite(Number(matchedItem.price))) return null;
+    return Number(matchedItem.price);
+  }, [selectedHistoryItems, selectedUserInfo]);
   const selectedLockerDisabled = useMemo(() => {
     if (selectedLockerId == null) return false;
     return disabledStorageSet.has(selectedLockerId);
@@ -1025,6 +1055,7 @@ export default function AdminLockerStatusPage() {
         pulseMs={DEFAULT_PULSE_MS}
         submitting={submitLoading}
         userInfo={selectedUserInfo}
+        currentPaidAmount={selectedUserPaidAmount}
         disabled={selectedLockerDisabled}
         disableSubmitting={disabledSubmitLoading}
         pickupSubmitting={pickupSubmitLoading}

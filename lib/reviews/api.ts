@@ -53,6 +53,15 @@ export async function rejectReviewEvent(id: number, reason: string) {
   return readJson<ReviewEventMutationResponse>(response);
 }
 
+export async function cancelRejectReviewEvent(id: number) {
+  const response = await fetch(`/api/reviews/${id}/cancel-reject`, {
+    method: "POST",
+    cache: "no-store",
+  });
+
+  return readJson<ReviewEventMutationResponse>(response);
+}
+
 export async function markDuplicateReviewEvent(id: number, reason: string) {
   const response = await fetch(`/api/reviews/${id}/duplicate`, {
     method: "POST",

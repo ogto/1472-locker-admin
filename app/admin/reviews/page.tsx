@@ -9,6 +9,7 @@ import { LoginCard } from "@/components/auth/login-card";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import {
   approveReviewEvent,
+  cancelRejectReviewEvent,
   fetchReviewEvents,
   markReviewEventsPaid,
   rejectReviewEvent,
@@ -185,6 +186,12 @@ export default function AdminReviewsPage() {
       ? `신청 #${event.id}을 반려 처리할까요?\n\n처리 사유: ${reasonText}`
       : `신청 #${event.id}을 반려 처리할까요?\n\n처리 사유가 비어 있습니다. 기본 반려 사유로 처리됩니다.`;
     return window.confirm(message);
+  }
+
+  function confirmCancelReject(event: ReviewEvent) {
+    return window.confirm(
+      `신청 #${event.id}의 반려를 취소할까요?\n\n상태가 검수대기로 돌아갑니다.`
+    );
   }
 
   function confirmMarkPaid(events: ReviewEvent[]) {
@@ -370,7 +377,11 @@ export default function AdminReviewsPage() {
                 return (
                   <div
                     key={row.id}
-                    className={`w-full rounded-2xl border p-4 text-left shadow-sm transition ${
+                    onClick={() => {
+                      setSelectedId(row.id);
+                      setDetailOpen(true);
+                    }}
+                    className={`w-full cursor-pointer rounded-2xl border p-4 text-left shadow-sm transition ${
                       active
                         ? "border-pink-200 bg-pink-50"
                         : "border-slate-100 bg-white hover:border-pink-100"
@@ -379,7 +390,8 @@ export default function AdminReviewsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
                           setSelectedId(row.id);
                           setDetailOpen(true);
                         }}
@@ -399,7 +411,10 @@ export default function AdminReviewsPage() {
                           {statusLabels[row.status] || row.status}
                         </span>
                         {row.status === "PAYMENT_PENDING" ? (
-                          <label className="inline-flex items-center gap-2 text-xs font-black text-sky-700">
+                          <label
+                            onClick={(event) => event.stopPropagation()}
+                            className="inline-flex items-center gap-2 text-xs font-black text-sky-700"
+                          >
                             <input
                               type="checkbox"
                               checked={selectedPaymentIdSet.has(row.id)}
@@ -436,7 +451,10 @@ export default function AdminReviewsPage() {
                     {row.status === "PAYMENT_PENDING" ? (
                       <button
                         type="button"
-                        onClick={() => markPaidByIds([row.id])}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          markPaidByIds([row.id]);
+                        }}
                         disabled={actionLoading || loading}
                         className="mt-3 inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -554,37 +572,47 @@ export default function AdminReviewsPage() {
       </div>
 
       {detailOpen && selected ? (
-        <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm">
-          <div className="absolute inset-x-0 bottom-0 max-h-[92dvh] overflow-y-auto rounded-t-[28px] bg-[radial-gradient(circle_at_top,#fff7fb_0%,#ffffff_42%,#f8fbff_100%)] p-3 shadow-2xl lg:inset-y-6 lg:left-1/2 lg:right-auto lg:w-[760px] lg:max-w-[calc(100vw-120px)] lg:-translate-x-1/2 lg:rounded-[28px] lg:p-4">
-            <div className="sticky top-0 z-10 mb-2 flex justify-end bg-transparent">
-              <button
-                type="button"
-                onClick={() => setDetailOpen(false)}
-                className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm"
-                aria-label="닫기"
-              >
-                <X className="h-5 w-5" />
-              </button>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/30 px-4 py-6 backdrop-blur-sm">
+          <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white p-3 shadow-2xl sm:rounded-[32px] sm:p-4">
+            <div className="overflow-y-auto pr-1">
+              <div className="sticky top-0 z-10 mb-2 flex justify-end bg-white/90 pb-1 backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => setDetailOpen(false)}
+                  className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  aria-label="닫기"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <ReviewDetail
+                event={selected}
+                reason={reason}
+                disabled={actionLoading || loading}
+                onChangeReason={setReason}
+                onApprove={(event) => {
+                  if (confirmApprove(event)) {
+                    void runAction(() => approveReviewEvent(event.id), "승인 처리했습니다.");
+                  }
+                }}
+                onReject={(event) => {
+                  if (confirmReject(event, reason)) {
+                    void runAction(() => rejectReviewEvent(event.id, reason), "반려 처리했습니다.");
+                  }
+                }}
+                onCancelReject={(event) => {
+                  if (confirmCancelReject(event)) {
+                    void runAction(
+                      () => cancelRejectReviewEvent(event.id),
+                      "반려를 취소했습니다."
+                    );
+                  }
+                }}
+                onMarkPaid={(event) => markPaidByIds([event.id])}
+                onCopyAccount={(account) => void copyAccount(account)}
+                onPreview={(title, src) => setPreviewImage({ title, src })}
+              />
             </div>
-            <ReviewDetail
-              event={selected}
-              reason={reason}
-              disabled={actionLoading || loading}
-              onChangeReason={setReason}
-              onApprove={(event) => {
-                if (confirmApprove(event)) {
-                  void runAction(() => approveReviewEvent(event.id), "승인 처리했습니다.");
-                }
-              }}
-              onReject={(event) => {
-                if (confirmReject(event, reason)) {
-                  void runAction(() => rejectReviewEvent(event.id, reason), "반려 처리했습니다.");
-                }
-              }}
-              onMarkPaid={(event) => markPaidByIds([event.id])}
-              onCopyAccount={(account) => void copyAccount(account)}
-              onPreview={(title, src) => setPreviewImage({ title, src })}
-            />
           </div>
         </div>
       ) : null}
@@ -724,6 +752,7 @@ function ReviewDetail({
   onChangeReason,
   onApprove,
   onReject,
+  onCancelReject,
   onMarkPaid,
   onCopyAccount,
   onPreview,
@@ -734,6 +763,7 @@ function ReviewDetail({
   onChangeReason: (value: string) => void;
   onApprove: (event: ReviewEvent) => void;
   onReject: (event: ReviewEvent) => void;
+  onCancelReject: (event: ReviewEvent) => void;
   onMarkPaid: (event: ReviewEvent) => void;
   onCopyAccount: (account: string) => void;
   onPreview: (title: string, src: string) => void;
@@ -750,6 +780,7 @@ function ReviewDetail({
   }
 
   const canApprove = event.status === "REVIEW_PENDING";
+  const canCancelReject = event.status === "REJECTED";
   const canMarkPaid = event.status === "PAYMENT_PENDING";
   return (
     <aside className="rounded-[24px] border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur sm:rounded-[28px] sm:p-5 lg:sticky lg:top-6 lg:self-start">
@@ -780,7 +811,6 @@ function ReviewDetail({
                 : "-"
           }
         />
-        <CopyInfo label="계좌" value={formatAccount(event)} wide onCopy={onCopyAccount} />
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -794,6 +824,10 @@ function ReviewDetail({
           src={event.screenshotUrl}
           onOpen={(src) => onPreview("리뷰 완료 캡처", src)}
         />
+      </div>
+
+      <div className="mt-4 grid">
+        <CopyInfo label="계좌" value={formatAccount(event)} onCopy={onCopyAccount} />
       </div>
 
       <div className="mt-4">
@@ -812,26 +846,38 @@ function ReviewDetail({
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+      {canCancelReject ? (
         <button
           type="button"
-          onClick={() => onApprove(event)}
-          disabled={disabled || !canApprove}
-          className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          승인
-        </button>
-        <button
-          type="button"
-          onClick={() => onReject(event)}
+          onClick={() => onCancelReject(event)}
           disabled={disabled}
-          className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 text-sm font-extrabold text-rose-700 shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-5 inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 text-sm font-extrabold text-amber-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <XCircle className="h-4 w-4" />
-          반려
+          <RefreshCw className="h-4 w-4" />
+          반려취소
         </button>
-      </div>
+      ) : (
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => onApprove(event)}
+            disabled={disabled || !canApprove}
+            className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            승인
+          </button>
+          <button
+            type="button"
+            onClick={() => onReject(event)}
+            disabled={disabled}
+            className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 text-sm font-extrabold text-rose-700 shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <XCircle className="h-4 w-4" />
+            반려
+          </button>
+        </div>
+      )}
       {canMarkPaid ? (
         <button
           type="button"
