@@ -58,6 +58,7 @@ type LockerHistoryRow = {
   timeRange: string;
   status: string;
   paidAmount: number | null;
+  sortKey: string;
 };
 
 type PickupTarget = {
@@ -427,6 +428,59 @@ function buildPickupTargets(
   return Array.from(targetMap.values());
 }
 
+function buildActiveStorageHistoryRows(
+  selectedLockerId: number,
+  enableStorageItems: unknown[]
+): LockerHistoryRow[] {
+  return enableStorageItems.flatMap((item) => {
+    const record = readRecord(item);
+    const storageId = extractStorageId(
+      record.storageId ??
+        record.storageNo ??
+        record.storageNumber ??
+        record.lockerId ??
+        record.lockerNo ??
+        record.no
+    );
+    const historyId = pickHistoryId(record);
+    const statusCode =
+      pickText(record, ["reservationStatus", "status", "reserveStatus"]) || "";
+
+    if (
+      storageId !== selectedLockerId ||
+      historyId == null ||
+      !isPickupAvailableStatus(statusCode)
+    ) {
+      return [];
+    }
+
+    const reservationDay = pickText(record, [
+      "reservationDay",
+      "reserveDay",
+      "day",
+    ]);
+    const reservationStartTime = pickText(record, [
+      "reservationStartTime",
+      "reserveStartTime",
+      "startTime",
+      "time",
+    ]);
+
+    return [
+      {
+        id: historyId,
+        name:
+          pickText(record, ["mberNm", "memberName", "userName", "name"]) || "-",
+        tel: pickText(record, ["tel", "phone", "phoneNumber", "mobile"]) || "-",
+        timeRange: reservationStartTime ? `${reservationStartTime} ~ -` : "-",
+        status: formatStatus(statusCode),
+        paidAmount: pickNumber(record, ["price", "amount", "paymentAmount"]),
+        sortKey: `${reservationDay} ${reservationStartTime}`,
+      },
+    ];
+  });
+}
+
 function compareHistoryNewestFirst(a: HistoryItem, b: HistoryItem) {
   const aDateTime = `${a.reservationDay?.trim() || ""} ${
     a.reservationStartTime?.trim() || ""
@@ -590,14 +644,31 @@ export default function AdminLockerStatusPage() {
       const collected = await fetchTodayHistoryByStorage(DEFAULT_POINT, lockerNumber);
       setSelectedHistoryItems(collected);
 
-      const mappedRows = [...collected].sort(compareHistoryNewestFirst).map((item) => ({
+      const todayRows = [...collected].sort(compareHistoryNewestFirst).map((item) => ({
           id: item.id,
           name: item.mberNm?.trim() || "-",
           tel: item.tel?.trim() || "-",
           timeRange: buildHistoryTimeRange(item),
           status: formatStatus(item.reservationStatus),
           paidAmount: Number.isFinite(Number(item.price)) ? Number(item.price) : null,
+          sortKey: `${item.reservationDay?.trim() || ""} ${
+            item.reservationStartTime?.trim() || ""
+          }`,
         }));
+      const rowsByHistoryId = new Map<number, LockerHistoryRow>();
+
+      for (const row of buildActiveStorageHistoryRows(lockerNumber, enableStorageItems)) {
+        rowsByHistoryId.set(row.id, row);
+      }
+
+      for (const row of todayRows) {
+        rowsByHistoryId.set(row.id, row);
+      }
+
+      const mappedRows = Array.from(rowsByHistoryId.values()).sort((a, b) => {
+        const dateTimeOrder = b.sortKey.localeCompare(a.sortKey);
+        return dateTimeOrder !== 0 ? dateTimeOrder : b.id - a.id;
+      });
 
       const currentUser = occupiedMap.get(lockerNumber);
       const hasCurrentUserRow =
@@ -623,6 +694,7 @@ export default function AdminLockerStatusPage() {
                 timeRange: buildCurrentUserTimeRange(currentUser.reservationDate),
                 status: currentUser.status || "이용중",
                 paidAmount: null,
+                sortKey: currentUser.reservationDate,
               },
               ...mappedRows,
             ]

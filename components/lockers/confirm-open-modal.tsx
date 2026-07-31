@@ -125,7 +125,7 @@ export function ConfirmOpenModal({
         </div>
 
         <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4">
-          <div className="text-sm font-black text-slate-900">오늘 이용 히스토리</div>
+          <div className="text-sm font-black text-slate-900">보관함 이용 히스토리</div>
 
           {historyLoading ? (
             <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
@@ -137,7 +137,7 @@ export function ConfirmOpenModal({
             </div>
           ) : historyRows.length === 0 ? (
             <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
-              오늘 이 보관함 이용 내역이 없습니다.
+              이 보관함 이용 내역이 없습니다.
             </div>
           ) : (
             <div className="mt-3 space-y-2">
