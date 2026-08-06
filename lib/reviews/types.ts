@@ -9,6 +9,20 @@ export type ReviewEventStatus =
   | "PAID"
   | "DUPLICATED";
 
+export type ReviewEventProcessingHistory = {
+  id: number;
+  action: string;
+  actor: string;
+  reason?: string | null;
+  at?: string | null;
+};
+
+export type ReviewEventAccountInput = {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+};
+
 export type ReviewEvent = {
   id: number;
   reserveId: number;
@@ -31,6 +45,7 @@ export type ReviewEvent = {
   previousReviewEventRequestId?: number | null;
   reviewNote?: string | null;
   rejectReason?: string | null;
+  processingHistory?: ReviewEventProcessingHistory[];
   visitRoute?: string | null;
   visitRouteAnsweredAt?: string | null;
   createdAt?: string | null;
@@ -44,6 +59,12 @@ export type ReviewEvent = {
 export type ReviewEventListResponse = {
   ok: boolean;
   items: ReviewEvent[];
+  message?: string;
+};
+
+export type ReviewEventDetailResponse = {
+  ok: boolean;
+  event?: ReviewEvent;
   message?: string;
 };
 

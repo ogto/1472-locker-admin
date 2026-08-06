@@ -1,5 +1,7 @@
 import type {
   ReviewEvent,
+  ReviewEventAccountInput,
+  ReviewEventDetailResponse,
   ReviewEventListResponse,
   ReviewEventMutationResponse,
   ReviewEventStatus,
@@ -33,6 +35,17 @@ export async function fetchReviewEvents(params: {
   return Array.isArray(data.items) ? data.items : [];
 }
 
+export async function fetchReviewEvent(id: number): Promise<ReviewEvent> {
+  const response = await fetch(`/api/reviews/${id}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  const data = await readJson<ReviewEventDetailResponse>(response);
+  if (!data.event) throw new Error("리뷰 신청 상세 정보를 찾을 수 없습니다.");
+  return data.event;
+}
+
 export async function approveReviewEvent(id: number) {
   const response = await fetch(`/api/reviews/${id}/approve`, {
     method: "POST",
@@ -57,6 +70,20 @@ export async function cancelRejectReviewEvent(id: number) {
   const response = await fetch(`/api/reviews/${id}/cancel-reject`, {
     method: "POST",
     cache: "no-store",
+  });
+
+  return readJson<ReviewEventMutationResponse>(response);
+}
+
+export async function updateReviewEventAccount(
+  id: number,
+  account: ReviewEventAccountInput
+) {
+  const response = await fetch(`/api/reviews/${id}/account`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify(account),
   });
 
   return readJson<ReviewEventMutationResponse>(response);

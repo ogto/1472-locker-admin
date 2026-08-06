@@ -1,7 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, RefreshCw, Search, X, XCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  CheckCircle2,
+  Clock3,
+  Download,
+  Pencil,
+  RefreshCw,
+  Save,
+  Search,
+  X,
+  XCircle,
+} from "lucide-react";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { StatusBanner } from "@/components/admin/status-banner";
@@ -10,11 +21,18 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import {
   approveReviewEvent,
   cancelRejectReviewEvent,
+  fetchReviewEvent,
   fetchReviewEvents,
   markReviewEventsPaid,
   rejectReviewEvent,
+  updateReviewEventAccount,
 } from "@/lib/reviews/api";
-import type { ReviewEvent, ReviewEventStatus } from "@/lib/reviews/types";
+import type {
+  ReviewEvent,
+  ReviewEventAccountInput,
+  ReviewEventProcessingHistory,
+  ReviewEventStatus,
+} from "@/lib/reviews/types";
 
 const statusOptions: Array<{ value: ReviewEventStatus | ""; label: string }> = [
   { value: "", label: "전체 상태" },
@@ -40,6 +58,14 @@ const statusLabels: Record<ReviewEventStatus, string> = {
 };
 
 const PAGE_SIZE = 10;
+
+const processingActionLabels: Record<string, string> = {
+  "review_event.approved": "승인",
+  "review_event.rejected": "반려",
+  "review_event.reject_cancelled": "반려 취소",
+  "review_event.duplicated": "중복 처리",
+  "review_event.account_updated": "계좌정보 수정",
+};
 
 function formatWon(value: number) {
   return `${Number(value || 0).toLocaleString("ko-KR")}원`;
@@ -96,6 +122,13 @@ export default function AdminReviewsPage() {
     text: string;
   } | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [detailTargetId, setDetailTargetId] = useState<number | null>(null);
+  const [detailEvent, setDetailEvent] = useState<ReviewEvent | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const activeDetailIdRef = useRef<number | null>(null);
+  const detailRequestRef = useRef(0);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [previewImage, setPreviewImage] = useState<{
     title: string;
     src: string;
@@ -111,6 +144,10 @@ export default function AdminReviewsPage() {
     () => filteredRows.find((row) => row.id === selectedId) || filteredRows[0] || null,
     [filteredRows, selectedId]
   );
+  const modalSummary = detailTargetId
+    ? filteredRows.find((row) => row.id === detailTargetId) || null
+    : null;
+  const modalEvent = detailEvent?.id === detailTargetId ? detailEvent : modalSummary;
   const selectedPaymentIdSet = useMemo(() => new Set(selectedPaymentIds), [selectedPaymentIds]);
   const stats = useMemo(() => {
     const visitRouteCounts = filteredRows.reduce<Record<string, number>>((acc, row) => {
@@ -153,7 +190,58 @@ export default function AdminReviewsPage() {
     }
   }
 
-  async function runAction(action: () => Promise<unknown>, message: string) {
+  async function loadDetail(id: number) {
+    const requestId = ++detailRequestRef.current;
+    setDetailLoading(true);
+
+    try {
+      const event = await fetchReviewEvent(id);
+      if (requestId !== detailRequestRef.current || activeDetailIdRef.current !== id) return false;
+      setDetailEvent(event);
+      return true;
+    } catch (error) {
+      if (requestId !== detailRequestRef.current || activeDetailIdRef.current !== id) return false;
+      const message = error instanceof Error ? error.message : "상세 정보를 불러오지 못했습니다.";
+      setDetailEvent(null);
+      setErrorText(message);
+      setCopyToast({ type: "error", text: message });
+      return false;
+    } finally {
+      if (requestId === detailRequestRef.current && activeDetailIdRef.current === id) {
+        setDetailLoading(false);
+      }
+    }
+  }
+
+  function openDetail(id: number) {
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    activeDetailIdRef.current = id;
+    setSelectedId(id);
+    setDetailTargetId(id);
+    setReason("");
+    setDetailEvent(null);
+    setDetailOpen(true);
+    void loadDetail(id);
+  }
+
+  const closeDetail = useCallback(() => {
+    activeDetailIdRef.current = null;
+    detailRequestRef.current += 1;
+    setDetailOpen(false);
+    setDetailTargetId(null);
+    setDetailEvent(null);
+    setDetailLoading(false);
+    setReason("");
+    window.requestAnimationFrame(() => previousFocusRef.current?.focus());
+  }, []);
+
+  async function runAction(
+    action: () => Promise<unknown>,
+    message: string,
+    options: { clearReason?: boolean; eventId?: number } = {}
+  ) {
     setActionLoading(true);
     setErrorText("");
     setOkText("");
@@ -161,10 +249,18 @@ export default function AdminReviewsPage() {
     try {
       await action();
       setOkText(message);
-      setReason("");
+      setCopyToast({ type: "ok", text: message });
+      if (options.clearReason) setReason("");
       await load();
+      if (options.eventId && activeDetailIdRef.current === options.eventId) {
+        return await loadDetail(options.eventId);
+      }
+      return true;
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : "처리 중 오류가 발생했습니다.");
+      const errorMessage = error instanceof Error ? error.message : "처리 중 오류가 발생했습니다.";
+      setErrorText(errorMessage);
+      setCopyToast({ type: "error", text: errorMessage });
+      return false;
     } finally {
       setActionLoading(false);
     }
@@ -218,7 +314,8 @@ export default function AdminReviewsPage() {
     if (!confirmMarkPaid(targets)) return;
     void runAction(
       () => markReviewEventsPaid(targets.map((event) => event.id)),
-      `${targets.length.toLocaleString("ko-KR")}건 지급완료 처리했습니다.`
+      `${targets.length.toLocaleString("ko-KR")}건 지급완료 처리했습니다.`,
+      { eventId: targets.length === 1 ? targets[0].id : undefined }
     );
   }
 
@@ -256,6 +353,47 @@ export default function AdminReviewsPage() {
     const timer = window.setTimeout(() => setCopyToast(null), 1800);
     return () => window.clearTimeout(timer);
   }, [copyToast]);
+
+  useEffect(() => {
+    if (!detailOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const focusFrame = window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeDetail();
+        return;
+      }
+      if (event.key === "Tab") {
+        const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+        const focusable = dialog
+          ? Array.from(
+              dialog.querySelectorAll<HTMLElement>(
+                'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+              )
+            )
+          : [];
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !dialog?.contains(document.activeElement))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !dialog?.contains(document.activeElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeDetail, detailOpen]);
 
   useEffect(() => {
     setPage((current) => Math.min(current, totalPages));
@@ -328,13 +466,14 @@ export default function AdminReviewsPage() {
               조회
             </button>
 
-            <a
+            <Link
               href="/api/reviews/payments/excel"
+              prefetch={false}
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-extrabold text-slate-700 shadow-sm transition hover:-translate-y-0.5 sm:min-h-[46px]"
             >
               <Download className="h-4 w-4" />
               지급 엑셀
-            </a>
+            </Link>
           </div>
         </section>
 
@@ -378,8 +517,7 @@ export default function AdminReviewsPage() {
                   <div
                     key={row.id}
                     onClick={() => {
-                      setSelectedId(row.id);
-                      setDetailOpen(true);
+                      openDetail(row.id);
                     }}
                     className={`w-full cursor-pointer rounded-2xl border p-4 text-left shadow-sm transition ${
                       active
@@ -392,8 +530,7 @@ export default function AdminReviewsPage() {
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          setSelectedId(row.id);
-                          setDetailOpen(true);
+                          openDetail(row.id);
                         }}
                         className="min-w-0 flex-1 text-left"
                       >
@@ -489,11 +626,18 @@ export default function AdminReviewsPage() {
                     return (
                       <tr
                         key={row.id}
+                        tabIndex={0}
+                        aria-label={`신청 #${row.id} 상세 열기`}
                         onClick={() => {
-                          setSelectedId(row.id);
-                          setDetailOpen(true);
+                          openDetail(row.id);
                         }}
-                        className={`cursor-pointer transition ${active ? "bg-pink-50/80" : "hover:bg-slate-50"}`}
+                        onKeyDown={(keyboardEvent) => {
+                          if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+                            keyboardEvent.preventDefault();
+                            openDetail(row.id);
+                          }
+                        }}
+                        className={`cursor-pointer transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-pink-300 ${active ? "bg-pink-50/80" : "hover:bg-slate-50"}`}
                       >
                         <td className="px-4 py-3">
                           {row.status === "PAYMENT_PENDING" ? (
@@ -571,45 +715,75 @@ export default function AdminReviewsPage() {
         </div>
       </div>
 
-      {detailOpen && selected ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/30 px-4 py-6 backdrop-blur-sm">
-          <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white p-3 shadow-2xl sm:rounded-[32px] sm:p-4">
-            <div className="overflow-y-auto pr-1">
-              <div className="sticky top-0 z-10 mb-2 flex justify-end bg-white/90 pb-1 backdrop-blur">
+      {detailOpen && modalEvent ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/30 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`리뷰 신청 #${modalEvent.id} 상세`}
+          aria-busy={detailLoading}
+        >
+          <div className="flex h-dvh max-h-dvh w-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[90dvh] sm:rounded-[32px] sm:border sm:border-white/70">
+            <div className="z-20 flex shrink-0 items-center justify-between border-b border-slate-100 bg-white/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur sm:px-5 sm:py-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-black text-slate-900">신청 #{modalEvent.id} 상세</div>
+                {detailLoading ? (
+                  <div className="mt-0.5 text-xs font-bold text-slate-400">최신 이력을 불러오는 중...</div>
+                ) : null}
+              </div>
+              <div className="flex justify-end">
                 <button
+                  ref={closeButtonRef}
                   type="button"
-                  onClick={() => setDetailOpen(false)}
-                  className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  onClick={closeDetail}
+                  className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
                   aria-label="닫기"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain sm:p-3">
               <ReviewDetail
-                event={selected}
+                key={modalEvent.id}
+                event={modalEvent}
                 reason={reason}
-                disabled={actionLoading || loading}
+                disabled={actionLoading || loading || detailLoading || !detailEvent}
                 onChangeReason={setReason}
                 onApprove={(event) => {
                   if (confirmApprove(event)) {
-                    void runAction(() => approveReviewEvent(event.id), "승인 처리했습니다.");
+                    void runAction(() => approveReviewEvent(event.id), "승인 처리했습니다.", {
+                      clearReason: true,
+                      eventId: event.id,
+                    });
                   }
                 }}
                 onReject={(event) => {
                   if (confirmReject(event, reason)) {
-                    void runAction(() => rejectReviewEvent(event.id, reason), "반려 처리했습니다.");
+                    void runAction(() => rejectReviewEvent(event.id, reason), "반려 처리했습니다.", {
+                      clearReason: true,
+                      eventId: event.id,
+                    });
                   }
                 }}
                 onCancelReject={(event) => {
                   if (confirmCancelReject(event)) {
                     void runAction(
                       () => cancelRejectReviewEvent(event.id),
-                      "반려를 취소했습니다."
+                      "반려를 취소했습니다.",
+                      { clearReason: true, eventId: event.id }
                     );
                   }
                 }}
                 onMarkPaid={(event) => markPaidByIds([event.id])}
                 onCopyAccount={(account) => void copyAccount(account)}
+                onSaveAccount={(event, account) => {
+                  return runAction(
+                    () => updateReviewEventAccount(event.id, account),
+                    "계좌정보를 수정했습니다.",
+                    { eventId: event.id }
+                  );
+                }}
                 onPreview={(title, src) => setPreviewImage({ title, src })}
               />
             </div>
@@ -755,6 +929,7 @@ function ReviewDetail({
   onCancelReject,
   onMarkPaid,
   onCopyAccount,
+  onSaveAccount,
   onPreview,
 }: {
   event: ReviewEvent | null;
@@ -766,8 +941,11 @@ function ReviewDetail({
   onCancelReject: (event: ReviewEvent) => void;
   onMarkPaid: (event: ReviewEvent) => void;
   onCopyAccount: (account: string) => void;
+  onSaveAccount: (event: ReviewEvent, account: ReviewEventAccountInput) => Promise<boolean>;
   onPreview: (title: string, src: string) => void;
 }) {
+  const [accountEditing, setAccountEditing] = useState(false);
+
   if (!event) {
     return (
       <aside className="rounded-[24px] border border-white/70 bg-white/75 p-5 text-center shadow-sm backdrop-blur sm:rounded-[28px] sm:p-6">
@@ -779,11 +957,14 @@ function ReviewDetail({
     );
   }
 
+  const finalized = Boolean(event.paidAt || event.rewardedAt || event.couponId);
   const canApprove = event.status === "REVIEW_PENDING";
-  const canCancelReject = event.status === "REJECTED";
+  const canReject =
+    !finalized && (event.status === "REVIEW_PENDING" || event.status === "PAYMENT_PENDING");
+  const canCancelReject = !finalized && event.status === "REJECTED";
   const canMarkPaid = event.status === "PAYMENT_PENDING";
   return (
-    <aside className="rounded-[24px] border border-white/70 bg-white/75 p-4 shadow-sm backdrop-blur sm:rounded-[28px] sm:p-5 lg:sticky lg:top-6 lg:self-start">
+    <aside className="bg-white p-4 sm:rounded-[28px] sm:border sm:border-white/70 sm:bg-white/75 sm:p-5 sm:shadow-sm sm:backdrop-blur">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">신청 #{event.id}</div>
@@ -826,75 +1007,85 @@ function ReviewDetail({
         />
       </div>
 
-      <div className="mt-4 grid">
-        <CopyInfo label="계좌" value={formatAccount(event)} onCopy={onCopyAccount} />
-      </div>
+      <AccountInfoCard
+        key={`${event.id}-${event.bankName}-${event.accountNumber}-${event.accountHolder}`}
+        event={event}
+        disabled={disabled}
+        onCopy={onCopyAccount}
+        onSave={onSaveAccount}
+        onEditingChange={setAccountEditing}
+      />
 
       <div className="mt-4">
-        <div className="text-sm font-black text-slate-900">처리 사유</div>
+        <div className="text-sm font-black text-slate-900">새 처리 사유</div>
         <textarea
           value={reason}
           onChange={(event) => onChangeReason(event.target.value)}
           placeholder="반려 또는 중복 처리 사유"
-          className="mt-2 min-h-[88px] w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none focus:border-pink-300"
+          disabled={disabled}
+          className="mt-2 min-h-[88px] w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none focus:border-pink-300 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
         />
       </div>
 
-      {event.rejectReason ? (
-        <div className="mt-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold leading-6 text-rose-700">
-          {event.rejectReason}
-        </div>
-      ) : null}
-
-      {canCancelReject ? (
-        <button
-          type="button"
-          onClick={() => onCancelReject(event)}
-          disabled={disabled}
-          className="mt-5 inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 text-sm font-extrabold text-amber-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RefreshCw className="h-4 w-4" />
-          반려취소
-        </button>
-      ) : (
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => onApprove(event)}
-            disabled={disabled || !canApprove}
-            className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            승인
-          </button>
-          <button
-            type="button"
-            onClick={() => onReject(event)}
-            disabled={disabled}
-            className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 text-sm font-extrabold text-rose-700 shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <XCircle className="h-4 w-4" />
-            반려
-          </button>
-        </div>
-      )}
-      {canMarkPaid ? (
-        <button
-          type="button"
-          onClick={() => onMarkPaid(event)}
-          disabled={disabled}
-          className="mt-2 inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          지급완료
-        </button>
-      ) : null}
+      <ProcessingHistory
+        items={event.processingHistory || []}
+        currentReason={event.rejectReason}
+      />
 
       {event.duplicateFlags?.length ? (
         <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-amber-800">
           중복 의심: {event.duplicateFlags.join(", ")}
         </div>
       ) : null}
+
+      <div
+        className={`${accountEditing ? "relative" : "sticky bottom-0 z-10"} -mx-4 mt-5 border-t border-slate-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0`}
+      >
+        {canCancelReject ? (
+          <button
+            type="button"
+            onClick={() => onCancelReject(event)}
+            disabled={disabled}
+            className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 text-sm font-extrabold text-amber-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw className="h-4 w-4" />
+            반려취소
+          </button>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => onApprove(event)}
+              disabled={disabled || !canApprove}
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              승인
+            </button>
+            <button
+              type="button"
+              onClick={() => onReject(event)}
+              disabled={disabled || !canReject}
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-4 text-sm font-extrabold text-rose-700 shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <XCircle className="h-4 w-4" />
+              반려
+            </button>
+          </div>
+        )}
+        {canMarkPaid ? (
+          <button
+            type="button"
+            onClick={() => onMarkPaid(event)}
+            disabled={disabled}
+            className="mt-2 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            지급완료
+          </button>
+        ) : null}
+      </div>
+
     </aside>
   );
 }
@@ -908,36 +1099,246 @@ function Info({ label, value, wide }: { label: string; value: string; wide?: boo
   );
 }
 
-function CopyInfo({
-  label,
-  value,
-  wide,
+function AccountInfoCard({
+  event,
+  disabled,
   onCopy,
+  onSave,
+  onEditingChange,
 }: {
-  label: string;
-  value: string;
-  wide?: boolean;
+  event: ReviewEvent;
+  disabled: boolean;
   onCopy: (value: string) => void;
+  onSave: (event: ReviewEvent, account: ReviewEventAccountInput) => Promise<boolean>;
+  onEditingChange: (editing: boolean) => void;
 }) {
-  const canCopy = Boolean(value && value !== "-");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [bankName, setBankName] = useState(event.bankName || "");
+  const [accountNumber, setAccountNumber] = useState(event.accountNumber || "");
+  const [accountHolder, setAccountHolder] = useState(event.accountHolder || "");
+  const accountText = formatAccount(event);
+  const canCopy = accountText !== "-";
+  const accountEditable = !(
+    event.status === "PAID"
+    || event.status === "REWARDED"
+    || event.paidAt
+    || event.rewardedAt
+    || event.couponId
+  );
+  const canSave = Boolean(bankName.trim() && accountNumber.trim() && accountHolder.trim());
+
+  function cancelEdit() {
+    setBankName(event.bankName || "");
+    setAccountNumber(event.accountNumber || "");
+    setAccountHolder(event.accountHolder || "");
+    setEditing(false);
+    onEditingChange(false);
+  }
+
+  async function saveAccount() {
+    if (!canSave || disabled || saving) return;
+    setSaving(true);
+    try {
+      const saved = await onSave(event, {
+        bankName: bankName.trim(),
+        accountNumber: accountNumber.trim(),
+        accountHolder: accountHolder.trim(),
+      });
+      if (saved) {
+        setEditing(false);
+        onEditingChange(false);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        if (canCopy) onCopy(value);
-      }}
-      disabled={!canCopy}
-      className={`rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:hover:border-slate-200 disabled:hover:bg-white ${wide ? "col-span-2" : ""}`}
-      title={canCopy ? "클릭하면 계좌정보가 복사됩니다" : undefined}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-bold text-slate-500">{label}</div>
-        {canCopy ? <div className="text-xs font-black text-sky-600">복사</div> : null}
+    <section className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-xs font-bold text-slate-500">계좌</div>
+        {!editing ? (
+          <div className="flex items-center gap-1.5">
+            {canCopy ? (
+              <button
+                type="button"
+                onClick={() => onCopy(accountText)}
+                className="inline-flex min-h-10 items-center rounded-xl px-3 text-xs font-black text-sky-600 transition hover:bg-sky-50"
+              >
+                복사
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(true);
+                onEditingChange(true);
+              }}
+              disabled={disabled || !accountEditable}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {canCopy ? "수정" : "입력"}
+            </button>
+          </div>
+        ) : null}
       </div>
-      <div className="mt-1 break-words text-sm font-black text-slate-900">{value}</div>
-    </button>
+
+      {!editing ? (
+        <>
+          <div className="mt-1 break-words text-sm font-black text-slate-900">{accountText}</div>
+          {!accountEditable ? (
+            <div className="mt-1.5 text-xs font-bold text-slate-400">
+              지급이 완료된 신청 건은 계좌정보를 수정할 수 없습니다.
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <form
+          className="mt-3"
+          onSubmit={(submitEvent) => {
+            submitEvent.preventDefault();
+            void saveAccount();
+          }}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-bold text-slate-500">은행명</span>
+              <input
+                value={bankName}
+                onChange={(changeEvent) => setBankName(changeEvent.target.value)}
+                maxLength={50}
+                required
+                autoComplete="off"
+                placeholder="예: 국민은행"
+                className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-900 outline-none focus:border-pink-300"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold text-slate-500">예금주</span>
+              <input
+                value={accountHolder}
+                onChange={(changeEvent) => setAccountHolder(changeEvent.target.value)}
+                maxLength={100}
+                required
+                autoComplete="off"
+                placeholder="예금주명"
+                className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-900 outline-none focus:border-pink-300"
+              />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-xs font-bold text-slate-500">계좌번호</span>
+              <input
+                value={accountNumber}
+                onChange={(changeEvent) => setAccountNumber(changeEvent.target.value)}
+                maxLength={100}
+                required
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="계좌번호"
+                className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-900 outline-none focus:border-pink-300"
+              />
+            </label>
+          </div>
+          <div className="mt-2 text-xs font-bold text-slate-400">
+            저장한 변경은 처리 이력에 기록됩니다.
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={cancelEdit}
+              disabled={disabled || saving}
+              className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={disabled || saving || !canSave}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "저장 중..." : "저장"}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
   );
+}
+
+function ProcessingHistory({
+  items,
+  currentReason,
+}: {
+  items: ReviewEventProcessingHistory[];
+  currentReason?: string | null;
+}) {
+  const hasCurrentReason = Boolean(
+    currentReason
+    && items.some(
+      (item) =>
+        (item.action === "review_event.rejected" || item.action === "review_event.duplicated")
+        && item.reason === currentReason
+    )
+  );
+  const visibleItems = currentReason && !hasCurrentReason
+    ? [{ id: -1, action: "review_event.rejected", actor: "", reason: currentReason, at: null }, ...items]
+    : items;
+
+  return (
+    <section className="mt-5">
+      <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+        <Clock3 className="h-4 w-4 text-slate-400" />
+        처리 이력
+      </div>
+      {visibleItems.length > 0 ? (
+        <div className="mt-2 space-y-2">
+          {visibleItems.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-black text-slate-800">
+                  {processingActionLabel(item.action)}
+                </div>
+                {item.at ? (
+                  <div className="text-xs font-bold text-slate-400">{formatDate(item.at)}</div>
+                ) : null}
+              </div>
+              {item.reason ? (
+                <div className="mt-1.5 whitespace-pre-wrap break-words text-sm font-bold leading-6 text-slate-600">
+                  {item.reason}
+                </div>
+              ) : null}
+              {item.actor ? (
+                <div className="mt-1 text-xs font-bold text-slate-400">
+                  처리자: {processingActorLabel(item.actor)}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 rounded-2xl border border-dashed border-slate-200 px-4 py-4 text-center text-sm font-bold text-slate-400">
+          아직 처리 이력이 없습니다.
+        </div>
+      )}
+    </section>
+  );
+}
+
+function processingActionLabel(action: string) {
+  return processingActionLabels[action] || action;
+}
+
+function processingActorLabel(actor: string) {
+  if (actor === "locker-admin" || actor === "admin") return "관리자";
+  if (actor === "kakao") return "카카오 신청자";
+  if (actor === "system") return "시스템";
+  return actor;
 }
 
 function ImageBox({
