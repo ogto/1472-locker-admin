@@ -2,6 +2,7 @@ import type {
   ReviewEvent,
   ReviewEventAccountInput,
   ReviewEventDetailResponse,
+  ReviewEventManualApproveInput,
   ReviewEventListResponse,
   ReviewEventMutationResponse,
   ReviewEventStatus,
@@ -50,6 +51,20 @@ export async function approveReviewEvent(id: number) {
   const response = await fetch(`/api/reviews/${id}/approve`, {
     method: "POST",
     cache: "no-store",
+  });
+
+  return readJson<ReviewEventMutationResponse>(response);
+}
+
+export async function manualApproveReviewEvent(
+  id: number,
+  input: ReviewEventManualApproveInput
+) {
+  const response = await fetch(`/api/reviews/${id}/manual-approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify(input),
   });
 
   return readJson<ReviewEventMutationResponse>(response);

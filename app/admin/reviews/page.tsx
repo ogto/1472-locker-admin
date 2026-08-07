@@ -23,6 +23,7 @@ import {
   cancelRejectReviewEvent,
   fetchReviewEvent,
   fetchReviewEvents,
+  manualApproveReviewEvent,
   markReviewEventsPaid,
   rejectReviewEvent,
   updateReviewEventAccount,
@@ -30,7 +31,9 @@ import {
 import type {
   ReviewEvent,
   ReviewEventAccountInput,
+  ReviewEventManualApproveInput,
   ReviewEventProcessingHistory,
+  ReviewEventRewardType,
   ReviewEventStatus,
 } from "@/lib/reviews/types";
 
@@ -61,8 +64,10 @@ const PAGE_SIZE = 10;
 
 const processingActionLabels: Record<string, string> = {
   "review_event.approved": "승인",
+  "review_event.manual_approved": "수동 승인",
   "review_event.rejected": "반려",
   "review_event.reject_cancelled": "반려 취소",
+  "review_event.restarted": "재신청",
   "review_event.duplicated": "중복 처리",
   "review_event.account_updated": "계좌정보 수정",
 };
@@ -274,6 +279,15 @@ export default function AdminReviewsPage() {
           ? `쿠폰 #${event.couponId}`
           : "선택된 혜택";
     return window.confirm(`신청 #${event.id}을 승인 처리할까요?\n\n혜택: ${reward}`);
+  }
+
+  function confirmManualApprove(event: ReviewEvent, input: ReviewEventManualApproveInput) {
+    const reward = input.rewardType === "CASH"
+      ? "현금 지급 (지급대기로 전환)"
+      : `할인쿠폰 (승인 즉시 발급)`;
+    return window.confirm(
+      `신청 #${event.id}을 수동 승인할까요?\n\n혜택: ${reward}\n처리 사유: ${input.reason}`
+    );
   }
 
   function confirmReject(event: ReviewEvent, rejectReason: string) {
@@ -758,6 +772,15 @@ export default function AdminReviewsPage() {
                     });
                   }
                 }}
+                onManualApprove={(event, input) => {
+                  if (confirmManualApprove(event, input)) {
+                    void runAction(
+                      () => manualApproveReviewEvent(event.id, input),
+                      "수동 승인 처리했습니다.",
+                      { clearReason: true, eventId: event.id }
+                    );
+                  }
+                }}
                 onReject={(event) => {
                   if (confirmReject(event, reason)) {
                     void runAction(() => rejectReviewEvent(event.id, reason), "반려 처리했습니다.", {
@@ -925,6 +948,7 @@ function ReviewDetail({
   disabled,
   onChangeReason,
   onApprove,
+  onManualApprove,
   onReject,
   onCancelReject,
   onMarkPaid,
@@ -937,6 +961,7 @@ function ReviewDetail({
   disabled: boolean;
   onChangeReason: (value: string) => void;
   onApprove: (event: ReviewEvent) => void;
+  onManualApprove: (event: ReviewEvent, input: ReviewEventManualApproveInput) => void;
   onReject: (event: ReviewEvent) => void;
   onCancelReject: (event: ReviewEvent) => void;
   onMarkPaid: (event: ReviewEvent) => void;
@@ -945,6 +970,10 @@ function ReviewDetail({
   onPreview: (title: string, src: string) => void;
 }) {
   const [accountEditing, setAccountEditing] = useState(false);
+  const [manualRewardSelection, setManualRewardSelection] = useState<{
+    eventId: number;
+    value: ReviewEventRewardType;
+  } | null>(null);
 
   if (!event) {
     return (
@@ -962,7 +991,26 @@ function ReviewDetail({
   const canReject =
     !finalized && (event.status === "REVIEW_PENDING" || event.status === "PAYMENT_PENDING");
   const canCancelReject = !finalized && event.status === "REJECTED";
+  const canManualApprove =
+    !finalized && (event.status === "PROOF_SENT" || event.status === "REJECTED");
   const canMarkPaid = event.status === "PAYMENT_PENDING";
+  const savedRewardType = event.rewardType === "CASH" || event.rewardType === "COUPON"
+    ? event.rewardType
+    : "";
+  const manualRewardType = savedRewardType || (
+    manualRewardSelection?.eventId === event.id ? manualRewardSelection.value : ""
+  );
+  const hasCompleteAccount = Boolean(
+    event.bankName?.trim() && event.accountNumber?.trim() && event.accountHolder?.trim()
+  );
+  const manualReason = reason.trim();
+  const manualCashNeedsAccount = manualRewardType === "CASH" && !hasCompleteAccount;
+  const canSubmitManualApprove = Boolean(
+    canManualApprove
+    && manualReason
+    && manualRewardType
+    && !manualCashNeedsAccount
+  );
   return (
     <aside className="bg-white p-4 sm:rounded-[28px] sm:border sm:border-white/70 sm:bg-white/75 sm:p-5 sm:shadow-sm sm:backdrop-blur">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1017,15 +1065,89 @@ function ReviewDetail({
       />
 
       <div className="mt-4">
-        <div className="text-sm font-black text-slate-900">새 처리 사유</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-black text-slate-900">
+            {canManualApprove ? "수동 승인 사유 (필수)" : "새 처리 사유"}
+          </div>
+          {canManualApprove ? (
+            <div className="text-xs font-bold text-slate-400">{reason.length}/500</div>
+          ) : null}
+        </div>
         <textarea
           value={reason}
           onChange={(event) => onChangeReason(event.target.value)}
-          placeholder="반려 또는 중복 처리 사유"
+          placeholder={
+            canManualApprove
+              ? "예: 전화 또는 문자로 리뷰 완료를 확인함"
+              : "반려 또는 중복 처리 사유"
+          }
+          maxLength={500}
           disabled={disabled}
           className="mt-2 min-h-[88px] w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none focus:border-pink-300 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
         />
       </div>
+
+      {canManualApprove ? (
+        <fieldset className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+          <legend className="px-1 text-sm font-black text-slate-900">수동 승인 혜택</legend>
+          <p className="mt-1 text-xs font-bold leading-5 text-slate-600">
+            전화·문자 등 별도 경로로 리뷰 완료를 확인한 경우에만 사용하세요.
+          </p>
+          {savedRewardType ? (
+            <div className="mt-3 flex min-h-12 items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-white px-4 text-sm font-extrabold text-emerald-700 shadow-sm">
+              <span>{savedRewardType === "CASH" ? "현금 지급" : "할인쿠폰"}</span>
+              <span className="text-xs text-slate-500">고객 선택 · 변경 불가</span>
+            </div>
+          ) : (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {([
+                { value: "CASH", label: "현금 지급" },
+                { value: "COUPON", label: "할인쿠폰" },
+              ] as const).map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex min-h-12 cursor-pointer items-center justify-center rounded-xl border px-3 text-sm font-extrabold transition focus-within:ring-2 focus-within:ring-emerald-300 ${
+                    manualRewardType === option.value
+                      ? "border-emerald-500 bg-white text-emerald-700 shadow-sm"
+                      : "border-emerald-100 bg-white/70 text-slate-600 hover:border-emerald-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name={`manual-reward-${event.id}`}
+                    value={option.value}
+                    checked={manualRewardType === option.value}
+                    onChange={() => setManualRewardSelection({
+                      eventId: event.id,
+                      value: option.value,
+                    })}
+                    disabled={disabled}
+                    className="sr-only"
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          )}
+          {!manualRewardType ? (
+            <p className="mt-3 text-xs font-extrabold leading-5 text-amber-800">
+              지급할 혜택을 선택해주세요.
+            </p>
+          ) : manualCashNeedsAccount ? (
+            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-extrabold leading-5 text-amber-800">
+              현금 지급은 위 계좌정보에서 은행·계좌번호·예금주를 먼저 입력하고 저장해주세요.
+            </p>
+          ) : !manualReason ? (
+            <p className="mt-3 text-xs font-extrabold leading-5 text-amber-800">
+              수동 승인 사유를 입력해주세요.
+            </p>
+          ) : manualRewardType === "COUPON" ? (
+            <p className="mt-3 text-xs font-bold leading-5 text-emerald-800">
+              승인하면 할인쿠폰이 즉시 발급됩니다.
+            </p>
+          ) : null}
+        </fieldset>
+      ) : null}
 
       <ProcessingHistory
         items={event.processingHistory || []}
@@ -1041,16 +1163,35 @@ function ReviewDetail({
       <div
         className={`${accountEditing ? "relative" : "sticky bottom-0 z-10"} -mx-4 mt-5 border-t border-slate-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0`}
       >
-        {canCancelReject ? (
-          <button
-            type="button"
-            onClick={() => onCancelReject(event)}
-            disabled={disabled}
-            className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 text-sm font-extrabold text-amber-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <RefreshCw className="h-4 w-4" />
-            반려취소
-          </button>
+        {canManualApprove ? (
+          <div className={`grid gap-2 ${canCancelReject ? "sm:grid-cols-2" : ""}`}>
+            {canCancelReject ? (
+              <button
+                type="button"
+                onClick={() => onCancelReject(event)}
+                disabled={disabled}
+                className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 text-sm font-extrabold text-amber-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className="h-4 w-4" />
+                반려취소
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                if (!manualRewardType) return;
+                onManualApprove(event, {
+                  reason: manualReason,
+                  rewardType: manualRewardType,
+                });
+              }}
+              disabled={disabled || !canSubmitManualApprove}
+              className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              수동 승인
+            </button>
+          </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
             <button

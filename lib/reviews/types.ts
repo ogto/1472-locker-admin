@@ -17,6 +17,13 @@ export type ReviewEventProcessingHistory = {
   at?: string | null;
 };
 
+export type ReviewEventRewardType = "CASH" | "COUPON";
+
+export type ReviewEventManualApproveInput = {
+  reason: string;
+  rewardType: ReviewEventRewardType;
+};
+
 export type ReviewEventAccountInput = {
   bankName: string;
   accountNumber: string;
@@ -34,7 +41,7 @@ export type ReviewEvent = {
   proofImageUrl?: string | null;
   screenshotUrl?: string | null;
   reviewText?: string | null;
-  rewardType?: "CASH" | "COUPON" | string | null;
+  rewardType?: ReviewEventRewardType | string | null;
   rewardAmount: number;
   bankName?: string | null;
   accountNumber?: string | null;
