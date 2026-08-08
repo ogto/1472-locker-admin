@@ -247,7 +247,26 @@ export async function GET(req: NextRequest) {
   }
 
   const data = (await response.json()) as ReviewEventListResponse;
-  const file = paymentXlsx(data.items || []);
+  const items = data.items || [];
+  const missingAccountIds = items
+    .filter((event) => !(
+      event.bankName?.trim()
+      && event.accountNumber?.trim()
+      && event.accountHolder?.trim()
+    ))
+    .map((event) => event.id);
+
+  if (missingAccountIds.length > 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: `계좌정보가 없는 지급대기 건이 있습니다: ${missingAccountIds.join(", ")}`,
+      },
+      { status: 409 }
+    );
+  }
+
+  const file = paymentXlsx(items);
 
   return new NextResponse(file, {
     status: 200,

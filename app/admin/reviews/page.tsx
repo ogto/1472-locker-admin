@@ -41,7 +41,7 @@ const statusOptions: Array<{ value: ReviewEventStatus | ""; label: string }> = [
   { value: "", label: "전체 상태" },
   { value: "REVIEW_PENDING", label: "검수대기" },
   { value: "PAYMENT_PENDING", label: "지급대기" },
-  { value: "APPROVED", label: "승인완료" },
+  { value: "APPROVED", label: "계좌입력대기" },
   { value: "PAID", label: "지급완료" },
   { value: "REJECTED", label: "반려" },
   { value: "PROOF_SENT", label: "영수증발급" },
@@ -52,7 +52,7 @@ const statusLabels: Record<ReviewEventStatus, string> = {
   REQUESTED: "접수",
   PROOF_SENT: "영수증발급",
   REVIEW_PENDING: "검수대기",
-  APPROVED: "승인완료",
+  APPROVED: "계좌입력대기",
   REJECTED: "반려",
   REWARDED: "보상완료",
   PAYMENT_PENDING: "지급대기",
@@ -98,14 +98,45 @@ function maskPhone(phone: string) {
 
 function statusClass(status: ReviewEventStatus) {
   if (status === "REVIEW_PENDING") return "bg-amber-100 text-amber-800";
+  if (status === "APPROVED") return "bg-amber-100 text-amber-800";
   if (status === "PAYMENT_PENDING") return "bg-sky-100 text-sky-800";
-  if (status === "PAID" || status === "APPROVED") return "bg-emerald-100 text-emerald-800";
+  if (status === "PAID") return "bg-emerald-100 text-emerald-800";
   if (status === "REJECTED" || status === "DUPLICATED") return "bg-rose-100 text-rose-800";
   return "bg-slate-100 text-slate-700";
 }
 
 function visitRouteLabel(value?: string | null) {
   return value?.trim() || "미응답";
+}
+
+function hasCompleteReviewAccount(event: ReviewEvent) {
+  return Boolean(
+    event.bankName?.trim() && event.accountNumber?.trim() && event.accountHolder?.trim()
+  );
+}
+
+function findDetailTargetAfterRefresh(
+  previousRows: ReviewEvent[],
+  refreshedRows: ReviewEvent[],
+  currentId: number
+) {
+  const refreshedIds = new Set(refreshedRows.map((row) => row.id));
+  if (refreshedIds.has(currentId)) return currentId;
+
+  const currentIndex = previousRows.findIndex((row) => row.id === currentId);
+  if (currentIndex >= 0) {
+    for (let index = currentIndex + 1; index < previousRows.length; index += 1) {
+      const candidateId = previousRows[index].id;
+      if (refreshedIds.has(candidateId)) return candidateId;
+    }
+
+    for (let index = currentIndex - 1; index >= 0; index -= 1) {
+      const candidateId = previousRows[index].id;
+      if (refreshedIds.has(candidateId)) return candidateId;
+    }
+  }
+
+  return refreshedRows[0]?.id ?? null;
 }
 
 export default function AdminReviewsPage() {
@@ -133,6 +164,7 @@ export default function AdminReviewsPage() {
   const activeDetailIdRef = useRef<number | null>(null);
   const detailRequestRef = useRef(0);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const detailScrollRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const [previewImage, setPreviewImage] = useState<{
     title: string;
@@ -186,10 +218,12 @@ export default function AdminReviewsPage() {
         if (current && items.some((item) => item.id === current)) return current;
         return items[0]?.id ?? null;
       });
+      return items;
     } catch (error) {
       setRows([]);
       setSelectedId(null);
       setErrorText(error instanceof Error ? error.message : "리뷰 이벤트를 불러오지 못했습니다.");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -247,6 +281,7 @@ export default function AdminReviewsPage() {
     message: string,
     options: { clearReason?: boolean; eventId?: number } = {}
   ) {
+    const rowsBeforeAction = rows;
     setActionLoading(true);
     setErrorText("");
     setOkText("");
@@ -256,9 +291,38 @@ export default function AdminReviewsPage() {
       setOkText(message);
       setCopyToast({ type: "ok", text: message });
       if (options.clearReason) setReason("");
-      await load();
+      const refreshedRows = await load();
+      if (!refreshedRows) return false;
+
       if (options.eventId && activeDetailIdRef.current === options.eventId) {
-        return await loadDetail(options.eventId);
+        const nextDetailId = findDetailTargetAfterRefresh(
+          rowsBeforeAction,
+          refreshedRows,
+          options.eventId
+        );
+
+        if (!nextDetailId) {
+          closeDetail();
+          return true;
+        }
+
+        const nextIndex = refreshedRows.findIndex((row) => row.id === nextDetailId);
+        if (nextIndex >= 0) setPage(Math.floor(nextIndex / PAGE_SIZE) + 1);
+
+        if (nextDetailId !== options.eventId) {
+          activeDetailIdRef.current = nextDetailId;
+          detailRequestRef.current += 1;
+          setSelectedId(nextDetailId);
+          setDetailTargetId(nextDetailId);
+          setDetailEvent(null);
+          setReason("");
+          window.requestAnimationFrame(() => {
+            detailScrollRef.current?.scrollTo({ top: 0 });
+            closeButtonRef.current?.focus();
+          });
+        }
+
+        return await loadDetail(nextDetailId);
       }
       return true;
     } catch (error) {
@@ -272,18 +336,28 @@ export default function AdminReviewsPage() {
   }
 
   function confirmApprove(event: ReviewEvent) {
+    const effectiveRewardType = event.rewardType || "CASH";
     const reward =
-      event.rewardType === "CASH"
-        ? `현금 ${formatWon(event.rewardAmount)}`
+      effectiveRewardType === "CASH"
+        ? event.rewardType
+          ? `현금 ${formatWon(event.rewardAmount)}`
+          : "현금 지급 (기본)"
         : event.couponId
           ? `쿠폰 #${event.couponId}`
           : "선택된 혜택";
-    return window.confirm(`신청 #${event.id}을 승인 처리할까요?\n\n혜택: ${reward}`);
+    const accountNotice = effectiveRewardType === "CASH" && !hasCompleteReviewAccount(event)
+      ? "\n\n계좌정보가 없어 계좌입력대기로 승인됩니다."
+      : "";
+    return window.confirm(
+      `신청 #${event.id}을 승인 처리할까요?\n\n혜택: ${reward}${accountNotice}`
+    );
   }
 
   function confirmManualApprove(event: ReviewEvent, input: ReviewEventManualApproveInput) {
     const reward = input.rewardType === "CASH"
-      ? "현금 지급 (지급대기로 전환)"
+      ? hasCompleteReviewAccount(event)
+        ? "현금 지급 (지급대기로 전환)"
+        : "현금 지급 (계좌입력대기로 승인)"
       : `할인쿠폰 (승인 즉시 발급)`;
     return window.confirm(
       `신청 #${event.id}을 수동 승인할까요?\n\n혜택: ${reward}\n처리 사유: ${input.reason}`
@@ -757,7 +831,10 @@ export default function AdminReviewsPage() {
                 </button>
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain sm:p-3">
+            <div
+              ref={detailScrollRef}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain sm:p-3"
+            >
               <ReviewDetail
                 key={modalEvent.id}
                 event={modalEvent}
@@ -989,7 +1066,11 @@ function ReviewDetail({
   const finalized = Boolean(event.paidAt || event.rewardedAt || event.couponId);
   const canApprove = event.status === "REVIEW_PENDING";
   const canReject =
-    !finalized && (event.status === "REVIEW_PENDING" || event.status === "PAYMENT_PENDING");
+    !finalized && (
+      event.status === "REVIEW_PENDING"
+      || event.status === "APPROVED"
+      || event.status === "PAYMENT_PENDING"
+    );
   const canCancelReject = !finalized && event.status === "REJECTED";
   const canManualApprove =
     !finalized && (event.status === "PROOF_SENT" || event.status === "REJECTED");
@@ -1000,17 +1081,17 @@ function ReviewDetail({
   const manualRewardType = savedRewardType || (
     manualRewardSelection?.eventId === event.id ? manualRewardSelection.value : ""
   );
-  const hasCompleteAccount = Boolean(
-    event.bankName?.trim() && event.accountNumber?.trim() && event.accountHolder?.trim()
-  );
+  const hasCompleteAccount = hasCompleteReviewAccount(event);
   const manualReason = reason.trim();
-  const manualCashNeedsAccount = manualRewardType === "CASH" && !hasCompleteAccount;
+  const manualCashMissingAccount = manualRewardType === "CASH" && !hasCompleteAccount;
   const canSubmitManualApprove = Boolean(
     canManualApprove
     && manualReason
     && manualRewardType
-    && !manualCashNeedsAccount
   );
+  const accountInputPending = event.status === "APPROVED"
+    && event.rewardType === "CASH"
+    && !hasCompleteAccount;
   return (
     <aside className="bg-white p-4 sm:rounded-[28px] sm:border sm:border-white/70 sm:bg-white/75 sm:p-5 sm:shadow-sm sm:backdrop-blur">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1063,6 +1144,12 @@ function ReviewDetail({
         onSave={onSaveAccount}
         onEditingChange={setAccountEditing}
       />
+
+      {accountInputPending ? (
+        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-extrabold leading-6 text-amber-900">
+          승인은 완료됐지만 계좌정보가 없어 지급대기에는 포함되지 않습니다. 계좌정보를 저장하면 자동으로 지급대기로 이동합니다.
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <div className="flex items-center justify-between gap-3">
@@ -1133,13 +1220,13 @@ function ReviewDetail({
             <p className="mt-3 text-xs font-extrabold leading-5 text-amber-800">
               지급할 혜택을 선택해주세요.
             </p>
-          ) : manualCashNeedsAccount ? (
-            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-extrabold leading-5 text-amber-800">
-              현금 지급은 위 계좌정보에서 은행·계좌번호·예금주를 먼저 입력하고 저장해주세요.
-            </p>
           ) : !manualReason ? (
             <p className="mt-3 text-xs font-extrabold leading-5 text-amber-800">
               수동 승인 사유를 입력해주세요.
+            </p>
+          ) : manualCashMissingAccount ? (
+            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-extrabold leading-5 text-amber-800">
+              계좌정보 없이 계좌입력대기로 승인됩니다. 나중에 계좌정보를 저장하면 지급대기로 이동합니다.
             </p>
           ) : manualRewardType === "COUPON" ? (
             <p className="mt-3 text-xs font-bold leading-5 text-emerald-800">
