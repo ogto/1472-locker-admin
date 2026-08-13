@@ -1046,7 +1046,7 @@ function ReviewDetail({
   onSaveAccount: (event: ReviewEvent, account: ReviewEventAccountInput) => Promise<boolean>;
   onPreview: (title: string, src: string) => void;
 }) {
-  const [accountEditing, setAccountEditing] = useState(false);
+  const approvalInputRef = useRef<HTMLDivElement | null>(null);
   const [manualRewardSelection, setManualRewardSelection] = useState<{
     eventId: number;
     value: ReviewEventRewardType;
@@ -1062,6 +1062,8 @@ function ReviewDetail({
       </aside>
     );
   }
+
+  const activeEvent = event;
 
   const finalized = Boolean(event.paidAt || event.rewardedAt || event.couponId);
   const canApprove = event.status === "REVIEW_PENDING";
@@ -1092,6 +1094,30 @@ function ReviewDetail({
   const accountInputPending = event.status === "APPROVED"
     && event.rewardType === "CASH"
     && !hasCompleteAccount;
+  const canProceedWithoutAccount = canApprove || canManualApprove;
+
+  function continueWithoutAccount() {
+    if (canApprove) {
+      onApprove(activeEvent);
+      return;
+    }
+
+    if (canSubmitManualApprove && manualRewardType) {
+      onManualApprove(activeEvent, {
+        reason: manualReason,
+        rewardType: manualRewardType,
+      });
+      return;
+    }
+
+    approvalInputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  const continueWithoutAccountLabel = canApprove
+    ? "계좌 없이 승인"
+    : canSubmitManualApprove
+      ? "계좌 없이 수동 승인"
+      : "계좌 입력 건너뛰기";
   return (
     <aside className="bg-white p-4 sm:rounded-[28px] sm:border sm:border-white/70 sm:bg-white/75 sm:p-5 sm:shadow-sm sm:backdrop-blur">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1142,7 +1168,8 @@ function ReviewDetail({
         disabled={disabled}
         onCopy={onCopyAccount}
         onSave={onSaveAccount}
-        onEditingChange={setAccountEditing}
+        onContinueWithoutAccount={canProceedWithoutAccount ? continueWithoutAccount : undefined}
+        continueWithoutAccountLabel={continueWithoutAccountLabel}
       />
 
       {accountInputPending ? (
@@ -1151,7 +1178,7 @@ function ReviewDetail({
         </div>
       ) : null}
 
-      <div className="mt-4">
+      <div ref={approvalInputRef} className="mt-4 scroll-mt-4">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm font-black text-slate-900">
             {canManualApprove ? "수동 승인 사유 (필수)" : "새 처리 사유"}
@@ -1248,7 +1275,7 @@ function ReviewDetail({
       ) : null}
 
       <div
-        className={`${accountEditing ? "relative" : "sticky bottom-0 z-10"} -mx-4 mt-5 border-t border-slate-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0`}
+        className="sticky bottom-0 z-10 -mx-4 mt-5 border-t border-slate-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0"
       >
         {canManualApprove ? (
           <div className={`grid gap-2 ${canCancelReject ? "sm:grid-cols-2" : ""}`}>
@@ -1332,13 +1359,15 @@ function AccountInfoCard({
   disabled,
   onCopy,
   onSave,
-  onEditingChange,
+  onContinueWithoutAccount,
+  continueWithoutAccountLabel,
 }: {
   event: ReviewEvent;
   disabled: boolean;
   onCopy: (value: string) => void;
   onSave: (event: ReviewEvent, account: ReviewEventAccountInput) => Promise<boolean>;
-  onEditingChange: (editing: boolean) => void;
+  onContinueWithoutAccount?: () => void;
+  continueWithoutAccountLabel: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1361,7 +1390,6 @@ function AccountInfoCard({
     setAccountNumber(event.accountNumber || "");
     setAccountHolder(event.accountHolder || "");
     setEditing(false);
-    onEditingChange(false);
   }
 
   async function saveAccount() {
@@ -1375,7 +1403,6 @@ function AccountInfoCard({
       });
       if (saved) {
         setEditing(false);
-        onEditingChange(false);
       }
     } finally {
       setSaving(false);
@@ -1385,7 +1412,7 @@ function AccountInfoCard({
   return (
     <section className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs font-bold text-slate-500">계좌</div>
+        <div className="text-xs font-bold text-slate-500">계좌정보 (선택)</div>
         {!editing ? (
           <div className="flex items-center gap-1.5">
             {canCopy ? (
@@ -1401,13 +1428,12 @@ function AccountInfoCard({
               type="button"
               onClick={() => {
                 setEditing(true);
-                onEditingChange(true);
               }}
               disabled={disabled || !accountEditable}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-black text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Pencil className="h-3.5 w-3.5" />
-              {canCopy ? "수정" : "입력"}
+              {canCopy ? "수정" : "선택 입력"}
             </button>
           </div>
         ) : null}
@@ -1415,7 +1441,13 @@ function AccountInfoCard({
 
       {!editing ? (
         <>
-          <div className="mt-1 break-words text-sm font-black text-slate-900">{accountText}</div>
+          <div className="mt-1 break-words text-sm font-black text-slate-900">
+            {canCopy
+              ? accountText
+              : onContinueWithoutAccount
+                ? "미입력 · 계좌 없이 승인 가능"
+                : "미입력"}
+          </div>
           {!accountEditable ? (
             <div className="mt-1.5 text-xs font-bold text-slate-400">
               지급이 완료된 신청 건은 계좌정보를 수정할 수 없습니다.
@@ -1430,6 +1462,9 @@ function AccountInfoCard({
             void saveAccount();
           }}
         >
+          <div className="mb-3 rounded-xl bg-sky-50 px-3 py-2 text-xs font-extrabold leading-5 text-sky-800">
+            계좌는 선택사항입니다. 계좌를 저장할 때만 은행명·예금주·계좌번호를 모두 입력해주세요.
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="text-xs font-bold text-slate-500">은행명</span>
@@ -1472,6 +1507,20 @@ function AccountInfoCard({
           <div className="mt-2 text-xs font-bold text-slate-400">
             저장한 변경은 처리 이력에 기록됩니다.
           </div>
+          {onContinueWithoutAccount ? (
+            <button
+              type="button"
+              onClick={() => {
+                cancelEdit();
+                window.requestAnimationFrame(onContinueWithoutAccount);
+              }}
+              disabled={disabled || saving}
+              className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-800 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              {continueWithoutAccountLabel}
+            </button>
+          ) : null}
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -1479,7 +1528,7 @@ function AccountInfoCard({
               disabled={disabled || saving}
               className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              취소
+              {canCopy ? "수정 취소" : "입력 취소"}
             </button>
             <button
               type="submit"
