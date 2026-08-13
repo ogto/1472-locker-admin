@@ -121,7 +121,6 @@ function findDetailTargetAfterRefresh(
   currentId: number
 ) {
   const refreshedIds = new Set(refreshedRows.map((row) => row.id));
-  if (refreshedIds.has(currentId)) return currentId;
 
   const currentIndex = previousRows.findIndex((row) => row.id === currentId);
   if (currentIndex >= 0) {
@@ -129,14 +128,9 @@ function findDetailTargetAfterRefresh(
       const candidateId = previousRows[index].id;
       if (refreshedIds.has(candidateId)) return candidateId;
     }
-
-    for (let index = currentIndex - 1; index >= 0; index -= 1) {
-      const candidateId = previousRows[index].id;
-      if (refreshedIds.has(candidateId)) return candidateId;
-    }
   }
 
-  return refreshedRows[0]?.id ?? null;
+  return null;
 }
 
 export default function AdminReviewsPage() {
@@ -161,6 +155,7 @@ export default function AdminReviewsPage() {
   const [detailTargetId, setDetailTargetId] = useState<number | null>(null);
   const [detailEvent, setDetailEvent] = useState<ReviewEvent | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const actionInFlightRef = useRef(false);
   const activeDetailIdRef = useRef<number | null>(null);
   const detailRequestRef = useRef(0);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -279,8 +274,14 @@ export default function AdminReviewsPage() {
   async function runAction(
     action: () => Promise<unknown>,
     message: string,
-    options: { clearReason?: boolean; eventId?: number } = {}
+    options: {
+      clearReason?: boolean;
+      detailBehavior?: "advance" | "refresh-current";
+      eventId?: number;
+    } = {}
   ) {
+    if (actionInFlightRef.current) return false;
+    actionInFlightRef.current = true;
     const rowsBeforeAction = rows;
     setActionLoading(true);
     setErrorText("");
@@ -292,9 +293,24 @@ export default function AdminReviewsPage() {
       setCopyToast({ type: "ok", text: message });
       if (options.clearReason) setReason("");
       const refreshedRows = await load();
-      if (!refreshedRows) return false;
+      if (!refreshedRows) {
+        if (options.eventId && activeDetailIdRef.current === options.eventId) {
+          if (options.detailBehavior === "advance") {
+            closeDetail();
+          } else if (options.detailBehavior === "refresh-current") {
+            await loadDetail(options.eventId);
+          }
+        }
+        return false;
+      }
 
       if (options.eventId && activeDetailIdRef.current === options.eventId) {
+        if (options.detailBehavior === "refresh-current") {
+          return await loadDetail(options.eventId);
+        }
+
+        if (options.detailBehavior !== "advance") return true;
+
         const nextDetailId = findDetailTargetAfterRefresh(
           rowsBeforeAction,
           refreshedRows,
@@ -331,6 +347,7 @@ export default function AdminReviewsPage() {
       setCopyToast({ type: "error", text: errorMessage });
       return false;
     } finally {
+      actionInFlightRef.current = false;
       setActionLoading(false);
     }
   }
@@ -403,7 +420,10 @@ export default function AdminReviewsPage() {
     void runAction(
       () => markReviewEventsPaid(targets.map((event) => event.id)),
       `${targets.length.toLocaleString("ko-KR")}건 지급완료 처리했습니다.`,
-      { eventId: targets.length === 1 ? targets[0].id : undefined }
+      {
+        detailBehavior: targets.length === 1 ? "advance" : undefined,
+        eventId: targets.length === 1 ? targets[0].id : undefined,
+      }
     );
   }
 
@@ -845,6 +865,7 @@ export default function AdminReviewsPage() {
                   if (confirmApprove(event)) {
                     void runAction(() => approveReviewEvent(event.id), "승인 처리했습니다.", {
                       clearReason: true,
+                      detailBehavior: "advance",
                       eventId: event.id,
                     });
                   }
@@ -854,7 +875,7 @@ export default function AdminReviewsPage() {
                     void runAction(
                       () => manualApproveReviewEvent(event.id, input),
                       "수동 승인 처리했습니다.",
-                      { clearReason: true, eventId: event.id }
+                      { clearReason: true, detailBehavior: "advance", eventId: event.id }
                     );
                   }
                 }}
@@ -862,6 +883,7 @@ export default function AdminReviewsPage() {
                   if (confirmReject(event, reason)) {
                     void runAction(() => rejectReviewEvent(event.id, reason), "반려 처리했습니다.", {
                       clearReason: true,
+                      detailBehavior: "advance",
                       eventId: event.id,
                     });
                   }
@@ -871,7 +893,7 @@ export default function AdminReviewsPage() {
                     void runAction(
                       () => cancelRejectReviewEvent(event.id),
                       "반려를 취소했습니다.",
-                      { clearReason: true, eventId: event.id }
+                      { clearReason: true, detailBehavior: "advance", eventId: event.id }
                     );
                   }
                 }}
@@ -881,7 +903,7 @@ export default function AdminReviewsPage() {
                   return runAction(
                     () => updateReviewEventAccount(event.id, account),
                     "계좌정보를 수정했습니다.",
-                    { eventId: event.id }
+                    { detailBehavior: "refresh-current", eventId: event.id }
                   );
                 }}
                 onPreview={(title, src) => setPreviewImage({ title, src })}
