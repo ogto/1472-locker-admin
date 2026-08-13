@@ -249,8 +249,8 @@ function buildChecksSheet(data: SalesSettlementData, main: SheetDefinition): She
   const checks = [
     ["은행점 총매출", sum(data.bank, (row) => row.amount), `${quotedMain}!C${totalRow}`, "sales month point=bank"],
     ["픽업 총매출", sum(data.pickupLedger, (row) => row.amount), `${quotedMain}!F${ledgerTotalRow}`, "결제일 기준 순매출"],
-    ["픽업 순건수", sum(data.pickupLedger, (row) => (row.type === "cancel" ? -1 : 1)), `${quotedMain}!H${ledgerTotalRow}`, "결제건수-취소건수"],
-    ["픽업 유형 합계", sum(data.pickupDaily, (row) => row.amount), `${quotedMain}!R${categoryTotalRow}`, "냉장+상온+캐리어"],
+    ["픽업 거래 순건수", sum(data.pickupLedger, (row) => (row.type === "cancel" ? -1 : 1)), `${quotedMain}!H${ledgerTotalRow}`, "결제거래-취소거래"],
+    ["픽업 유형 합계", sum(data.pickupDaily, (row) => row.amount), `${quotedMain}!R${categoryTotalRow}`, "보관함 단위 냉장+상온+캐리어"],
     ["야구장점 총매출", sum(data.baseball, (row) => row.amount), `${quotedMain}!L${totalRow}`, "결제일 기준 순매출"],
     ["인생네컷 총매출", sum(data.photoCard, (row) => row.amount), `${quotedMain}!B${photoTotalRow}`, "photo-card month"],
   ] as const;
@@ -271,7 +271,7 @@ function buildChecksSheet(data: SalesSettlementData, main: SheetDefinition): She
   const sources = [
     ["은행점", period, "netAmount, 결제건수-취소건수", "https://cloud.1472.ai:18443/api/v4/sales-info/month", today],
     ["야구장 픽업", period, "결제일 기준 순매출, 결제건수-취소건수", "https://cloud.1472.ai:18443/api/v4/sales-info/settlement-summary", today],
-    ["야구장점", period, "결제일 기준 netAmount, 결제건수-취소건수", "https://cloud.1472.ai:18443/api/v4/sales-info/month", today],
+    ["야구장점", period, "결제일 기준 netAmount, 보관함 결제수-취소수", "https://cloud.1472.ai:18443/api/v4/sales-info/settlement-summary", today],
     ["보관비", period, "냉장 5,000 / 상온 4,000 / 캐리어 5,000", "https://cloud.1472.ai:18443/api/v4/bread-storage/reserve-user-detail", today],
     ["픽업 유형", period, "캐리어 우선, 다음 상온, 나머지 냉장", "https://cloud.1472.ai:18443/api/v4/bread-storage/reserve-user-detail", today],
     ["인생네컷", period, "승인 결제 일별 합계", "https://cloud.1472.ai:18443/api/v4/sales-info/photo-card/month", today],
