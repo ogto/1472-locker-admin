@@ -41,7 +41,7 @@ const statusOptions: Array<{ value: ReviewEventStatus | ""; label: string }> = [
   { value: "", label: "전체 상태" },
   { value: "REVIEW_PENDING", label: "검수대기" },
   { value: "PAYMENT_PENDING", label: "지급대기" },
-  { value: "APPROVED", label: "계좌입력대기" },
+  { value: "APPROVED", label: "승인완료" },
   { value: "PAID", label: "지급완료" },
   { value: "REJECTED", label: "반려" },
   { value: "PROOF_SENT", label: "영수증발급" },
@@ -52,7 +52,7 @@ const statusLabels: Record<ReviewEventStatus, string> = {
   REQUESTED: "접수",
   PROOF_SENT: "영수증발급",
   REVIEW_PENDING: "검수대기",
-  APPROVED: "계좌입력대기",
+  APPROVED: "승인완료",
   REJECTED: "반려",
   REWARDED: "보상완료",
   PAYMENT_PENDING: "지급대기",
@@ -98,7 +98,7 @@ function maskPhone(phone: string) {
 
 function statusClass(status: ReviewEventStatus) {
   if (status === "REVIEW_PENDING") return "bg-amber-100 text-amber-800";
-  if (status === "APPROVED") return "bg-amber-100 text-amber-800";
+  if (status === "APPROVED") return "bg-emerald-100 text-emerald-800";
   if (status === "PAYMENT_PENDING") return "bg-sky-100 text-sky-800";
   if (status === "PAID") return "bg-emerald-100 text-emerald-800";
   if (status === "REJECTED" || status === "DUPLICATED") return "bg-rose-100 text-rose-800";
@@ -363,7 +363,7 @@ export default function AdminReviewsPage() {
           ? `쿠폰 #${event.couponId}`
           : "선택된 혜택";
     const accountNotice = effectiveRewardType === "CASH" && !hasCompleteReviewAccount(event)
-      ? "\n\n계좌정보가 없어 계좌입력대기로 승인됩니다."
+      ? "\n\n계좌정보 없이 승인완료 처리됩니다."
       : "";
     return window.confirm(
       `신청 #${event.id}을 승인 처리할까요?\n\n혜택: ${reward}${accountNotice}`
@@ -374,7 +374,7 @@ export default function AdminReviewsPage() {
     const reward = input.rewardType === "CASH"
       ? hasCompleteReviewAccount(event)
         ? "현금 지급 (지급대기로 전환)"
-        : "현금 지급 (계좌입력대기로 승인)"
+        : "현금 지급 (승인완료)"
       : `할인쿠폰 (승인 즉시 발급)`;
     return window.confirm(
       `신청 #${event.id}을 수동 승인할까요?\n\n혜택: ${reward}\n처리 사유: ${input.reason}`
@@ -1113,7 +1113,7 @@ function ReviewDetail({
     && manualReason
     && manualRewardType
   );
-  const accountInputPending = event.status === "APPROVED"
+  const approvedCashWithoutAccount = event.status === "APPROVED"
     && event.rewardType === "CASH"
     && !hasCompleteAccount;
   const canProceedWithoutAccount = canApprove || canManualApprove;
@@ -1194,9 +1194,9 @@ function ReviewDetail({
         continueWithoutAccountLabel={continueWithoutAccountLabel}
       />
 
-      {accountInputPending ? (
-        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-extrabold leading-6 text-amber-900">
-          승인은 완료됐지만 계좌정보가 없어 지급대기에는 포함되지 않습니다. 계좌정보를 저장하면 자동으로 지급대기로 이동합니다.
+      {approvedCashWithoutAccount ? (
+        <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-extrabold leading-6 text-emerald-900">
+          승인완료 · 계좌정보 미입력(선택). 실제 지급이 필요하면 나중에 계좌정보를 저장할 수 있습니다.
         </div>
       ) : null}
 
@@ -1275,7 +1275,7 @@ function ReviewDetail({
             </p>
           ) : manualCashMissingAccount ? (
             <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-extrabold leading-5 text-amber-800">
-              계좌정보 없이 계좌입력대기로 승인됩니다. 나중에 계좌정보를 저장하면 지급대기로 이동합니다.
+              계좌정보 없이 승인완료 처리됩니다. 계좌정보는 나중에 저장할 수 있습니다.
             </p>
           ) : manualRewardType === "COUPON" ? (
             <p className="mt-3 text-xs font-bold leading-5 text-emerald-800">
