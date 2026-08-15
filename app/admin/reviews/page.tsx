@@ -181,6 +181,12 @@ export default function AdminReviewsPage() {
     : null;
   const modalEvent = detailEvent?.id === detailTargetId ? detailEvent : modalSummary;
   const selectedPaymentIdSet = useMemo(() => new Set(selectedPaymentIds), [selectedPaymentIds]);
+  const pagePaymentIds = useMemo(
+    () => pagedRows.filter((row) => row.status === "PAYMENT_PENDING").map((row) => row.id),
+    [pagedRows]
+  );
+  const allPagePaymentsSelected = pagePaymentIds.length > 0
+    && pagePaymentIds.every((id) => selectedPaymentIdSet.has(id));
   const stats = useMemo(() => {
     const visitRouteCounts = filteredRows.reduce<Record<string, number>>((acc, row) => {
       const label = visitRouteLabel(row.visitRoute);
@@ -410,6 +416,20 @@ export default function AdminReviewsPage() {
     });
   }
 
+  function togglePagePaymentSelection() {
+    setSelectedPaymentIds((current) => {
+      const next = new Set(current);
+      const shouldClearPage = pagePaymentIds.every((id) => next.has(id));
+
+      pagePaymentIds.forEach((id) => {
+        if (shouldClearPage) next.delete(id);
+        else next.add(id);
+      });
+
+      return Array.from(next);
+    });
+  }
+
   function markPaidByIds(ids: number[]) {
     const targets = rows.filter((row) => ids.includes(row.id) && row.status === "PAYMENT_PENDING");
     if (targets.length === 0) {
@@ -594,7 +614,7 @@ export default function AdminReviewsPage() {
         {okText ? <StatusBanner type="ok" text={okText} /> : null}
         {selectedPaymentIds.length > 0 ? (
           <section className="flex flex-col gap-2 rounded-[24px] border border-sky-100 bg-sky-50/90 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:rounded-[28px] sm:p-4">
-            <div className="text-sm font-black text-sky-900">
+            <div role="status" aria-live="polite" className="text-sm font-black text-sky-900">
               지급대기 {selectedPaymentIds.length.toLocaleString("ko-KR")}건 선택됨
             </div>
             <button
@@ -611,10 +631,27 @@ export default function AdminReviewsPage() {
 
         <div>
           <section className="overflow-hidden rounded-[24px] border border-white/70 bg-white/75 shadow-sm backdrop-blur sm:rounded-[28px]">
-            <div className="border-b border-slate-100 px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
               <div className="text-sm font-black text-slate-900">
                 신청 목록 {loading ? "" : `${filteredRows.length.toLocaleString("ko-KR")}건`}
               </div>
+              {pagePaymentIds.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={togglePagePaymentSelection}
+                  disabled={actionLoading || loading}
+                  aria-pressed={allPagePaymentsSelected}
+                  aria-label={`현재 페이지 지급대기 ${pagePaymentIds.length.toLocaleString("ko-KR")}건 ${allPagePaymentsSelected ? "선택 해제" : "전체선택"}`}
+                  className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-black shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    allPagePaymentsSelected
+                      ? "border-sky-600 bg-sky-600 text-white hover:bg-sky-700"
+                      : "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                  }`}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {allPagePaymentsSelected ? "현재 페이지 선택해제" : "현재 페이지 전체선택"}
+                </button>
+              ) : null}
             </div>
 
             <div className="space-y-2 p-3 lg:hidden">
@@ -658,13 +695,15 @@ export default function AdminReviewsPage() {
                         {row.status === "PAYMENT_PENDING" ? (
                           <label
                             onClick={(event) => event.stopPropagation()}
-                            className="inline-flex items-center gap-2 text-xs font-black text-sky-700"
+                            className="inline-flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-xs font-black text-sky-700"
                           >
                             <input
                               type="checkbox"
                               checked={selectedPaymentIdSet.has(row.id)}
                               onChange={(event) => togglePaymentSelection(row.id, event.target.checked)}
-                              className="h-4 w-4 accent-sky-600"
+                              disabled={actionLoading || loading}
+                              className="h-4 w-4 accent-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                              aria-label={`신청 #${row.id} 지급완료 선택`}
                             />
                             선택
                           </label>
@@ -754,7 +793,8 @@ export default function AdminReviewsPage() {
                               checked={selectedPaymentIdSet.has(row.id)}
                               onClick={(event) => event.stopPropagation()}
                               onChange={(event) => togglePaymentSelection(row.id, event.target.checked)}
-                              className="h-4 w-4 accent-sky-600"
+                              disabled={actionLoading || loading}
+                              className="h-4 w-4 accent-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
                               aria-label={`신청 #${row.id} 지급완료 선택`}
                             />
                           ) : (
