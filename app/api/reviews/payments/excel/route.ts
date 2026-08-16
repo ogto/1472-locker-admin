@@ -248,25 +248,23 @@ export async function GET(req: NextRequest) {
 
   const data = (await response.json()) as ReviewEventListResponse;
   const items = data.items || [];
-  const missingAccountIds = items
-    .filter((event) => !(
-      event.bankName?.trim()
-      && event.accountNumber?.trim()
-      && event.accountHolder?.trim()
-    ))
-    .map((event) => event.id);
+  const paymentReadyItems = items.filter((event) => (
+    event.bankName?.trim()
+    && event.accountNumber?.trim()
+    && event.accountHolder?.trim()
+  ));
 
-  if (missingAccountIds.length > 0) {
+  if (paymentReadyItems.length === 0) {
     return NextResponse.json(
       {
         ok: false,
-        message: `계좌정보가 없는 지급대기 건이 있습니다: ${missingAccountIds.join(", ")}`,
+        message: "계좌정보가 입력된 지급대기 건이 없습니다.",
       },
       { status: 409 }
     );
   }
 
-  const file = paymentXlsx(items);
+  const file = paymentXlsx(paymentReadyItems);
 
   return new NextResponse(file, {
     status: 200,
@@ -275,6 +273,8 @@ export async function GET(req: NextRequest) {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": "attachment; filename=review-event-payments.xlsx",
       "Cache-Control": "no-store",
+      "X-Exported-Payment-Count": String(paymentReadyItems.length),
+      "X-Skipped-Missing-Account-Count": String(items.length - paymentReadyItems.length),
     },
   });
 }

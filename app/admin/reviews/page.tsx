@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   CheckCircle2,
   Clock3,
@@ -70,6 +69,7 @@ const processingActionLabels: Record<string, string> = {
   "review_event.restarted": "재신청",
   "review_event.duplicated": "중복 처리",
   "review_event.account_updated": "계좌정보 수정",
+  "review_event.payment_queued": "지급대기 전환",
 };
 
 function formatWon(value: number) {
@@ -115,6 +115,10 @@ function hasCompleteReviewAccount(event: ReviewEvent) {
   );
 }
 
+function isPaymentReady(event: ReviewEvent) {
+  return event.status === "PAYMENT_PENDING" && hasCompleteReviewAccount(event);
+}
+
 function findDetailTargetAfterRefresh(
   previousRows: ReviewEvent[],
   refreshedRows: ReviewEvent[],
@@ -143,6 +147,7 @@ export default function AdminReviewsPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [excelLoading, setExcelLoading] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [okText, setOkText] = useState("");
   const [reason, setReason] = useState("");
@@ -182,7 +187,7 @@ export default function AdminReviewsPage() {
   const modalEvent = detailEvent?.id === detailTargetId ? detailEvent : modalSummary;
   const selectedPaymentIdSet = useMemo(() => new Set(selectedPaymentIds), [selectedPaymentIds]);
   const pagePaymentIds = useMemo(
-    () => pagedRows.filter((row) => row.status === "PAYMENT_PENDING").map((row) => row.id),
+    () => pagedRows.filter(isPaymentReady).map((row) => row.id),
     [pagedRows]
   );
   const allPagePaymentsSelected = pagePaymentIds.length > 0
@@ -211,7 +216,7 @@ export default function AdminReviewsPage() {
       setPage(1);
       setSelectedPaymentIds((current) => {
         const payableIds = new Set(
-          items.filter((item) => item.status === "PAYMENT_PENDING").map((item) => item.id)
+          items.filter(isPaymentReady).map((item) => item.id)
         );
         return current.filter((id) => payableIds.has(id));
       });
@@ -378,9 +383,7 @@ export default function AdminReviewsPage() {
 
   function confirmManualApprove(event: ReviewEvent, input: ReviewEventManualApproveInput) {
     const reward = input.rewardType === "CASH"
-      ? hasCompleteReviewAccount(event)
-        ? "현금 지급 (지급대기로 전환)"
-        : "현금 지급 (승인완료)"
+      ? "현금 지급 (지급대기로 전환)"
       : `할인쿠폰 (승인 즉시 발급)`;
     return window.confirm(
       `신청 #${event.id}을 수동 승인할까요?\n\n혜택: ${reward}\n처리 사유: ${input.reason}`
@@ -431,9 +434,9 @@ export default function AdminReviewsPage() {
   }
 
   function markPaidByIds(ids: number[]) {
-    const targets = rows.filter((row) => ids.includes(row.id) && row.status === "PAYMENT_PENDING");
+    const targets = rows.filter((row) => ids.includes(row.id) && isPaymentReady(row));
     if (targets.length === 0) {
-      setErrorText("지급완료 처리할 지급대기 건을 선택해주세요.");
+      setErrorText("계좌정보가 입력된 지급대기 건을 선택해주세요.");
       return;
     }
     if (!confirmMarkPaid(targets)) return;
@@ -445,6 +448,45 @@ export default function AdminReviewsPage() {
         eventId: targets.length === 1 ? targets[0].id : undefined,
       }
     );
+  }
+
+  async function downloadPaymentExcel() {
+    if (excelLoading) return;
+    setExcelLoading(true);
+    setErrorText("");
+    setOkText("");
+
+    try {
+      const response = await fetch("/api/reviews/payments/excel", { cache: "no-store" });
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null) as { message?: string } | null;
+        throw new Error(errorBody?.message || "지급 엑셀을 생성하지 못했습니다.");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = "review-event-payments.xlsx";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+
+      const exportedCount = Number(response.headers.get("X-Exported-Payment-Count") || 0);
+      const skippedCount = Number(response.headers.get("X-Skipped-Missing-Account-Count") || 0);
+      const message = skippedCount > 0
+        ? `계좌정보가 입력된 ${exportedCount.toLocaleString("ko-KR")}건을 내려받았습니다. 계좌 미입력 ${skippedCount.toLocaleString("ko-KR")}건은 제외했습니다.`
+        : `지급대기 ${exportedCount.toLocaleString("ko-KR")}건을 엑셀로 내려받았습니다.`;
+      setOkText(message);
+      setCopyToast({ type: "ok", text: message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "지급 엑셀을 생성하지 못했습니다.";
+      setErrorText(message);
+      setCopyToast({ type: "error", text: message });
+    } finally {
+      setExcelLoading(false);
+    }
   }
 
   async function copyAccount(account: string) {
@@ -594,14 +636,16 @@ export default function AdminReviewsPage() {
               조회
             </button>
 
-            <Link
-              href="/api/reviews/payments/excel"
-              prefetch={false}
-              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-extrabold text-slate-700 shadow-sm transition hover:-translate-y-0.5 sm:min-h-[46px]"
+            <button
+              type="button"
+              onClick={() => void downloadPaymentExcel()}
+              disabled={excelLoading || actionLoading}
+              title="계좌정보가 입력된 지급대기 건만 포함됩니다."
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-extrabold text-slate-700 shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[46px]"
             >
               <Download className="h-4 w-4" />
-              지급 엑셀
-            </Link>
+              {excelLoading ? "엑셀 생성 중" : "지급 엑셀"}
+            </button>
           </div>
         </section>
 
@@ -657,6 +701,8 @@ export default function AdminReviewsPage() {
             <div className="space-y-2 p-3 lg:hidden">
               {pagedRows.map((row) => {
                 const active = selected?.id === row.id;
+                const paymentReady = isPaymentReady(row);
+                const paymentAccountMissing = row.status === "PAYMENT_PENDING" && !paymentReady;
 
                 return (
                   <div
@@ -692,7 +738,7 @@ export default function AdminReviewsPage() {
                         <span className={`rounded-full px-3 py-1 text-xs font-black ${statusClass(row.status)}`}>
                           {statusLabels[row.status] || row.status}
                         </span>
-                        {row.status === "PAYMENT_PENDING" ? (
+                        {paymentReady ? (
                           <label
                             onClick={(event) => event.stopPropagation()}
                             className="inline-flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-xs font-black text-sky-700"
@@ -707,6 +753,10 @@ export default function AdminReviewsPage() {
                             />
                             선택
                           </label>
+                        ) : paymentAccountMissing ? (
+                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">
+                            계좌 미입력
+                          </span>
                         ) : null}
                       </div>
                     </div>
@@ -732,7 +782,7 @@ export default function AdminReviewsPage() {
                           ? `쿠폰 #${row.couponId}`
                           : "혜택 없음"}
                     </div>
-                    {row.status === "PAYMENT_PENDING" ? (
+                    {paymentReady ? (
                       <button
                         type="button"
                         onClick={(event) => {
@@ -745,6 +795,10 @@ export default function AdminReviewsPage() {
                         <CheckCircle2 className="h-4 w-4" />
                         지급완료
                       </button>
+                    ) : paymentAccountMissing ? (
+                      <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs font-extrabold leading-5 text-amber-800">
+                        계좌정보 저장 후 지급완료할 수 있습니다.
+                      </div>
                     ) : null}
                   </div>
                 );
@@ -769,6 +823,8 @@ export default function AdminReviewsPage() {
                 <tbody className="divide-y divide-slate-100">
                   {pagedRows.map((row) => {
                     const active = selected?.id === row.id;
+                    const paymentReady = isPaymentReady(row);
+                    const paymentAccountMissing = row.status === "PAYMENT_PENDING" && !paymentReady;
 
                     return (
                       <tr
@@ -787,7 +843,7 @@ export default function AdminReviewsPage() {
                         className={`cursor-pointer transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-pink-300 ${active ? "bg-pink-50/80" : "hover:bg-slate-50"}`}
                       >
                         <td className="px-4 py-3">
-                          {row.status === "PAYMENT_PENDING" ? (
+                          {paymentReady ? (
                             <input
                               type="checkbox"
                               checked={selectedPaymentIdSet.has(row.id)}
@@ -797,6 +853,8 @@ export default function AdminReviewsPage() {
                               className="h-4 w-4 accent-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
                               aria-label={`신청 #${row.id} 지급완료 선택`}
                             />
+                          ) : paymentAccountMissing ? (
+                            <span className="text-xs font-black text-amber-700">계좌 미입력</span>
                           ) : (
                             <span aria-hidden="true" />
                           )}
@@ -819,7 +877,7 @@ export default function AdminReviewsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {row.status === "PAYMENT_PENDING" ? (
+                          {paymentReady ? (
                             <button
                               type="button"
                               onClick={(event) => {
@@ -831,6 +889,8 @@ export default function AdminReviewsPage() {
                             >
                               지급완료
                             </button>
+                          ) : paymentAccountMissing ? (
+                            <span className="text-xs font-black text-amber-700">계좌 저장 후 가능</span>
                           ) : (
                             <span aria-hidden="true" />
                           )}
@@ -914,7 +974,9 @@ export default function AdminReviewsPage() {
                   if (confirmManualApprove(event, input)) {
                     void runAction(
                       () => manualApproveReviewEvent(event.id, input),
-                      "수동 승인 처리했습니다.",
+                      input.rewardType === "CASH"
+                        ? "수동 승인 후 지급대기로 전환했습니다."
+                        : "수동 승인 후 할인쿠폰을 발급했습니다.",
                       { clearReason: true, detailBehavior: "advance", eventId: event.id }
                     );
                   }
@@ -1138,14 +1200,14 @@ function ReviewDetail({
   const canCancelReject = !finalized && event.status === "REJECTED";
   const canManualApprove =
     !finalized && (event.status === "PROOF_SENT" || event.status === "REJECTED");
-  const canMarkPaid = event.status === "PAYMENT_PENDING";
+  const hasCompleteAccount = hasCompleteReviewAccount(event);
+  const canMarkPaid = event.status === "PAYMENT_PENDING" && hasCompleteAccount;
   const savedRewardType = event.rewardType === "CASH" || event.rewardType === "COUPON"
     ? event.rewardType
     : "";
   const manualRewardType = savedRewardType || (
     manualRewardSelection?.eventId === event.id ? manualRewardSelection.value : ""
   );
-  const hasCompleteAccount = hasCompleteReviewAccount(event);
   const manualReason = reason.trim();
   const manualCashMissingAccount = manualRewardType === "CASH" && !hasCompleteAccount;
   const canSubmitManualApprove = Boolean(
@@ -1154,6 +1216,9 @@ function ReviewDetail({
     && manualRewardType
   );
   const approvedCashWithoutAccount = event.status === "APPROVED"
+    && event.rewardType === "CASH"
+    && !hasCompleteAccount;
+  const paymentPendingWithoutAccount = event.status === "PAYMENT_PENDING"
     && event.rewardType === "CASH"
     && !hasCompleteAccount;
   const canProceedWithoutAccount = canApprove || canManualApprove;
@@ -1240,6 +1305,12 @@ function ReviewDetail({
         </div>
       ) : null}
 
+      {paymentPendingWithoutAccount ? (
+        <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-extrabold leading-6 text-amber-900">
+          지급대기 · 계좌정보 미입력. 계좌정보를 저장하면 지급 엑셀과 지급완료 처리 대상에 포함됩니다.
+        </div>
+      ) : null}
+
       <div ref={approvalInputRef} className="mt-4 scroll-mt-4">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm font-black text-slate-900">
@@ -1315,7 +1386,7 @@ function ReviewDetail({
             </p>
           ) : manualCashMissingAccount ? (
             <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-extrabold leading-5 text-amber-800">
-              계좌정보 없이 승인완료 처리됩니다. 계좌정보는 나중에 저장할 수 있습니다.
+              계좌정보 없이 지급대기로 전환됩니다. 실제 지급 전 계좌정보를 저장해주세요.
             </p>
           ) : manualRewardType === "COUPON" ? (
             <p className="mt-3 text-xs font-bold leading-5 text-emerald-800">
