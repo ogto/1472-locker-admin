@@ -70,6 +70,7 @@ const processingActionLabels: Record<string, string> = {
   "review_event.duplicated": "중복 처리",
   "review_event.account_updated": "계좌정보 수정",
   "review_event.payment_queued": "지급대기 전환",
+  "review_event.paid": "지급완료",
 };
 
 function formatWon(value: number) {
@@ -109,14 +110,22 @@ function visitRouteLabel(value?: string | null) {
   return value?.trim() || "미응답";
 }
 
-function hasCompleteReviewAccount(event: ReviewEvent) {
-  return Boolean(
-    event.bankName?.trim() && event.accountNumber?.trim() && event.accountHolder?.trim()
-  );
+function reviewAccountState(event: ReviewEvent) {
+  const suppliedFields = [event.bankName, event.accountNumber, event.accountHolder]
+    .filter((value) => Boolean(value?.trim())).length;
+  if (suppliedFields === 0) return "empty";
+  if (suppliedFields === 3) return "complete";
+  return "partial";
 }
 
-function isPaymentReady(event: ReviewEvent) {
-  return event.status === "PAYMENT_PENDING" && hasCompleteReviewAccount(event);
+function hasCompleteReviewAccount(event: ReviewEvent) {
+  return reviewAccountState(event) === "complete";
+}
+
+function isPaymentCompletable(event: ReviewEvent) {
+  return event.status === "PAYMENT_PENDING"
+    && event.rewardType === "CASH"
+    && reviewAccountState(event) !== "partial";
 }
 
 function findDetailTargetAfterRefresh(
@@ -187,7 +196,7 @@ export default function AdminReviewsPage() {
   const modalEvent = detailEvent?.id === detailTargetId ? detailEvent : modalSummary;
   const selectedPaymentIdSet = useMemo(() => new Set(selectedPaymentIds), [selectedPaymentIds]);
   const pagePaymentIds = useMemo(
-    () => pagedRows.filter(isPaymentReady).map((row) => row.id),
+    () => pagedRows.filter(isPaymentCompletable).map((row) => row.id),
     [pagedRows]
   );
   const allPagePaymentsSelected = pagePaymentIds.length > 0
@@ -216,7 +225,7 @@ export default function AdminReviewsPage() {
       setPage(1);
       setSelectedPaymentIds((current) => {
         const payableIds = new Set(
-          items.filter(isPaymentReady).map((item) => item.id)
+          items.filter(isPaymentCompletable).map((item) => item.id)
         );
         return current.filter((id) => payableIds.has(id));
       });
@@ -407,8 +416,12 @@ export default function AdminReviewsPage() {
   function confirmMarkPaid(events: ReviewEvent[]) {
     const count = events.length;
     const total = events.reduce((sum, event) => sum + Number(event.rewardAmount || 0), 0);
+    const emptyAccountCount = events.filter((event) => reviewAccountState(event) === "empty").length;
+    const accountNotice = emptyAccountCount > 0
+      ? `\n\n계좌 미입력 ${emptyAccountCount.toLocaleString("ko-KR")}건은 은행/계좌번호/예금주를 0/0/0으로 자동 기록합니다.`
+      : "";
     return window.confirm(
-      `${count.toLocaleString("ko-KR")}건을 지급완료 처리할까요?\n\n총 지급액: ${formatWon(total)}`
+      `${count.toLocaleString("ko-KR")}건을 지급완료 처리할까요?\n\n총 지급액: ${formatWon(total)}${accountNotice}`
     );
   }
 
@@ -434,15 +447,20 @@ export default function AdminReviewsPage() {
   }
 
   function markPaidByIds(ids: number[]) {
-    const targets = rows.filter((row) => ids.includes(row.id) && isPaymentReady(row));
+    const targets = rows.filter((row) => ids.includes(row.id) && isPaymentCompletable(row));
     if (targets.length === 0) {
-      setErrorText("계좌정보가 입력된 지급대기 건을 선택해주세요.");
+      setErrorText("지급완료 처리할 지급대기 건을 선택해주세요.");
       return;
     }
+    const defaultedAccountCount = targets
+      .filter((event) => reviewAccountState(event) === "empty")
+      .length;
     if (!confirmMarkPaid(targets)) return;
     void runAction(
       () => markReviewEventsPaid(targets.map((event) => event.id)),
-      `${targets.length.toLocaleString("ko-KR")}건 지급완료 처리했습니다.`,
+      defaultedAccountCount > 0
+        ? `${targets.length.toLocaleString("ko-KR")}건 지급완료 처리했습니다. 계좌 미입력 ${defaultedAccountCount.toLocaleString("ko-KR")}건은 0/0/0으로 기록했습니다.`
+        : `${targets.length.toLocaleString("ko-KR")}건 지급완료 처리했습니다.`,
       {
         detailBehavior: targets.length === 1 ? "advance" : undefined,
         eventId: targets.length === 1 ? targets[0].id : undefined,
@@ -701,8 +719,10 @@ export default function AdminReviewsPage() {
             <div className="space-y-2 p-3 lg:hidden">
               {pagedRows.map((row) => {
                 const active = selected?.id === row.id;
-                const paymentReady = isPaymentReady(row);
-                const paymentAccountMissing = row.status === "PAYMENT_PENDING" && !paymentReady;
+                const accountState = reviewAccountState(row);
+                const paymentCompletable = isPaymentCompletable(row);
+                const paymentAccountMissing = row.status === "PAYMENT_PENDING" && accountState === "empty";
+                const paymentAccountPartial = row.status === "PAYMENT_PENDING" && accountState === "partial";
 
                 return (
                   <div
@@ -738,7 +758,7 @@ export default function AdminReviewsPage() {
                         <span className={`rounded-full px-3 py-1 text-xs font-black ${statusClass(row.status)}`}>
                           {statusLabels[row.status] || row.status}
                         </span>
-                        {paymentReady ? (
+                        {paymentCompletable ? (
                           <label
                             onClick={(event) => event.stopPropagation()}
                             className="inline-flex min-h-[44px] items-center gap-2 rounded-lg px-2 text-xs font-black text-sky-700"
@@ -753,9 +773,14 @@ export default function AdminReviewsPage() {
                             />
                             선택
                           </label>
-                        ) : paymentAccountMissing ? (
+                        ) : null}
+                        {paymentAccountMissing ? (
                           <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">
-                            계좌 미입력
+                            계좌 미입력 · 0 자동
+                          </span>
+                        ) : paymentAccountPartial ? (
+                          <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-black text-rose-800">
+                            계좌 일부 누락
                           </span>
                         ) : null}
                       </div>
@@ -782,7 +807,7 @@ export default function AdminReviewsPage() {
                           ? `쿠폰 #${row.couponId}`
                           : "혜택 없음"}
                     </div>
-                    {paymentReady ? (
+                    {paymentCompletable ? (
                       <button
                         type="button"
                         onClick={(event) => {
@@ -795,9 +820,9 @@ export default function AdminReviewsPage() {
                         <CheckCircle2 className="h-4 w-4" />
                         지급완료
                       </button>
-                    ) : paymentAccountMissing ? (
+                    ) : paymentAccountPartial ? (
                       <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs font-extrabold leading-5 text-amber-800">
-                        계좌정보 저장 후 지급완료할 수 있습니다.
+                        일부 입력된 계좌정보를 먼저 확인해주세요.
                       </div>
                     ) : null}
                   </div>
@@ -823,8 +848,10 @@ export default function AdminReviewsPage() {
                 <tbody className="divide-y divide-slate-100">
                   {pagedRows.map((row) => {
                     const active = selected?.id === row.id;
-                    const paymentReady = isPaymentReady(row);
-                    const paymentAccountMissing = row.status === "PAYMENT_PENDING" && !paymentReady;
+                    const accountState = reviewAccountState(row);
+                    const paymentCompletable = isPaymentCompletable(row);
+                    const paymentAccountMissing = row.status === "PAYMENT_PENDING" && accountState === "empty";
+                    const paymentAccountPartial = row.status === "PAYMENT_PENDING" && accountState === "partial";
 
                     return (
                       <tr
@@ -835,6 +862,7 @@ export default function AdminReviewsPage() {
                           openDetail(row.id);
                         }}
                         onKeyDown={(keyboardEvent) => {
+                          if (keyboardEvent.target !== keyboardEvent.currentTarget) return;
                           if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
                             keyboardEvent.preventDefault();
                             openDetail(row.id);
@@ -843,18 +871,23 @@ export default function AdminReviewsPage() {
                         className={`cursor-pointer transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-pink-300 ${active ? "bg-pink-50/80" : "hover:bg-slate-50"}`}
                       >
                         <td className="px-4 py-3">
-                          {paymentReady ? (
-                            <input
-                              type="checkbox"
-                              checked={selectedPaymentIdSet.has(row.id)}
-                              onClick={(event) => event.stopPropagation()}
-                              onChange={(event) => togglePaymentSelection(row.id, event.target.checked)}
-                              disabled={actionLoading || loading}
-                              className="h-4 w-4 accent-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
-                              aria-label={`신청 #${row.id} 지급완료 선택`}
-                            />
-                          ) : paymentAccountMissing ? (
-                            <span className="text-xs font-black text-amber-700">계좌 미입력</span>
+                          {paymentCompletable ? (
+                            <div className="flex flex-col items-start gap-1">
+                              <input
+                                type="checkbox"
+                                checked={selectedPaymentIdSet.has(row.id)}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => togglePaymentSelection(row.id, event.target.checked)}
+                                disabled={actionLoading || loading}
+                                className="h-4 w-4 accent-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-label={`신청 #${row.id} 지급완료 선택`}
+                              />
+                              {paymentAccountMissing ? (
+                                <span className="text-[11px] font-black text-amber-700">0 자동</span>
+                              ) : null}
+                            </div>
+                          ) : paymentAccountPartial ? (
+                            <span className="text-xs font-black text-rose-700">계좌 일부 누락</span>
                           ) : (
                             <span aria-hidden="true" />
                           )}
@@ -877,20 +910,25 @@ export default function AdminReviewsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {paymentReady ? (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                markPaidByIds([row.id]);
-                              }}
-                              disabled={actionLoading || loading}
-                              className="inline-flex min-h-[34px] items-center justify-center rounded-xl bg-sky-600 px-3 text-xs font-black text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              지급완료
-                            </button>
-                          ) : paymentAccountMissing ? (
-                            <span className="text-xs font-black text-amber-700">계좌 저장 후 가능</span>
+                          {paymentCompletable ? (
+                            <div className="flex flex-col items-start gap-1">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  markPaidByIds([row.id]);
+                                }}
+                                disabled={actionLoading || loading}
+                                className="inline-flex min-h-[34px] items-center justify-center rounded-xl bg-sky-600 px-3 text-xs font-black text-white shadow-sm transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                지급완료
+                              </button>
+                              {paymentAccountMissing ? (
+                                <span className="text-[11px] font-black text-amber-700">계좌 0/0/0 기록</span>
+                              ) : null}
+                            </div>
+                          ) : paymentAccountPartial ? (
+                            <span className="text-xs font-black text-rose-700">계좌 확인 필요</span>
                           ) : (
                             <span aria-hidden="true" />
                           )}
@@ -1200,8 +1238,9 @@ function ReviewDetail({
   const canCancelReject = !finalized && event.status === "REJECTED";
   const canManualApprove =
     !finalized && (event.status === "PROOF_SENT" || event.status === "REJECTED");
+  const accountState = reviewAccountState(event);
   const hasCompleteAccount = hasCompleteReviewAccount(event);
-  const canMarkPaid = event.status === "PAYMENT_PENDING" && hasCompleteAccount;
+  const canMarkPaid = isPaymentCompletable(event);
   const savedRewardType = event.rewardType === "CASH" || event.rewardType === "COUPON"
     ? event.rewardType
     : "";
@@ -1220,7 +1259,10 @@ function ReviewDetail({
     && !hasCompleteAccount;
   const paymentPendingWithoutAccount = event.status === "PAYMENT_PENDING"
     && event.rewardType === "CASH"
-    && !hasCompleteAccount;
+    && accountState === "empty";
+  const paymentPendingWithPartialAccount = event.status === "PAYMENT_PENDING"
+    && event.rewardType === "CASH"
+    && accountState === "partial";
   const canProceedWithoutAccount = canApprove || canManualApprove;
 
   function continueWithoutAccount() {
@@ -1307,7 +1349,13 @@ function ReviewDetail({
 
       {paymentPendingWithoutAccount ? (
         <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-extrabold leading-6 text-amber-900">
-          지급대기 · 계좌정보 미입력. 계좌정보를 저장하면 지급 엑셀과 지급완료 처리 대상에 포함됩니다.
+          지급대기 · 계좌정보 미입력. 지급완료 처리 시 은행/계좌번호/예금주를 0/0/0으로 자동 기록합니다. 지급 엑셀에서는 제외됩니다.
+        </div>
+      ) : null}
+
+      {paymentPendingWithPartialAccount ? (
+        <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-extrabold leading-6 text-rose-900">
+          지급대기 · 계좌정보 일부 누락. 실제 입력값을 보호하기 위해 지급완료 전에 계좌정보를 모두 입력해주세요.
         </div>
       ) : null}
 
